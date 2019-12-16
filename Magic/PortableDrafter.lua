@@ -13,7 +13,7 @@ self.setRotation({0,0,0})
 Basic, Cards, Count, Tic, TAG, Back = false, {}, 0, 0.14, '', 'https://orig00.deviantart.net/f7ea/f/2016/040/2/f/playing_cards_template___wooden_back_by_toomanypenguins-d9r55w3.png'
 
 --[[Class Card]]
-local Card = setmetatable({
+local Card=setmetatable({
     n = 0,
     --TTS
     json = '',
@@ -37,22 +37,13 @@ local Card = setmetatable({
 function CARD(obj) end
 --[[Other Stuff]]
 function setBack()
-  local img = self.getDescription()
-  if img:find('http') then Back = self.getDescription() end
+  local img=self.getDescription()
+  if img:find('http')then Back=self.getDescription() end
   self.setDescription(Back)
 end
 --[[Class Button]]
-local Button = setmetatable({
-    function_owner = self,
-    click_function = 'loadSet',
-    label = 'Load xyz',
-    width = 2100,
-    height = 2100,
-    font_size = 199,
-    position = {0,0.5,0},
-    scale = {0.2,1,0.2},
-    },{
-    __call = function(t)
+local Button=setmetatable({function_owner=self,click_function='loadSet',label='Load xyz',width=2100,height=2100,font_size=199,position={0,0.5,0},scale={0.2,1,0.2},
+    },{__call = function(t)
       toggleMenu(false)
       Count = getUI('tooltip'):match('%d+')
       if Cards[TAG] then else
@@ -62,26 +53,7 @@ local Button = setmetatable({
       t.tooltip = 'Click to load '..getUI('text')..' set.\n\nRight Click to reset module and choose another set'
       t.label = 'Keep this area is clear\n\n\nLoad '..TAG..' Set\n\n'..getUI('text')..'\n\n\nRight click to reset'
       self.createButton(t)
-    end
-  })
-sGen={tsp={'tsb',121},akh={'mp2',54},hou={'mp2',54},kld={'mps',54},aer={'mps',54},bfz={'exp',45}}
-sRty = {
-  isd = function(c)if not c.image_uris then        return 'EXTRA'..c.rarity:upper()end end,
-  grn = function(c)if c.type_line:find('Land') then  return 'EXTRA'..c.rarity:upper()end end,
-  cns = function(c)if c.watermark == 'conspiracy' then return 'EXTRA'..c.rarity:upper()end end,
-  dom = function(c)if c.type_line:find('Legendary') then return c.rarity:upper(),'LEGENDARY' end end,
-  bbd = function(c)if c.oracle:find('Partner with ') then  return c.rarity:upper(),'PARTNER' end end,
-  war = function(c)if c.type_line:find('Planeswalker') then  return c.rarity:upper(),'PLANESWALKER' end end,
-  ice = function(c)if c.type_line:find('Basic Snow Land') then return 'COMMON' end end,
-  mh1 = function(c)if c.type_line:find('Basic Snow Land') then return 'SPECIAL' end end,}
-sRty.dka = sRty.isd
-sRty.soi = sRty.isd
-sRty.emn = sRty.isd
-sRty.rna = sRty.grn
-sRty.dgm = sRty.grn
-sRty.cn2 = sRty.cns
-sRty.csp = sRty.ice
-
+    end})
 --[[UI Menu Toggle]]
 function toggleMenu(bool) for _,v in ipairs({'expansion','core','masters','draft_innovation'})do
     self.UI.setAttribute(v,'active',bool)
@@ -249,22 +221,6 @@ function makeBoosters(a)
   end
 end
 --[[Pack Generation Overrides]]
-sPak = {
-  tsp = {SPECIAL=1,COMMON=10},
-  mh1 = {SPECIAL=1,COMMON=10},
-  bfz = {SPECIAL=432,COMMON=10},
-  kld = {SPECIAL=144,COMMON=10},
-  bbd = {PARTNER=1},
-  dom = {LEGENDARY=1},
-  war = {PLANESWALKER=1},
-  isd = {EXTRA={1,12,42,66}},
-  dka = {EXTRA={2,6,24,48}},
-  }
-sPak.cns = sPak.isd
-sPak.cn2 = sPak.isd
-sPak.aer = sPak.kld
-sPak.hou = sPak.kld
-sPak.akh = sPak.kld
 function createBooster( pos, pack )
   Card.position = pos
   
@@ -368,30 +324,25 @@ function mythicDist(r,m)if math.random(1,m or 8) == 1 then return 0,1 end return
 function onDrop() self.setRotation({0,0,0}) end
 function onSave()
   --Numeric+String Overlap Error
-  for i,v in ipairs(Cards) do table.remove(Cards) end
-  local name = '\n'
-  for k,_ in pairs(Cards) do name = name..k..' ' end
-  if name ~= '\n' then self.setName(mod_name..' '..version..name) end
+  for i,v in ipairs(Cards)do table.remove(Cards) end
+  local name='\n'
+  for k,_ in pairs(Cards)do name=name..k..' 'end
+  if name~='\n'then self.setName(mod_name..' '..version..name)end
   return JSON.encode(Cards)
 end
 function onLoad(data)
-  if data ~= '' then
-    Cards = JSON.decode(data)
-    for k,_ in pairs(Cards) do
-      print('Stored Set: '..k)
-    end
-  end
+  if data~=''then Cards=JSON.decode(data)for k,_ in pairs(Cards)do print('Stored Set: '..k)end end
   setBack()
   WebRequest.get(WorkshopID,self,'versionCheck')
 end
 function onChat(m,p)
-  if m:find('clearPortableBoosterGenerator') and p.admin then
-    Notes.addNotebookTab({ title = 'Cards', body = onSave()})
-    Cards = {}
+  if m:find('clearPortableBoosterGenerator')and p.admin then
+    Notes.addNotebookTab({title='Cards',body=onSave()})
+    Cards={}
     onSave()
     broadcastToAll('[ff2222]Sets Nilled Out![-]\nSets must be Reloaded.',{1,0.4,1})
-  elseif m:find('makeBoosters') and p.admin then
-    local n = m:match('%d+')
+  elseif m:find('makeBoosters')and p.admin then
+    local n=m:match('%d+')
     makeBoosters(n)
   end
 end
@@ -419,57 +370,36 @@ function versionCheck(wr)
   end
   printToAll(txt,{1,1,1})
 end
---[[Colored Type Writen by Tipsy Hobbit]]
-local oldName, basetable = '', '0123456789abcdefghijklmnopqrstuvwxyz'
-function TipsyTypeColorer()
-  function tipNum(num,base)
-    if type(num) == 'string' or type(num) == 'number' then
-      num = ''..num
-      local total, l = 0, #num
-      for i = 1, #num do
-        local c = num:sub(i,i)
-        c_val = string.find(basetable,c)
-        if c_val <= base then
-          total = total + base^(l-i)*c_val
-        else
-          return nil
-        end
-      end
-      return total
-    end
-    return nil
-  end
-  function hex_to_rgb(val)
-    hex = string.match(val,'[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]')
-    if hex == nil then
-      return {256,256,256}
-    else
-      return {tipNum(string.sub(hex,1,2),16),tipNum(string.sub(hex,3,4),16),tipNum(string.sub(hex,5,6),16)}
-    end
-  end
-  function rgb_to_hex(val)
-    return string.format('%x',val[1])..string.format('%x',val[2])..string.format('%x',val[3])
-  end
-  function string_to_color(str)
-    return string.sub(string.format('%x',tipNum(string.sub(string.gsub(string.lower(str),'%W',''),1,-2),36))..'ffffff',1,6)
-  end
-  function lightenColor(hex,ammount)
-    local cur, color = 0, hex_to_rgb(hex)
-    for i,j in pairs(color) do
-      cur = cur+j
-    end
-    while cur < ammount do
-      cur = 0
-      for i,j in pairs(color) do
-        if j < 256 then
-          color[i] = j+2
-        end
-        cur = cur+color[i]
-      end
-    --print(cur)
-    end
-    return rgb_to_hex(color)
-  end
-end
-TipsyTypeColorer()
---EOF
+
+sGen={tsp={'tsb',121},akh={'mp2',54},hou={'mp2',54},kld={'mps',54},aer={'mps',54},bfz={'exp',45}}
+sPak={
+  tsp={SPECIAL=1,COMMON=10},
+  mh1={SPECIAL=1,COMMON=10},
+  bfz={SPECIAL=432,COMMON=10},
+  kld={SPECIAL=144,COMMON=10},
+  bbd={PARTNER=1},
+  dom={LEGENDARY=1},
+  war={PLANESWALKER=1},
+  isd={EXTRA={1,12,42,66}},
+  dka={EXTRA={2,6,24,48}},}
+sPak.cns=sPak.isd
+sPak.cn2=sPak.isd
+sPak.aer=sPak.kld
+sPak.hou=sPak.kld
+sPak.akh=sPak.kld
+sRty={
+  isd=function(c)if not c.image_uris then        return 'EXTRA'..c.rarity:upper()end end,
+  grn=function(c)if c.type_line:find('Land') then  return 'EXTRA'..c.rarity:upper()end end,
+  cns=function(c)if c.watermark == 'conspiracy' then return 'EXTRA'..c.rarity:upper()end end,
+  dom=function(c)if c.type_line:find('Legendary') then return c.rarity:upper(),'LEGENDARY' end end,
+  bbd=function(c)if c.oracle:find('Partner with ') then  return c.rarity:upper(),'PARTNER' end end,
+  war=function(c)if c.type_line:find('Planeswalker') then  return c.rarity:upper(),'PLANESWALKER' end end,
+  ice=function(c)if c.type_line:find('Basic Snow Land') then return 'COMMON' end end,
+  mh1=function(c)if c.type_line:find('Basic Snow Land') then return 'SPECIAL' end end,}
+sRty.dka=sRty.isd
+sRty.soi=sRty.isd
+sRty.emn=sRty.isd
+sRty.rna=sRty.grn
+sRty.dgm=sRty.grn
+sRty.cn2=sRty.cns
+sRty.csp=sRty.ice
