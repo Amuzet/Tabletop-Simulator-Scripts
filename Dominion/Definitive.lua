@@ -297,9 +297,9 @@ function click_endGame(obj, color)
                             end end end end
                             if obj2.getName() == "Tower" then
                                 local towerCount,notEmpty,zones=0,{},{}
-                                for j,guid in ipairs(ref_basicSlotZones)do zones:insert(getObjectFromGUID(guid))end
-                                zones:insert(getObjectFromGUID(ref_baneSlot.zone))
-                                for j,slot in ipairs(ref_kingdomSlots)do zones:insert(getObjectFromGUID(slot.zone))end
+                                for j,guid in ipairs(ref_basicSlotZones)do table.insert(zones,getObjectFromGUID(guid))end
+                                table.insert(zones,getObjectFromGUID(ref_baneSlot.zone))
+                                for j,slot in ipairs(ref_kingdomSlots)do table.insert(zones,getObjectFromGUID(slot.zone))end
                                 for j,zone in ipairs(zones)do for __,obj in ipairs(zone.getObjects())do
                                         if obj.tag=='Card'and obj.getName()~='Bane Card'then
                                             if string.find(getType(obj.getName()), "Knight") == nil then
@@ -358,12 +358,12 @@ function timerStart(t)click_StartGame(t[1],t[2])end
 function findCard( target, Ref, pos )
     for j,set in ipairs(Ref)do
         local deck = getObjectFromGUID( set.guid )
-        for _,card in ipairs( deck.getObjects() )do
-            if card.name == target then
-                log('Found: '..target)
-                deck.takeObject({position=pos,index=card.index,smooth = false})
-                break
-end end end end
+        if deck and deck.tag=='deck'then
+            for _,card in ipairs( deck.getObjects() )do
+                if card.name == target then
+                    log('Found: '..target)
+                    deck.takeObject({position=pos,index=card.index,smooth = false})
+                    break end end end end end
 function kingdomList(tbl,par)
     if tbl.bane then findCard( tbl.bane, ref_cardSets, ref_baneSlot.pos )end
     if tbl.S then useShelters=1 else useShelters=2 end
@@ -407,29 +407,27 @@ function click_selectDeck(obj, color)
     end
 end
 function click_AllSets(obj, color)
-    useSets = {}
-    for _,set in ipairs(ref_cardSets) do
-        table.insert(useSets, set.guid)
-    end
+    useSets={}
+    for i,set in ipairs(ref_cardSets)do if i<15 table.insert(useSets,set.guid)end end
     click_StartGame(obj, color)
 end
 function click_TwoSets(obj, color)
-    useSets = {}
-    local n,m = rcs(),rcs()
-    while m == n do m = rcs() end
+    useSets={}
+    local n,m=rcs(),rcs()
+    while m==n do m=rcs()end
     table.insert(useSets, ref_cardSets[n].guid)
     table.insert(useSets, ref_cardSets[m].guid)
     
     click_StartGame(obj, color)
 end
 function click_ThreeSets(obj, color)
-    useSets = {}
-    local n,m,o = rcs(),rcs(),rcs()
-    while m == n do m = rcs() end
-    while o == m or o == n do o = rcs() end
-    table.insert(useSets, ref_cardSets[n].guid)
-    table.insert(useSets, ref_cardSets[m].guid)
-    table.insert(useSets, ref_cardSets[o].guid)
+    useSets={}
+    local n,m,o=rcs(),rcs(),rcs()
+    while m==n do m=rcs()end
+    while o==m or o==n do o=rcs()end
+    table.insert(useSets,ref_cardSets[n].guid)
+    table.insert(useSets,ref_cardSets[m].guid)
+    table.insert(useSets,ref_cardSets[o].guid)
     
     click_StartGame(obj, color)
 end
@@ -438,11 +436,11 @@ function click_RedditWeekly(obj, color)
   local KotW = "KotW 12/1: Bishop, Crown, Forager, Goons, Inventor, King's Court, Lighthouse, Lurker, Remake, Watchtower. Events: Dominate, Donate. Colony/Platinum; no Shelters. [Intrigue, Seaside, Prosperity, Cornucopia, Dark Ages, Empires, Renaissance]"
   
   bcast('Kingdom of the Week '..KotW:match('%d+/%d+')..'/2019')
-  local tbl={bane=KotW:match('\(Bane: (.+)\)'),P=KotW:match('[NOno ]+Colony/Platinum'),S=KotW:match('[NOno ]+Shelters')}
+  local tbl={bane=KotW:match('%(Bane: (.+)%)'),P=KotW:match('[NOno ]*Colony/Platinum'),S=KotW:match('[NOno ]*Shelters')}
   if tbl.P and tbl.P:find('[Nn][Oo]')then tbl.P=false end
   if tbl.S and tbl.S:find('[Nn][Oo]')then tbl.S=false end
-  local x=KotW:gsub('%p ([%s%w\']+)',function(a)tbl:insert(a)return''end,10)
-  local g=function(b)x:match('[s]?(: [%s%w,])[\.;]'):gsub('%p ([%s%w\']+)',function(a)tbl:insert(a)end)end
+  local x=KotW:gsub('%p ([%s%w\']+)',function(a)table.insert(tbl,a)return''end,10)
+  local g=function(b)x:match('[s]?(: [%s%w,])[%.;]'):gsub('%p ([%s%w\']+)',function(a)table.insert(tbl,a)end)end
   g('Landmark')
   g('Project')
   g('Event')
@@ -1122,11 +1120,10 @@ function check(v,n) return string.sub(v.getName(), 1, -6) == n end
 
 
 local Use=setmetatable({' ',' '},
-  {__call=function(t,s)local _,n=t[1]:gsub(s,s)
-      if n>0 then return n end end})
-function Use:Add(u,cardname)
+  {__call=function(t,s)local _,n=t[1]:gsub(s,s);if n>0 then return n end return false end})
+function Use.Add(cardname)
     local n,s=0,''
-    u[2] = u[2]..cardname
+    Use[2] = Use[2]..cardname
     --Costs
     if getCost(cardname):sub(-1) == "1" then s=s..'Potion 'end
     if not getCost(cardname):find("D0") then s=s..'Debt 'end
@@ -1143,80 +1140,63 @@ function Use:Add(u,cardname)
     end end
     if n>100 and n<126 then s=s..'Platinum '
     elseif n>175 and n<225 then s=s..'Shelters 'end
-    u[1] = u[1]..s
+    Use[1] = Use[1]..s
 end
---[[Reading Use Table
-for v in str:gmatch('%s('..var..')%s') do
-    print(v)
-end]]
 function cleanUp()
     --Checks
     for i,z in pairs(ref_kingdomSlots) do
         for j, v in ipairs(getObjectFromGUID(z.zone).getObjects()) do
             if v.tag == "Deck" then
                 local name=string.sub(v.getName(), 1, -6)
-                if name=="Knights"then Use:Add('Knight')else Use:Add(name)
+                if name=="Knights"then Use.Add('Knight')else Use.Add(name)
     end end end end
+    
     if Use('Bane')then
-        for i, v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects()) do
+        for i, v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects())do
             if v.tag == "Deck" then
                 local name=string.sub(v.getName(), 1, -6)
-                if name=="Knights"then Use:Add('Knight')else Use:Add(name)
-    end end end end
-    if Use('BlackMarket') then
-        blackMarketDeck.setPosition(ref_randomizer.pos)
-        blackMarketDeck.setRotation({0,180,180})
-        for i, v in pairs(blackMarketDeck.getObjects()) do
-            Use:Add(v.nickname)
-    end end
+                if name=="Knights"then Use.Add('Knight')else Use.Add(name)end end end
+    else for i, v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects())do v.destruct()end end
+    
+    if Use('BlackMarket')then
+      for i, v in ipairs(getObjectFromGUID(ref_randomizer.zone).getObjects())do
+        if v.getName()=='Black Market deck' then
+          for i, v in pairs(blackMarketDeck.getObjects())do Use.Add(v.nickname)end
+          v.setPosition(ref_randomizer.pos)
+          v.setRotation({0,180,180})end end
+    else for i, v in ipairs(getObjectFromGUID(ref_randomizer.zone).getObjects())do v.destruct()end end
+    
     for _,z in pairs(ref_eventSlots) do
         for j, v in ipairs(getObjectFromGUID(z.zone).getObjects()) do
-            if v.tag == "Card" then Use:Add(name)
+            if v.tag == "Card" then Use.Add(name)
     end end end
     --ProperCleanUp
-    local sp=function(a,b)if a~=1 then if Use(b)>9 or math.random(a,1+Use(b)-a*5)>0 then a=1;end end end
+    local sp=function(a,b)local _,c=Use[1]:gsub(b,b);if a~=1 then if c>9 or math.random(a,1+c-a*5)>0 then a=1;end end end
     sp(useShelters,'Shelters')
     sp(usePlatinum,'Platinum')
     if usePlatinum~=1 then
-        getPile("Platinum pile").destruct()
-        getPile("Colony pile").destruct()
-        getPile("Gold pile").setPosition(ref_basicSlots[5].pos)
-        getPile("Silver pile").setPosition(ref_basicSlots[4].pos)
-        getPile("Copper pile").setPosition(ref_basicSlots[3].pos)
-        getPile("Potion pile").setPosition(ref_basicSlots[2].pos)
-        getPile("Ruins pile").setPosition(ref_basicSlots[6].pos)
+        getPile('Platinum pile').destruct()
+        getPile('Colony pile').destruct()
+        getPile('Gold pile').setPosition(ref_basicSlots[5].pos)
+        getPile('Silver pile').setPosition(ref_basicSlots[4].pos)
+        getPile('Copper pile').setPosition(ref_basicSlots[3].pos)
+        getPile('Potion pile').setPosition(ref_basicSlots[2].pos)
+        getPile('Ruins pile').setPosition(ref_basicSlots[6].pos)
         getObjectFromGUID(ref_basicSlots[1].guid).destruct()
         getObjectFromGUID(ref_basicSlots[7].guid).destruct()
-    else getPile("Platinum pile").highlightOff()end
-    local useBane = false
-    for i, v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects()) do
-        if v.tag == "Deck" then useBane = true end end
-    if useBane == false then
-        for i, v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects()) do
-            v.destruct()end end
-    local blackMarketDeck = nil
-    for i, v in ipairs(getObjectFromGUID(ref_randomizer.zone).getObjects()) do
-        if v.getName() == "Black Market deck" then
-            blackMarketDeck = v
-        end
-    end
-    if blackMarketDeck == nil then
-        for i, v in ipairs(getObjectFromGUID(ref_randomizer.zone).getObjects()) do
-            v.destruct()
-        end
-    end
+    else getPile('Platinum pile').highlightOff()end
     
     if not Use('Potion') then
-        getPile("Potion pile").destruct()
-        if usePlatinum ~= 1 then
+        getPile('Potion pile').destruct()
+        if usePlatinum~=1 then
             getObjectFromGUID(ref_basicSlots[2].guid).destruct()
         else
             getObjectFromGUID(ref_basicSlots[1].guid).destruct()
         end
     end
     if not Use('Looter') then
-        getPile("Ruins pile").destruct()
-        if usePlatinum ~= 1 then
+        getPile('Ruins pile').destruct()
+        if usePlatinum~=1 then
             getObjectFromGUID(ref_basicSlots[6].guid).destruct()
         else
             getObjectFromGUID(ref_basicSlots[7].guid).destruct()
@@ -1257,7 +1237,7 @@ function cleanUp()
     f(Use('Wish'),'Wish')
     f(Use('Hyde'),'Hyde')
     
-    for i,v in ipairs(sideSlots) do
+    for i,v in ipairs(sideSlots)do
       getPile(v.." pile").setPosition(ref_sideSlots[i].pos)
     end
     
@@ -1273,7 +1253,7 @@ function cleanUp()
         for j, obj2 in ipairs(zone.getObjects()) do
             if obj2.tag == "Card" then
                 
-                Use:Add(obj2.getName())
+                Use.Add(obj2.getName())
                 
                 if string.find(getCost(obj2.getName()), "D0") == nil and string.find(getCost(obj2.getName()), "DX") == nil then
                     useDebt = true
@@ -1299,14 +1279,14 @@ function cleanUp()
             obj.setPosition({obj.getPosition()[1] + 10.5, obj.getPosition()[2], obj.getPosition()[3]})
         end
     end
-    if useBaker then
+    if Use('Baker') then
         for i, obj in ipairs(getAllObjects()) do
             if obj.getName() == "Coffers" and obj.getDescription() == "" then
                 obj.call("baker")
             end
         end
     end
-    if use('Trade Route') then
+    if Use('Trade Route') then
         getObjectFromGUID(ref_tradeRoute.guid).destruct()
         for i, obj in ipairs(getAllObjects()) do
             if obj.getName() == "Coin Tokens" and obj.getDescription() == "Trade Route" then
@@ -1314,27 +1294,27 @@ function cleanUp()
             end
         end
     end
-    if not useTavernMat then
+    if not Use('TavernMat') then
         for i in pairs(ref_tavernMats) do
             getObjectFromGUID(ref_tavernMats[i]).destruct()
         end
     end
-    if not useIsland then
+    if not Use('Island') then
         for i in pairs(ref_islands) do
             getObjectFromGUID(ref_islands[i]).destruct()
         end
-    elseif not useTavernMat then
+    elseif not Use('TavernMat') then
         for i in pairs(ref_islands) do
             local obj = getObjectFromGUID(ref_islands[i])
             local pos = obj.getPosition()
             obj.setPosition({pos[1], pos[2], pos[3] - 7})
         end
     end
-    if not usePirateShip then
+    if not Use('PirateShip') then
         for i in pairs(ref_pirateShips) do
             getObjectFromGUID(ref_pirateShips[i]).destruct()
         end
-    elseif not useTavernMat then
+    elseif not Use('TavernMat') then
         for i in pairs(ref_pirateShips) do
             local obj = getObjectFromGUID(ref_pirateShips[i])
             local pos = obj.getPosition()
@@ -1343,7 +1323,7 @@ function cleanUp()
     end
     for i, obj in ipairs(getAllObjects()) do
         if obj.getName() == "Coin Tokens" and obj.getDescription() == "Pirate Ship" then
-            if usePirateShip and not useTavernMat then
+            if Use('PirateShip') and not Use('TavernMat') then
                 local pos = obj.getPosition()
                 obj.setPosition({pos[1], pos[2], pos[3] - 7})
             elseif not usePirateShip then
@@ -1351,26 +1331,25 @@ function cleanUp()
             end
         end
     end
-    if not useNativeVillage then
+    if not Use('NativeVillage') then
         for i in pairs(ref_nativeVillages) do
             getObjectFromGUID(ref_nativeVillages[i]).destruct()
         end
-    elseif not useTavernMat then
+    elseif not Use('TavernMat') then
         for i in pairs(ref_nativeVillages) do
             local obj = getObjectFromGUID(ref_nativeVillages[i])
             local pos = obj.getPosition()
             obj.setPosition({pos[1], pos[2], pos[3] - 7})
         end
     end
-    local temp = {usePlusCard, usePlusAction, useTwoCost, usePlusBuy,
-        usePlusCoin, useMinusCoin, useMinusCard, useTrashing, useEstate,
-        useJourney, useCoffers, useVP, useDebt, useVillager, useProject}
+    local temp = {Use('PlusCard'), Use('PlusAction'), Use('TwoCost'), Use('PlusBuy'),
+        Use('PlusCoin'), Use('MinusCoin'), Use('MinusCard'), Use('Trashing'), Use('Estate'),
+        Use('Journey'), Use('Coffers'), Use('VP'), Use('Debt'), Use('Villager'), Use('Project')}
     local names = {"+1 Card token", "+1 Action token", "-2 Cost token",
         "+1 Buy token", "+1 Coin token", "-1 Coin token", "-1 Card token",
         "Trashing token", "Estate token", "Journey token", "Coffers",
         "VP Tokens", "Debt Tokens", "Villagers", "Owns Project"}
-    for i, v in ipairs(temp) do
-        if not v then
+    for i, v in ipairs(temp)do if not v then
             for j, obj in ipairs(getAllObjects()) do
                 if obj.getName() == names[i] then
                     if obj.getName() == "Coin Tokens" and obj.getDescription() == "Pirate Ship" then
@@ -1918,10 +1897,7 @@ function bcast(msg, tcolor, pcolor)
         Player[pcolor].broadcast(msg, tcolor)
     end
 end
-ref_tokenBag = {
-    coin = "491d9b",
-    debt = "7624c9",
-    vp = "b935ba",}
+ref_tokenBag={coin="491d9b",debt="7624c9",vp="b935ba"}
 
 function tokenCallback(obj, stuff)obj.call("setOwner", {stuff[1], stuff[2]})end
 function tokenMake(obj,key,n)
@@ -2512,7 +2488,7 @@ ref_master = {
     {cost="MXDXP0",name="Defiled Shrine",type="Landmark",depend='VP',setup=function(o)local t=o.getObjects()[1].description;if t:find('Action') and not t:find('Gathering')then tokenMake(o,'vp',2) end end},
     {cost="MXDXP0",name="Fountain",type="Landmark",VP=function(t)if t.deck.Copper>9 then return 15 end end},
     {cost="MXDXP0",name="Keep",type="Landmark"},
-    {cost="MXDXP0",name="Labyrinth",type="Landmark",depend='VP'setup=function(o)if o.getName()=='Arena'then tokenMake(o,'vp',getPlayerCount()*6) end end},
+    {cost="MXDXP0",name="Labyrinth",type="Landmark",depend='VP',setup=function(o)if o.getName()=='Arena'then tokenMake(o,'vp',getPlayerCount()*6) end end},
     {cost="MXDXP0",name="Mountain Pass",type="Landmark",depend='VP Debt'},
     {cost="MXDXP0",name="Museum",type="Landmark",VP=function(t)return #t.deck*2 end},
     {cost="MXDXP0",name="Obelisk",type="Landmark",VP=function(t)if obeliskTarget=="Knights" then return t.knights*2 elseif obeliskTarget then return (t.deck[obeliskTarget] or 0)*2 end return 0 end},
@@ -2521,7 +2497,7 @@ ref_master = {
     {cost="MXDXP0",name="Tomb",type="Landmark",depend='VP'},
     {cost="MXDXP0",name="Tower",type="Landmark",VP=function(t)
         end},
-    {cost="MXDXP0",name="Triumphal Arch",type="Landmark",VP=function(t)local h,s=0,0;for card,c in pairs(t.deck)do if getType(card):('Action')then if c>h then s=h;h=c elseif c>s then s=c end end end return s * 3 end},
+    {cost="MXDXP0",name="Triumphal Arch",type="Landmark",VP=function(t)local h,s=0,0;for card,c in pairs(t.deck)do if getType(card):find('Action')then if c>h then s=h;h=c elseif c>s then s=c end end end return s * 3 end},
     {cost="MXDXP0",name="Wall",type="Landmark",VP=function(t)return -(t.amount-15) end},
     {cost="MXDXP0",name="Wolf Den",type="Landmark",VP=function(t)return -t.wolf*3 end},
     {cost="M4D0P0",name="Envoy",type="Action"},
@@ -2665,4 +2641,5 @@ ref_master = {
     {cost="M3D0P0",name="Drawbridge",type="Action - Reserve"},
     {cost="M4D0P0",name="Jinxed Jewel",type="Treasure - Night - Heirloom"},
     {cost="M0D0P0",name="-1 Card Token",type="Curse"},
+    {cost="M0D0P0",name="TemplateCard",type="Curse",depend='Debt VP Coffers Villager Estate',setup=function(o)print('TEMPLATE')end,VP=function(t)return t.estates*0 end},
 }
