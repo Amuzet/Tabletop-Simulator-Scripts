@@ -9,7 +9,6 @@ function onLoad()
     if zone then if zone.tag~='Scripting'then
       print(d:format(v.h,v.z,k,zone.tag))else i=i+1 end end end
   
-  addContextMenuItem('Clear Context',function(c)if Player[c].admin then clearContextMenu()end end)
   addContextMenuItem('Get Hand Count',function(c)
       local s,g='[888888]Cards in Hands:',' [%s]%s[-]'
       for _,p in pairs(Player.getPlayers())do
@@ -31,15 +30,16 @@ function mtgContext(Obj,p)
   Obj.hide_when_face_down=false
   Obj.clearContextMenu()
   Obj.highlightOn(stringColorToRGB(p or player))
-  for _,s in pairs({'Scry','Cascade'})do
+  for s,v in pairs({Lands='Click to cycle modes.\nRight click to .',Scry='Takes the top X cards and places them in a pile.',Cascade='Will search this deck for the first card with CMC < X.'})do
     Obj.addContextMenuItem(s..' X',function(p)
         local h=Obj.getBounds().size.y
         btn.font_color=stringColorToRGB(p)
+        btn.tooltip=v
         btn.width=900
         
         btn.label='Cancel '..s
         btn.click_function='cB'
-        btn.position={0,-h/2,-0.7}
+        btn.position={0,-h*0.4,-0.7}
         Obj.createButton(btn)
         
         btn.label=s..' for 0'
@@ -52,43 +52,49 @@ function mtgContext(Obj,p)
         btn.input_function='i'..s
         btn.position[3]=0
         btn.font_size=200
-        btn.tooltip='Will search this deck for the first spell of this CMC or less.'
         btn.width=btn.height
         Obj.createInput(btn)
-        btn.font_size=bfs end)
-end end
-function cB(o,p,a)o.clearButtons()if o.getInputs()then o.clearInputs()end end
+        btn.font_size=bfs end)end end
+function cB(o,p,a)o.setLock(false)o.clearButtons()if o.getInputs()then o.clearInputs()end end
+function oS(o)o.setLock(true)
+  local p,b,r,f,t=o.getPosition(),o.getBounds(),o.getTransformRight(),o.getTransformForward(),{flip=true}
+  t.position={(b.size.x*(r.x+f.x))+p.x+0.1,b.center.y,(b.size.z*(r.z+f.z))+p.z+0.1}return o.getInputs()[1].value,t end
 --Scry
 function iScry(o,p,v,sE)if not sE then o.editButton({index=1,label='Scry for '..v})end end
-function cScry(o,P,a)
-  o.setLock(true)
-  local x,p,b,r,f,t=o.getInputs()[1].value,o.getPosition(),o.getBounds(),o.getTransformRight(),o.getTransformForward(),{}
-  t.position={(b.size.x*(r.x+f.x))+p.x,b.center.y,(b.size.z*(r.z+f.z))+p.z}
+function cScry(o,P,a)local x,t=oS(o);t.flip=false
   for i=1,x do o.takeObject(t)end
   printToAll('Scry '..x,stringColorToRGB(p))
   cB(o)end
+--Lands
+function iLands(o,p,v,sE)if not sE then o.editButton({index=1,label='Lands for '..v})end end
+function cLands(o,P,a)
+  if a then
+    local x,t=oS(o);t.flip,t.index=false,x
+    o.takeObject(t)
+    printToAll(o.getButtons()[2].label,stringColorToRGB(p))
+    cB(o)
+  else
+    
+    end end
 --Cascade
 function iCascade(o,p,v,sE)if not sE then o.editButton({index=1,label='Cascade for '..v})end end
-function cCascade(o,P,a)
-  o.setLock(true)
-  local x,p,b,r,f,t=o.getInputs()[1].value,o.getPosition(),o.getBounds(),o.getTransformRight(),o.getTransformForward(),{flip=true}
-  t.position={(b.size.x*(r.x+f.x))+p.x,b.center.y,(b.size.z*(r.z+f.z))+p.z}
-  
-  for i,v in ipairs(o.getObjects())do
+function cCascade(o,P,a)local x,t=oS(o)
+  printToAll('Cascade for '..x,stringColorToRGB(p))
+  for _,v in ipairs(o.getObjects())do
     o.takeObject(t)
-    if not v.name:find('CMC')then
+    if not v.name:find('CMC')and not v.name:find('Land')then
       if v.name==''then
         Player[P].broadcast('Card not named!\nAuto Cascade Stopped.')
       else
-        v.name=v.name:gsub('\n.*',''):gsub(' //.*','')
-        Player[P].broadcast('Card not Costed!\nAuto Cascade Stopped.')
+        Player[P].broadcast('Spell not Costed!\nAuto Cascade Stopped.\nAppend #CMC to name.')
         --WebRequest.get()
+        btn.label='Add CMC to Deck'
+        btn.click_function='DeckList'
+        btn.tooltip='Click to make a decklist of your deck in a new notebook tab.\nRight click to dismiss.'
+        btn.position[3]=0
+        o.createButton(btn)
+        return true
       end
       break
-    elseif v.name:find('%s%d+CMC')then
-      if v.name:match('(%d+)CMC')<x and not v.name:find('Land')then break end
-    end
-  end
-  o.setLock(false)
-  cB(o)
-end
+    elseif not v.name:find('Land')and v.name:match('(%d+)CMC')<x then break end
+  end cB(o)end

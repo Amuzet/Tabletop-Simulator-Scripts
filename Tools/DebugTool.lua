@@ -5,7 +5,7 @@ B=setmetatable({click_function='B',function_owner=self,position={0,0.51,0},scale
 function onDestroy()if Obj then Obj.highlightOff()end end
 function onPlayerTurnStart(p)if Obj then Obj.highlightOff()self.setColorTint(stringColorToRGB(p))Obj.highlightOn(self.getColorTint())end end
 function onCollisionEnter(o)log(o)if Obj then Obj.highlightOff()end Obj=o.collision_object;Obj.highlightOn(self.getColorTint())end
-function onLoad()self.clearButtons()for i,v in pairs({'Get\nTag','Get\nBounds','Get\nJSON','Get\nSteamIDs','Toggle\nInteractable'})do B(v,{(math.floor((i-1)/5)-0.5)*2.1*s,0.51,((i-1)%5-2)*s})Obj.addContextMenuItem(v:gsub('\n',' '),self.getVar(B.click_function:gsub('c_','m_')))end end
+function onLoad()addContextMenuItem('Clear Context',function(c)if Player[c].admin then clearContextMenu()end end)self.clearButtons()for i,v in pairs({'Get\nTag','Get\nBounds','Get\nJSON','Get\nSteamIDs','Toggle\nInteractable'})do B(v,{(math.floor((i-1)/5)-0.5)*2.1*s,0.51,((i-1)%5-2)*s})Obj.addContextMenuItem(v:gsub('\n',' '),self.getVar(B.click_function:gsub('c_','m_')))end end
 
 function m_Tag(a)c_Tag(nil,a)end
 function m_JSON(a)c_JSON(nil,a)end

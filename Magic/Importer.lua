@@ -1,6 +1,6 @@
 --By Amuzet
 mod_name = 'Card Importer'
-version = 1.72
+version = 1.76
 self.setName(mod_name..' '..version)
 author = '76561198045776458'
 WorkshopID = 'https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922'
@@ -9,29 +9,40 @@ WorkshopID = 'https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922'
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table' then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL) end end
 --[[Variables]]
-local Tick, Test, Quality, Back = 0.2, false, TBL.new('normal',{}), TBL.new('https://i.stack.imgur.com/787gj.png',{})
+local Tick,Test,Quality,Back=0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
 --[[Card Spawning Class]]
-local Card = setmetatable({
-    n = 1,
-    hwfd = true,
-    image = false,
-    --TTS
-    json = '',
-    position = {0,0,0},
-    snap_to_grid = true,
-    callback = 'INC',
-    callback_owner = self},{
-    __call = function(t,c, qTbl )
+local Deck=setmetatable({White={n=0,did='',cd='',co='',json='',position={0,0,0}},Brown={n=0,did='',cd='',co='',json='',position={0,0,0}},Red={n=0,did='',cd='',co='',json='',position={0,0,0}},Orange={n=0,did='',cd='',co='',json='',position={0,0,0}},Yellow={n=0,did='',cd='',co='',json='',position={0,0,0}},Green={n=0,did='',cd='',co='',json='',position={0,0,0}},Teal={n=0,did='',cd='',co='',json='',position={0,0,0}},Blue={n=0,did='',cd='',co='',json='',position={0,0,0}},Purple={n=0,did='',cd='',co='',json='',position={0,0,0}},Pink={n=0,did='',cd='',co='',json='',position={0,0,0}},j=[[{
+  "Name":"Deck",
+  "Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},
+  "Nickname":"%s",
+  "Description":"%s",
+  "DeckIDs":[%s],
+  "CustomDeck":{%s},
+  "ContainedObjects":[%s]
+}]]},{__call=function(t,qTbl)
+    uNotebook('JSON d',t[qTbl.color].did:gsub('\n',' '))
+    uNotebook('JSON c',t[qTbl.color].cd:gsub('\n',' '))
+    uNotebook('JSON o',t[qTbl.color].co:gsub('\n',' '))
+    t[qTbl.color].json=t.j:format(Player[qTbl.color].steam_name,qTbl.url or'Notebook',t[qTbl.color].did:sub(1,-2),t[qTbl.color].cd:sub(1,-2),t[qTbl.color].co:sub(1,-2))
+    t[qTbl.color].position=qTbl.position or{0,1,0}
+    t[qTbl.color].position[2]=t[qTbl.color].position[2]+1
+    t[qTbl.color].did,t[qTbl.color].cd,t[qTbl.color].co,t[qTbl.color].n='','','',1
+    spawnObjectJSON(t[qTbl.color])end})
+local Card = setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,callback='INC',callback_owner=self,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
+  {__call = function(t,c, qTbl )
+      --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
       t.json = ''
       c.face = ''
       c.oracle = ''
       c.back = Back[qTbl.player] or Back.___
-      c.name = c.name..'\n'..c.type_line:gsub(' // .*',''):gsub('%w*',
-        function(a) return '['..string_to_color(a)..']'..a..'[-]' end)..' '..c.cmc..'CMC'
+      c.name = c.name:gsub('"','\'')..'\n'..c.type_line:gsub(' // .*',''):gsub('%S*',
+        function(a)return'['..string_to_color(a)..']'..a..'[-]'end)..' '..c.cmc..'CMC'
+      c.name = c.name:gsub('%[0fffff%]%[%-%]','')
       --Oracle text Handling for Split/DFCs
       if c.card_faces then
-        for _,f in ipairs(c.card_faces)do c.oracle = c.oracle .. c.name ..'\n'.. setOracle(f) end
+        for _,f in ipairs(c.card_faces)do c.oracle = c.oracle .. c.name:gsub('"','\'') ..'\n'.. setOracle(f) end
       else c.oracle = setOracle(c) end
+      --if Quality[qTbl.player]=='art_crop'then c.oracle..'\nArtist: '..c.artist end
       --Image Handling
       if t.image and not qTbl.deck then --Custom Image
         c.face = t.image
@@ -46,32 +57,30 @@ local Card = setmetatable({
           c.face = c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
           t.hwfd = false
       end end
-      --Log Current Values
-      if not qTbl.deck then uLog(qTbl.color..' Spawned '..c.name:gsub('\n.*',''))end
+      local n=t.n
+      if qTbl.deck then n=Deck[qTbl.color].n
+        Deck[qTbl.color].n=Deck[qTbl.color].n+1 end
       --Set JSON to Spawn Card
-      t.json = string.format(
-'{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}',
-        c.name , c.oracle , t.n , t.n , c.face , c.back)
-      --Spawn at higher position
-      t.position = qTbl.position or {0,2,0}
-      t.position[2] = t.position[2] + Tick
-      spawnObjectJSON(t)
-    end})
+      t.json=string.format(t.j,c.name,c.oracle,n,n,c.face,c.back)
+      --What to do with this card
+      if qTbl.deck then --Add it to player deck
+        Deck[qTbl.color].did=Deck[qTbl.color].did..Deck[qTbl.color].n..'00,'
+        local fistpos=t.json:find('"'..Deck[qTbl.color].n..'"')
+        Deck[qTbl.color].cd=Deck[qTbl.color].cd..t.json:sub(fistpos,-3)..','
+        Deck[qTbl.color].co=Deck[qTbl.color].co..t.json..','
+        if Deck[qTbl.color].n%10==0 then
+          uNotebook('Card '..Deck[qTbl.color].n,t.json)
+          Player[qTbl.color].broadcast(Deck[qTbl.color].n..' Cards loaded!',{0.5,0.5,0.5})
+        end
+        if Deck[qTbl.color].n==qTbl.deck then Deck(qTbl)end
+      else--Spawn solo card
+        uLog(qTbl.color..' Spawned '..c.name:gsub('\n.*',''))
+        t.position=qTbl.position or{0,2,0}
+        t.position[2]=t.position[2]+Tick
+        spawnObjectJSON(t)end end})
 
-function INC(obj)
-  obj.hide_when_face_down = Card.hwfd
-  Card.hwfd = true
-  Card.n = Card.n + 1
-end
-
-function setOracle(c)
-  local n = '\n[b]'
-  if c.power then n = n .. c.power ..'/'.. c.toughness
-  elseif c.loyalty then n = n .. tostring(c.loyalty)
-  else n = '[b]' end
-  return c.oracle_text:gsub('\"',"'") .. n .. '[/b]'
-end
-
+function INC(obj)obj.hide_when_face_down,Card.hwfd,Card.n=Card.hwfd,true,Card.n+1 end
+function setOracle(c)local n='\n[b]'if c.power then n=n..c.power ..'/'.. c.toughness elseif c.loyalty then n=n..tostring(c.loyalty)else n='[b]'end return c.oracle_text:gsub('\"',"'")..n..'[/b]'end
 function setCard(wr, qTbl )
   if not qTbl.deck then uLog(wr,wr.url)end
   if wr.text then
@@ -89,7 +98,7 @@ function setCard(wr, qTbl )
 
 function spawnList(wr, qTbl )
   uLog(wr.url)
-  if wr.text then
+  if wr.text and tonumber(wr.text:match('%d+'))<30 then
     local n,json = 1,JSON.decode(wr.text)
     if json.object == 'list' then
       for i,v in ipairs(json.data) do Wait.time( function()Card(v,qTbl) end, i*Tick) end
@@ -100,7 +109,10 @@ function spawnList(wr, qTbl )
       Player[qTbl.color].broadcast(json.details,{1,0,0})
     end
     delay('endLoop', n)
-  else error('No Data Returned Contact Amuzet. spawnList') end endLoop() end
+  else
+    local n=wr.text:match('%d+')
+    Player[qTbl.player].broadcast('PLEASE do not spawn that many cards! '..n)
+    error('Someone attempted to spawn '..n..' Cards at once!')end endLoop() end
 --[[DeckFormatHandle]]
 local dFile = {
   dckCheck = '%[[%w_]+:%w+%]',dck = function(line)
@@ -130,13 +142,11 @@ function spawnDeck(wr,qTbl)
 --[[if qTbl.mode == 'Sideboard' then list = wr.text:match('Sideboard(.*)') end
     list = list:gsub('Maybeboard.*','')]]
     
-    list:gsub('(%d+)([^\r\n]+)',function(a,b)
-        for k,v in pairs(dFile) do
-          if type(v) == 'string' and b:find(v) then
-            for i = 1 , a do table.insert( deck , dFile[k:sub(1,3)](b) ) end
-            break
-          end
-        end end)
+    list:gsub('(%d+)[ xX]([^\r\n]+)',function(a,b)
+        for k,v in pairs(dFile)do
+          if type(v)=='string'and b:find(v)then
+            for i=1,a do table.insert(deck,dFile[k:sub(1,3)](b))end
+            break end end end)
     
     qTbl.deck = #deck
     
@@ -145,7 +155,9 @@ function spawnDeck(wr,qTbl)
           WebRequest.get(url,function(c)
               setCard(c, qTbl ) end) end, i*Tick) end
     
-    delay('endLoop',#deck )
+    Wait.time(function()Deck(qTbl)end,#deck*1.2)
+    
+    delay('endLoop',#deck*2)
 end end
 
 function spawnParse(wr,qTbl,g,url)
@@ -162,6 +174,7 @@ function spawnCube(wr,qTbl,check)local cube={};wr.text:gsub(check,function(b)tab
 local DeckSites = {
   --domain as key in table set to a function that takes a string and returns a url, and function
   --[[Key = function(URL) return modifiedURL, function(modifiedURL) end,]]
+  --https://deckstats.net/decks/99231/1519126-zombie-deck-beta?include_comments=1&export_dec=1
   deckstats=function(a)return a..'?export_txt=1',spawnDeck end,
   --[[https://tappedout.net/mtg-decks/the-minewalker/ https://tappedout.net/alter/3057/]]
   tappedout=function(a)printToAll('Tappedout Alters Unsupported',{0.1,0.5,0.8})return a:gsub('.cb=%d+','')..'?fmt=txt',spawnDeck end,
@@ -178,22 +191,25 @@ local DeckSites = {
     --https://www.mtggoldfish.com/deck/2572815#paper
     --https://www.mtggoldfish.com/deck/download/2572815
       return a:gsub('/deck/','/deck/download/'):gsub('#%w+',''),spawnDeck
-    else return a,function(b,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.') end end,
+    else return a,function(b,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
   archidekt = function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/',function(wr,qTbl)
     qTbl.deck = 0
     --TrimJSON
     local json = wr.text
-    for k,s in pairs({'types','oracleCard','prices','edition'})do
-      json=json:gsub('"'..s..'"[^}]+},','')end
+    for k,s in pairs({'types','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
     uNotebook('archidekt',json)
     json=JSON.decode(json)
     --json:gsub('uid":"([^"]+)"[^}]+,"quantity":(%d+)',function(b,d)
     for _,v in pairs(json.cards)do
-        uLog(v)
-        qTbl.deck=qTbl.deck+v.quantity
-        for i=1,v.quantity do Wait.time(function()
-            WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
-              function(c)setCard(c,qTbl)end ) end, i*Tick*2 ) end end
+      uLog(v)
+      qTbl.deck=qTbl.deck+v.quantity
+      for i=1,v.quantity do
+        Wait.time(function()
+          WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
+            function(c)setCard(c,qTbl)end)
+          end, i*Tick*2 )
+      end
+    end
     delay('endLoop',qTbl.deck)end end,
   cubetutor=function(a)return a,function(wr,qTbl)spawnCube(wr,qTbl,'class="cardPreview "[^>]*>([^<]*)<')end end,
   cubecobra=function(a)return a:gsub('list','download/plaintext'),function(wr,qTbl)spawnCube(wr,qTbl,'[^\n]+')end end,
@@ -237,7 +253,7 @@ local Importer = setmetatable({
                 setCard(wr, qTbl )
               end) end end
           delay('endLoop',#json.all_parts )
-        elseif json.oracle
+        --What is this elseif json.oracle
         else
           Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})
           endLoop() end end) end,
@@ -354,7 +370,7 @@ local Usage = 'Something is wrong'
 function endLoop()if Importer.request[1] then table.remove(Importer.request,1)end Importer()end
 function delay(fN,tbl)local timerParams={function_name=fN,identifier=fN..'Timer'}
   if type(tbl)=='table'then timerParams.parameters=tbl end
-  if type(tbl)=='number'then timerParams.delay=tbl*0.20
+  if type(tbl)=='number'then timerParams.delay=tbl*Tick
   else timerParams.delay = 1.5 end
   Timer.destroy(timerParams.identifier)
   Timer.create(timerParams)

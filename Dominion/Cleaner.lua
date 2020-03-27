@@ -4,11 +4,11 @@ version = 1
 local previousTurn,currentTurn,playArea,currDebt='Black','Black',false,false
 local option={Flag=false,Horn=false,autoHorn=false}
 function onLoad(sData)
-  if sData ~= '' then
-    local o,p=sData:match('(\w+) (\w+)')
+  if sData~=''then
+    local o,p=sData:match('(w+) (w+)')
     o=getObjectFromGUID(o)
     if o then
-      playArea,currentTurn=o,p
+      playArea,previousTurn=o,p
     else
       onSave()
     end
@@ -21,54 +21,70 @@ function onDrop()broadcastToAll('The Play Area will be set up when turns are tur
 
 function onChat(msg,player)
   if player.admin then
-    if msg == 'UNLOCK' then
-      self.interactable = true
-    elseif msg == 'DELETEPLAYMAT' then
+    if msg=='UNLOCK'then
+      self.interactable=true
+    elseif msg=='DELETEPLAYMAT'then
       self.destroy()
-    elseif msg == 'SIMULATE' then
+    elseif msg=='SIMULATE'then
       onPlayerTurn(player)
     end
   end
 end
 
 function onObjectEnterScriptingZone(z,o)
-  if z==playArea and o.getDescription():find('Treasure') then
-    local dToken = getObjectFromGUID( Global.getTable('ref_players')[currentTurn].debt )
+  if z==playArea and o.getDescription():find('Treasure')then
+    local dToken=getObjectFromGUID(Global.getTable('ref_players')[currentTurn].debt)
     if dToken and not currDebt then
-      local n = dToken.getVar('count')
-      if n > 0 then
-        currDebt = n
+      local n=dToken.getVar('count')
+      if n>0 then currDebt=n
         broadcastToAll(Player[currentTurn].steam_name..' has [ee1111]'..n..' Debt',stringColorToRGB(currentTurn))
-      end
-    end
-  end
-end
-
+end end end end
 function onPlayerTurn(player)
-  if Global.getTable('ref_players') and Global.getVar('gameState') == 3 then
-    currDebt = false
+  if Global.getTable('ref_players')and Global.getVar('gameState')==3 then
+    currDebt=false
     if not playArea then
       setPlayArea()
-    elseif previousTurn ~= '' and previousTurn ~= 'Black' then
+    elseif Player[previousTurn]then
       --Find where to put them
       local zone = Global.getTable('ref_players')[previousTurn]
-      zone.discardZone = getObjectFromGUID( zone.discardZone )
-      zone.deckZone = getObjectFromGUID( zone.deckZone )
-      zone.discard = zone.discardZone.getPosition()
-      zone.deck = zone.deckZone.getPosition()
+      local zDiscard = getObjectFromGUID( zone.discardZone )
+      local pDiscard = zone.discardZone.getPosition()
+      local oDiscard = zDiscard.getObjects()
+      local zDeck = getObjectFromGUID( zone.deckZone )
+      local pDeck = zone.deckZone.getPosition()
+      local oDeck = zDeck.getObjects()
+      if #oDiscard==2 then
+        for _,v in pairs(oDiscard)do
+          if v.tag=='Deck'and getObjectFromGUID(v.guid).is_face_down then
+              for _,d in pairs(oDeck)do
+                if v.tag=='Deck'and getObjectFromGUID(v.guid).is_face_down then
+                  Player[previousTurn].broadcast('Fix your Deck/Discard area!',{})
+                  return
+              zone.discardZone = zDeck
+              zone.deckZone = zDiscard
+              zone.discard = pDeck
+              zone.deck = pDiscard
+            end end end
+      else
+        zone.discardZone = zDiscard
+        zone.deckZone = zDeck
+        zone.discard = pDiscard
+        zone.deck = pDeck
+      end
       zone.objs = getObjectFromGUID( zone.zone ).getObjects()
       
       --FlagHorn check
-      local cards = 5
-      for i,v in ipairs( zone.objs ) do
-        if v.name == 'Flag' then
-          cards = cards +1
-        elseif v.name == 'Horn' and option.autoHorn then
+      local cards=5
+      for i,v in ipairs(zone.objs)do
+        if v.name=='Flag'then
+          log()
+          cards=cards+1
+        elseif v.name=='Horn'and option.autoHorn then
           local tbl={position=zone.deck,rotation={0,0,0},1}
-          for _,o in ipairs( playArea.getObjects() )do
-            if o.tag == 'Deck' then
-              for d,c in ipairs( o.getObjects() )do
-                if c.nickname == 'Border Guard' then
+          for _,o in ipairs(playArea.getObjects())do
+            if o.tag=='Deck'then
+              for d,c in ipairs(o.getObjects())do
+                if c.nickname=='Border Guard'then
                   tbl.index=d
                   tbl.bool=true
                   o.takeObject(tbl)
@@ -77,13 +93,10 @@ function onPlayerTurn(player)
               end
             end
             if tbl.bool then break end
-            if o.tag == 'Card' and o.getName() == 'Border Guard' then
+            if o.tag=='Card'and o.getName()=='Border Guard'then
               o.putObject(getDeck(zone.deckZone.getObjects()))
               break
-            end
-          end
-        end
-      end
+      end end end end
       --Put play area and hand in discard pile
       putDiscard( playArea.getObjects() , zone.discard )
       putDiscard( Player[previousTurn].getHandObjects() , zone.discard , true )
@@ -163,54 +176,48 @@ function setPlayArea()
 end
 
 function delay( fName , tbl )
-  local timerParams = {
-    function_name = fName,
-    identifier = fName..tbl.color..'Timer',
-    parameters = tbl,
-    delay = 1.5}
+  local timerParams={function_name=fName,identifier=fName..tbl.color..'Timer',parameters=tbl,delay=1}
   Timer.destroy(timerParams.identifier)
   Timer.create(timerParams)
 end
 
 function autoDrawCards( p )
-  local deckCards, tag = p.zone.deckZone.getObjects(), false
-  deckCards, tag = getDeck(deckCards)
+  local deckCards,tag=p.zone.deckZone.getObjects(),false
+  deckCards,tag=getDeck(deckCards)
   
   --Attempt to draw cards
-  if tag == 'Deck' and deckCards.getQuantity() >= p.draw then
+  if tag=='Deck'and deckCards.getQuantity()>=p.draw then
     deckCards.deal(p.draw,p.color)
   else
     -- alert player this may take some time
-    if tag == 'Deck' then
+    if tag=='Deck'then
       deckCards.deal(p.draw,p.color)
-    elseif tag == 'Card' and p.draw > 0 then
+    elseif tag=='Card'and p.draw>0 then
       --Put that card in the hand
       deckCards.setRotation({0,180,0})
-      deckCards.setPosition( Player[p.color].getHandTransform().position )
+      deckCards.setPosition(Player[p.color].getHandTransform().position)
     end
     --Calculate Remaining
-    p.deck = p.zone.deck
-    p.zone = p.zone.discardZone
-    delay('reshuffleDiscard', p )
-  end
-end
-
-function reshuffleDiscard( p )
-  p.draw = p.draw - #Player[p.color].getHandObjects()
-  if p.draw > 0 then
-    local deckCards , tag = getDeck( p.zone.getObjects() )
-    p.zone = nil
+    p.deck=p.zone.deck
+    p.zone=p.zone.discardZone
+    delay('reshuffleDiscard',p)
+end end
+function reshuffleDiscard(p)
+  p.draw=p.draw-#Player[p.color].getHandObjects()
+  if p.draw>0 then
+    local deckCards,tag=getDeck(p.zone.getObjects())
+    p.zone=nil
     --Reshuffle Discard Pile
-    if tag == 'Deck' then
+    if tag=='Deck'then
       deckCards.setRotation({180,0,0})
       deckCards.setPositionSmooth( p.deck )
       deckCards.shuffle()
       --Draw Remaining Cards
-      broadcastToColor('Reshuffling deck, please wait...', p.color, {0.9, 0.9, 0.9})
-      p.deck = deckCards
+      broadcastToColor('Reshuffling deck, please wait...',p.color,{0.9, 0.9, 0.9})
+      p.deck=deckCards
       delay('postDiscardDraw',p)
-    elseif tag == 'Card' then
-      deckCards.setPosition( Player[p.color].getHandTransform().position )
+    elseif tag=='Card'then
+      deckCards.setPosition(Player[p.color].getHandTransform().position)
     end
   end
 end
