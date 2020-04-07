@@ -1,4 +1,4 @@
---DominionDefinitiveEditionModifiedByAmuzet2020_04_5_C
+--DominionDefinitiveEditionModifiedByAmuzet2020_04_7_C
 function onSave()
     saved_data = ''
 
@@ -48,8 +48,9 @@ function onLoad(saved_data)
     end
     setUninteractible(ref_kingdomSlots)
     setUninteractible(ref_basicSlots)
-    setUninteractible(ref_sideSlots)
     setUninteractible(ref_eventSlots)
+    setUninteractible(ref_sideSlots)
+    for k,r in pairs(ref_sideSlots)do local p=getObjectFromGUID(r.guid).getPosition();ref_sideSlots[k].pos={p[1],1.3,p[3]}end
     setUninteractible(ref)
     for _,o in pairs(getAllObjects())do if o.getLock()and o.getName()==''then o.interactable=false end end
     math.randomseed(os.time())
@@ -85,47 +86,38 @@ function onLoad(saved_data)
         end
         local obj = getObjectFromGUID(ref.startButton)
         if obj ~= nil then
-            local btn=setmetatable({d=3.5,function_owner=Global,position={0,0.5,1},rotation={0,180,0},scale={0.8,0.8,0.8},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,f)
-              b.position[3],b.label,b.tooltip=b.position[3]-b.d,l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end obj.createButton(b)end})
-            btn('Selected Sets\nStart Game',            'Random Kingdom from selected sets and cards')
-            btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market','click_blackMarketLimit')
-            btn('Max Events: '..eventMax,               'The Maximum number of noncards in Kingdom','click_eventLimit')
-            btn.position[3]=btn.position[3]-1
-            btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
+            local btn=setmetatable({d=3,function_owner=Global,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
+              b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end obj.createButton(b)end})
+            btn('Max Events: '..eventMax,               'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
+            btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',nil,'click_blackMarketLimit')
+            btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks',{22,0,-11})
             btn('Tutorial\nCard Types','Random Kingdom with half being Non Action Cards')
-            btn('Tutorial\nAdvanced',  'Random Kingdom with non vanilla sets')
-            --[[
+            btn('Tutorial\nAdvanced',  'Random Kingdom with non vanilla sets')--[[
             btn('Currated Setup\nDesigners',      {14,0,-32}, 'Picks a Kingdom from a list of currated sets made by the Designers')
             btn('Currated Setup\nDominion League',{0,0,-32},  'Picks a Kingdom from a list of currated sets played in tournaments')
-            btn('Currated Setup\nReddit Weekly',  {-14,0,-32},'Set Kingdom for this week from Reddit')
-            ]]
-            btn('Currated Setup\nReddit Weekly','Set Kingdom for this week from Reddit')
-            btn.position[3]=btn.position[3]-1
+            btn('Currated Setup\nReddit Weekly','Set Kingdom for this week from Reddit')]]
             btn('Balanced Setup\nDual Sets',    'Random Kingdom made with 5 cards of one set and 5 from another')
-            btn('Balanced Setup\nTripple Sets', 'Random Kingdom made with atleast 3 card from 3 different sets')
-            btn.position[3]=btn.position[3]-1
-            btn('Quick Setup\nTwo Sets',  'Random Kingdom from any two sets')
+            --btn('Balanced Setup\nTripple Sets', 'Random Kingdom made with atleast 3 card from 3 different sets')
+            btn('Quick Setup\nTwo Sets',  'Random Kingdom from any two sets',{0,0,-59})
             btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
             btn('Quick Setup\nAll Sets',  'Random Kingdom from every set')
-            
+            btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{11,0,-16})
         end
         obj = getObjectFromGUID(ref_extraSupplyPiles[1].guid)
         if obj ~= nil then
             obj.createButton({
-                label='Select', click_function='click_selectRandom',
-                function_owner=Global, position={0,0,2.5}, rotation={0,0,0},
-                height=300, width=750, font_size=250
-            })
+                label='Force\n'..obj.getName(),click_function='click_forcePile',
+                function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
+                height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
             if usePlatinum == 1 then obj.highlightOn({0,1,0})
             elseif usePlatinum == 2 then obj.highlightOn({1,0,0}) end
         end
         obj = getObjectFromGUID(ref_extraSupplyPiles[5].guid)
         if obj ~= nil then
             obj.createButton({
-                label='Select', click_function='click_selectRandom',
-                function_owner=Global, position={0,0,2.5}, rotation={0,0,0},
-                height=300, width=750, font_size=250
-            })
+                label='Force\n'..obj.getName(), click_function='click_forcePile',
+                function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
+                height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
             if useShelters == 1 then obj.highlightOn({0,1,0})
             elseif useShelters == 2 then obj.highlightOn({1,0,0}) end
         end
@@ -300,7 +292,7 @@ newText = setmetatable({type='3DText',position={},rotation={90,0,0}
       local o=spawnObject(t)
       o.TextTool.setValue(text)
       o.TextTool.setFontSize(f or 200)
-    end})
+      return o.getGUID()end})
 function rcs(a)return math.random(1,#ref_cardSets-(a or 5))end
 function check(v,n) return string.sub(v.getName(), 1, -6) == n end
 function timerStart(t)click_StartGame(t[1],t[2])end
@@ -354,6 +346,12 @@ function click_selectDeck(obj, color)
     obj.highlightOn({0,1,0})
     table.insert(useSets,guid)
   end
+  local b,l=getObjectFromGUID(ref.startButton),'Selected Sets\n'
+  for _,g in pairs(useSets)do
+    for _,s in pairs(ref_cardSets)do
+      if g==s.guid then l=l..s.name..'\n'
+  break end end end
+  b.editButton({index=#b.getButtons()-1,label=l..'[009911]Start Game[-]',height=790*(#useSets+2)+100})
   obj.editButton({font_color=a})
 end
 function click_AllSets(obj, color)
@@ -538,16 +536,13 @@ function click_Advanced(obj, color)
   --click_StartGame(obj,color)
 end
 
-function click_selectRandom(obj, color)
-    local guid = obj.getGUID()
+function click_forcePile(obj, color)
+    local guid,c = obj.getGUID(),{1,1,1}
     if guid == ref_extraSupplyPiles[1].guid then
         if usePlatinum < 2 then
             usePlatinum = 1 + usePlatinum
-            if usePlatinum == 1 then
-                obj.highlightOn({0,1,0})
-            else
-                obj.highlightOn({1,0,0})
-            end
+            if usePlatinum==1 then c={0,1,0}else c={1,0,0}end
+            obj.highlightOn(c)
         else
             usePlatinum = 0
             obj.highlightOff()
@@ -555,16 +550,14 @@ function click_selectRandom(obj, color)
     elseif guid == ref_extraSupplyPiles[5].guid then
         if useShelters < 2 then
             useShelters = 1 + useShelters
-            if useShelters == 1 then
-                obj.highlightOn({0,1,0})
-            else
-                obj.highlightOn({1,0,0})
-            end
+            if useShelters==1 then c={0,1,0}else c={1,0,0}end
+            obj.highlightOn(c)
         else
             useShelters = 0
             obj.highlightOff()
         end
     end
+    obj.editButton({font_color=c})
 end
 function click_eventLimit(obj,color)
   if eventMax<4 then eventMax=eventMax+1 else eventMax=0 end
@@ -815,7 +808,7 @@ function setupKingdom(summonException)
                         deck.takeObject({index = v.index}).destruct()
                         cleanDeck = false
                         break
-                    elseif v.nickname == 'Knight' then
+                    elseif v.nickname == 'Knights' then
                         coroutine.yield(0)
                         getPile('Knights pile').shuffle()
                         getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
@@ -922,7 +915,7 @@ function setupKingdom(summonException)
                         deck.takeObject({index = v.index}).destruct()
                         cleanDeck = false
                         break
-                    elseif v.nickname == 'Knight' then
+                    elseif v.nickname == 'Knights' then
                         coroutine.yield(0)
                         getPile('Knights pile').shuffle()
                         getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
@@ -1280,7 +1273,7 @@ function createPile()
                         k = k + 1
                     end
                 --If we have Knights, we swap in the Knights pile
-                elseif v.getName() == 'Knight' then
+                elseif v.getName() == 'Knights' then
                     v.destruct()
                     getPile('Knights pile').setPosition(ref_kingdomSlots[i].pos)
                     getPile('Knights pile').shuffle()
@@ -1408,8 +1401,8 @@ function createPile()
 end
 function getVP(n)for _,v in pairs(ref_master)do if n==v.name then if v.VP then return v.VP end return 0 end end end
 function getSetup(n)if Use(n:gsub(' ',''))then for _,v in pairs(ref_master)do if n==v.name then if v.setup then return v.setup end end end end return function()end end
-function getCost(n)for _,v in pairs(ref_master)do if n==v.name then return v.cost end end end
-function getType(n)for _,v in pairs(ref_master)do if n==v.name then return v.type end end end
+function getCost(n)for _,v in pairs(ref_master)do if n==v.name then return v.cost end end return'M0D0P0'end
+function getType(n)for _,v in pairs(ref_master)do if n==v.name then return v.type end end return'Event'end
 function getPile(pileName)
   for _,p in pairs(ref_replacementPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
   for _,p in pairs(ref_basicSupplyPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
@@ -1559,45 +1552,36 @@ ref_basicSlots={
 {guid='4b9597',pos={ -5,1.3,31.5}},
 {guid='28c05c',pos={ 20,1.3,31.5}},
 {guid='00d4cc',pos={ 25,1.3,31.5}},
-{guid='497478'},{guid='e700bc'},{guid='2fad31'},{guid='b60e21'}}
+{guid='497478'},{guid='e700bc'},{guid='81d094'},{guid='b60e21'}}
 ref_sideSlots={
---PageRow
-{guid='7ba0bf',pos={-14.5,1.3,23.15}},
-{guid='de9a73',pos={-17.9,1.3,23.15}},
-{guid='61ae8d',pos={-21.3,1.3,23.15}},
-{guid='f7a574',pos={-24.7,1.3,23.15}},
+--PageRow1.3
+{guid='7ba0bf'},{guid='de9a73'},{guid='61ae8d'},{guid='f7a574'},
 --PeaseantRow
-{guid='bb0b4f',pos={-14.5,1.3,18.3}},
-{guid='25756f',pos={-17.9,1.3,18.3}},
-{guid='1e113a',pos={-21.3,1.3,18.3}},
-{guid='2ea60a',pos={-24.7,1.3,18.3}},
+{guid='bb0b4f'},{guid='25756f'},{guid='1e113a'},{guid='2ea60a'},
 --SpoilsMercMadPrize
-{guid='8cf7ae',pos={-14.5,1.3,13.45}},
-{guid='d8a850',pos={-17.9,1.3,13.45}},
-{guid='3ba1c2',pos={-21.3,1.3,13.45}},
-{guid='d5f986',pos={-24.7,1.3,13.45}},
+{guid='8cf7ae'},{guid='d8a850'},{guid='3ba1c2'},{guid='d5f986'},
 --Spirits+Wish
-{guid='f0bd83',pos={-15.5,1.3,8.5}},
-{guid='811c7b',pos={-18.9,1.3,8.5}},
-{guid='fa020b',pos={-22.3,1.3,8.5}},
-{guid='a96aef',pos={-25.7,1.3,8.5}},
+{guid='f0bd83'},{guid='811c7b'},{guid='fa020b'},{guid='a96aef'},
 --BatHorseBoonsHexes
-{guid='5bd468',pos={15.5,1.1,8.5}},
-{guid='e6fed4',pos={18.9,1.1,8.5}},
-{guid='5e6695',pos={22.3,1.1,8.5}},
-{guid='fb0663',pos={25.7,1.1,8.5}},
+{guid='5bd468'},{guid='e6fed4'},{guid='5e6695'},{guid='fb0663'},
 --StatesArtifactsHydeEmpty
-{guid='755720',pos={8.3,1.1,37.75}},
-{guid='bf7652',pos={4.9,1.1,37.75}},
-{guid='b6ce05',pos={1.5,1.1,37.75}},
-{guid='4733fe',pos={-1.9,1.1,37.75}},
-{guid='a6f52e',pos={-5.3,1.1,37.75}},
-{guid='7fb923',pos={-8.71,1.1,37.75}},
-{guid='bf9dda',pos={-12.1,1.1,37.75}},
-{guid='eaf95e',pos={-15.5,1.1,37.75}},
-{guid='7535f5',pos={-18.9,1.1,37.75}},
-{guid='adb237',pos={-22.3,1.1,37.75}},
-{guid='fa776f',pos={-25.7,1.1,37.75}}}
+{guid='7535f5'},
+{guid='eaf95e'},
+{guid='adb237'},
+{guid='bf9dda'},
+{guid='fa776f'},
+{guid='7fb923'},
+{guid='788b21'},
+{guid='a6f52e'},
+{guid='91e763'},
+{guid='4733fe'},
+{guid='e47c8a'},
+{guid='b6ce05'},
+{guid='8a299d'},
+{guid='bf7652'},
+{guid='6c4cb9'},
+{guid='755720'},
+{guid='5c1bf4'},}
 ref_eventSlots={
 {guid='e091ca',zone='f5e84d',pos={-10.5,1.25,8.5}},
 {guid='bb3643',zone='2ffd78',pos={ -3.5,1.25,8.5}},
@@ -1894,7 +1878,7 @@ ref_master={
 {cost='M6D0P0',name='Hunting Grounds',type='Action'},
 {cost='M4D0P0',name='Ironmonger',type='Action'},
 {cost='M5D0P0',name='Junk Dealer',type='Action'},
-{cost='M5D0P0',name='Knight',type='Action - Attack - Knight'},
+{cost='M5D0P0',name='Knights',type='Action - Attack - Knight'},
 {cost='M4D0P0',name='Marauder',type='Action - Attack - Looter',depend='Spoils'},
 {cost='M3D0P0',name='Market Square',type='Action - Reaction'},
 {cost='M5D0P0',name='Mystic',type='Action'},
@@ -2227,7 +2211,7 @@ ref_master={
 {cost='M4D0P0',type='Event',name='Banish',depend='Exile'},
 {cost='M4D0P0',type='Event',name='Bargain',depend='Horse'},
 {cost='M4D0P0',type='Event',name='Invest',depend='Exile'},
-{cost='M4D0P0',type='Event',name='Seize the day',depend='Project'},
+{cost='M4D0P0',type='Event',name='Seize the Day',depend='Project'},
 {cost='M5D0P0',type='Event',name='Commerce'},
 {cost='M5D0P0',type='Event',name='Demand',depend='Horse'},
 {cost='M5D0P0',type='Event',name='Stampede',depend='Horse'},

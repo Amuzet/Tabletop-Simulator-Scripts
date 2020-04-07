@@ -8,6 +8,8 @@ WorkshopID='https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922'
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table' then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL)end end
+
+newText=setmetatable({type='3DText',position={0,2,0},rotation={90,0,0}},{__call=function(t,p,text,f)t.position=p local o=spawnObject(t);o.TextTool.setValue(text)o.TextTool.setFontSize(f or 50)return function(t)if t then o.TextTool.setValue(t)else o.destruct()end end end})
 --[[Variables]]
 local Tick,Test,Quality,Back=0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
 --[[Card Spawning Class]]
@@ -18,14 +20,13 @@ local Deck=setmetatable({White={n=0,did='',cd='',co='',json='',position={0,0,0}}
   "CustomDeck":{%s},
   "ContainedObjects":[%s]
 }]]},{__call=function(t,qTbl)
-    uNotebook('JSONcd',t[qTbl.color].cd:gsub('\n',' '))
     t[qTbl.color].json=t.j:format(Player[qTbl.color].steam_name,qTbl.url or'Notebook',t[qTbl.color].did:sub(1,-2),t[qTbl.color].cd:sub(1,-2),t[qTbl.color].co:sub(1,-2))
     t[qTbl.color].position=qTbl.position or{0,2,0}
     t[qTbl.color].position[2]=t[qTbl.color].position[2]+1
     t[qTbl.color].did,t[qTbl.color].cd,t[qTbl.color].co,t[qTbl.color].n='','','',0
     spawnObjectJSON(t[qTbl.color])end})
 local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,callback='INC',callback_owner=self,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
-  {__call = function(t,c, qTbl )
+  {__call = function(t,c,qTbl)
       --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
       t.json,c.face,c.oracle,c.back='','','',Back[qTbl.player]or Back.___
       c.name=c.name:gsub('"','\'')..'\n'..c.type_line:gsub(' // .*','')..' '..c.cmc..'CMC'
@@ -49,20 +50,22 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
           t.hwfd=false
       end end
       local n=t.n
-      if qTbl.deck then n=Deck[qTbl.color].n
-        Deck[qTbl.color].n=Deck[qTbl.color].n+1 end
+      if qTbl.deck then n=Deck[qTbl.color].n+1;Deck[qTbl.color].n=n end
       --Set JSON to Spawn Card
       t.json=string.format(t.j,c.name,c.oracle,n,n,c.face,c.back)
       --What to do with this card
       if qTbl.deck then --Add it to player deck
-        Deck[qTbl.color].did=Deck[qTbl.color].did..Deck[qTbl.color].n..'00,'
+        Deck[qTbl.color].did=Deck[qTbl.color].did..n..'00,'
         Deck[qTbl.color].co=Deck[qTbl.color].co..t.json..','
-        local fistpos=t.json:find('"'..Deck[qTbl.color].n..'"')
+        local fistpos=t.json:find('"'..n..'"')
         Deck[qTbl.color].cd=Deck[qTbl.color].cd..t.json:sub(fistpos,-3)..','
-        if Deck[qTbl.color].n%10==0 then
-          Player[qTbl.color].broadcast(Deck[qTbl.color].n..' Cards loaded!',{0.5,0.5,0.5})
+        if n==qTbl.deck then Wait.time(function()Deck(qTbl)end,1)
+          Player[qTbl.color].broadcast('All '..n..' Cards loaded!',{0.5,0.5,0.5})
+        elseif 5==qTbl.deck-n then
+          qTbl.text('Spawning here\nAlmost loaded')
+        elseif 5<qTbl.deck-n then
+          qTbl.text('Spawning here\n'..n..' Cards loaded')
         end
-        if Deck[qTbl.color].n==qTbl.deck then Wait.time(function()Deck(qTbl)end,1)end
       else--Spawn solo card
         uLog(qTbl.color..' Spawned '..c.name:gsub('\n.*',''))
         t.position=qTbl.position or{0,2,0}
@@ -102,7 +105,7 @@ function spawnList(wr, qTbl )
   else
     local n=wr.text:match('%d+')
     if n then Player[qTbl.player].broadcast('PLEASE do not spawn that many cards! '..n)
-    else error(JSON.decode(wr.text).details)end endLoop()end
+    else error(JSON.decode(wr.text).details)end endLoop()end end
 --[[DeckFormatHandle]]
 local dFile = {
   dckCheck = '%[[%w_]+:%w+%]',dck = function(line)
@@ -329,6 +332,7 @@ local Importer = setmetatable({
   __call = function(t, qTbl )
     if qTbl then
       log( qTbl , 'Importer Request '..qTbl.color )
+      qTbl.text=newText(qTbl.position,Player[qTbl.color].steam_name..'\n'..qTbl.full)
       table.insert(t.request, qTbl )
     end
     --Main Logic
@@ -336,7 +340,7 @@ local Importer = setmetatable({
       Player[qTbl.color].broadcast('Clearing Previous requests yours added and being processed.')
       endLoop()
     elseif qTbl and t.request[2] then
-      Player[qTbl.color].broadcast('Your request has been added to the list and is being processed.')
+      Player[qTbl.color].broadcast('Queueing request.')
     elseif t.request[1] then
       local tbl = t.request[1]
       --Logic Branch
@@ -359,7 +363,7 @@ local Importer = setmetatable({
 
 --[[Functions used everywhere else]]
 local Usage = 'Something is wrong'
-function endLoop()if Importer.request[1] then table.remove(Importer.request,1)end Importer()end
+function endLoop()if Importer.request[1] then if Importer.request[1].text then Importer.request[1].text()end table.remove(Importer.request,1)end Importer()end
 function delay(fN,tbl)local timerParams={function_name=fN,identifier=fN..'Timer'}
   if type(tbl)=='table'then timerParams.parameters=tbl end
   if type(tbl)=='number'then timerParams.delay=tbl*Tick

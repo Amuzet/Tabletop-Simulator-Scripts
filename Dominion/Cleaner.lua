@@ -47,6 +47,10 @@ function onPlayerTurn(player)
         t.discardZone,t.deckZone,t.discard,t.deck=zDk,zDd,pDk,pDd end end
       --FlagHorn check
       t.draw=5
+      for _,v in pairs(getObjectFromGUID(t.deckZone).getObjects())do
+        if v.getName()=='-1 Card Token'then t.draw=t.draw-1
+          local p=v.getPosition()
+          v.setPosition({p[1],p[2],p[3]+5})end end
       for _,v in pairs(getObjectFromGUID(t.zone).getObjects())do
         if v.getName()=='Flag'then t.draw=t.draw+1
         elseif v.getName()=='Horn'and option.autoHorn then
