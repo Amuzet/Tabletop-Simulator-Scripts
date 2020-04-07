@@ -1,6 +1,6 @@
---DominionDefinitiveEditionModifiedByAmuzet2020_03_27_B
+--DominionDefinitiveEditionModifiedByAmuzet2020_04_5_C
 function onSave()
-    --saved_data = ''
+    saved_data = ''
 
     saved_data = JSON.encode({
         gs = gameState,
@@ -19,14 +19,7 @@ function onSave()
 end
 --Runs when the map is first loaded
 function onLoad(saved_data)
-  local Color = {
-    Red = {219/255,26/255,24/255},
-    White = {0.3,0.3,0.3},
-    Orange = {244/255,100/255,29/255},
-    Green = {49/255,179/255,43/255},
-    Yellow = {231/255,229/255,44/255},
-    Blue = {31/255,136/255,255/255}
-  }
+  local Color={Blue={31/255,136/255,255/255},Green={49/255,179/255,43/255},Red={219/255,26/255,24/255},White={0.3,0.3,0.3},Orange={244/255,100/255,29/255},Yellow={231/255,229/255,44/255}}
     if saved_data ~= '' then
         local loaded_data = JSON.decode(saved_data)
         gameState = loaded_data.gs
@@ -53,22 +46,34 @@ function onLoad(saved_data)
         obeliskTarget = nil
         -- global variables that need to be saved between loads
     end
-    setUninteractible()
+    setUninteractible(ref_kingdomSlots)
+    setUninteractible(ref_basicSlots)
+    setUninteractible(ref_sideSlots)
+    setUninteractible(ref_eventSlots)
+    setUninteractible(ref)
+    for _,o in pairs(getAllObjects())do if o.getLock()and o.getName()==''then o.interactable=false end end
     math.randomseed(os.time())
-    if gameState == 1 then
+    if gameState==1 then
+      for _,o in pairs(getObjectFromGUID(ref_storageZone.script).getObjects())do
+        if o.tag=='Deck' then local n=o.getName()
+          for i,c in pairs(ref_sidePiles)do if n==c.name then ref_sidePiles[i].guid=o.getGUID()break elseif i==#ref_sidePiles then o.highlightOn({1,0,0.5})end end end end
+      for _,o in pairs(getObjectFromGUID(ref_storageZone.setup).getObjects())do
+        local f,n=false,o.getName()
+        if(o.tag=='Deck'or o.tag=='Card')and n~='Heirlooms'and n~='Shelters' then
+          if not f then for i,c in pairs(ref_replacementPiles)do if n==c.name then f,ref_replacementPiles[i].guid=true,o.getGUID()break end end end
+          if not f then for i,c in pairs(ref_eventSets)do if n==c.name then f,ref_eventSets[i].guid=true,o.getGUID()break end end end
+          if not f then for i,c in pairs(ref_cardSets)do if n==c.name then f,ref_cardSets[i].guid=true,o.getGUID()break end end end
+          if not f then o.highlightOn({1,0,0.5})print(n)end end end
         --Added Heirlooms
-        for _,v in ipairs( getPile('Heirlooms').getObjects() ) do
-            ref_heirlooms[v.name] = v.guid
-        end
+        for _,v in ipairs(getPile('Heirlooms').getObjects())do ref_heirlooms[v.name]=v.guid end
         setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][ffffff]\n\nBefore pressing Start Game, you may place any card from the expansion piles into the empty supply slots. Select any number of expansions to be randomly selected to fill all the remaining slots. You may also remove any undesireable card from its expansion deck to prevent it from being selected. You may save the game now to save your selected kingdom and expansions before pressing start.\n\n[FFFF00][b]Do not delete any decks or place any deck of cards into a supply slot.[/b]')
         for i in ipairs(ref_cardSets) do
             local obj = getObjectFromGUID(ref_cardSets[i].guid)
             if obj ~= nil then
                 obj.createButton({
-                    label='Select\n'..obj.getName(), click_function='click_selectDeck',
-                    function_owner=Global, position={0,0.4,0.6}, rotation={0,0,0}, scale={0.5,1,0.5},
-                    height=600, width=1500, font_size=250
-                })
+                    label='Select\n'..obj.getName(),click_function='click_selectDeck',
+                    function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
+                    height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
                 for j, guid in ipairs(useSets) do
                     local obj2 = getObjectFromGUID(guid)
                     if obj == obj2 then
@@ -78,29 +83,30 @@ function onLoad(saved_data)
                 end
             end
         end
-        local obj = getObjectFromGUID(ref_startButton)
+        local obj = getObjectFromGUID(ref.startButton)
         if obj ~= nil then
-            local btn=setmetatable({function_owner=Global,position={0,0,-20},rotation={0,180,0},height=2000,width=5750,font_size=9000},{__call=function(b,l,p,t,f)
-              b.label,b.position,b.tooltip=l,p,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end obj.createButton(b)end})
-            btn('Max Events: '..eventMax,               {14,0,-20}, 'The Maximum number of noncards in Kingdom','click_eventLimit')
-            btn('Selected Sets\nStart Game',            {0,0,-20},  'Random Kingdom from selected sets and cards')
-            btn('Black Market\nLimit: '..blackMarketMax,{-14,0,-20},'The Number of cards in the Black Market','click_blackMarketLimit')
-            
-            btn('Tutorial\nBasic Game',{0,0,-26},  'Set Kingdom with only actions and up to two attacks')
-            btn('Tutorial\nCard Types',{14,0,-26}, 'Random Kingdom with half being Non Action Cards')
-            btn('Tutorial\nAdvanced',  {-14,0,-26},'Random Kingdom with non vanilla sets')
+            local btn=setmetatable({d=3.5,function_owner=Global,position={0,0.5,1},rotation={0,180,0},scale={0.8,0.8,0.8},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,f)
+              b.position[3],b.label,b.tooltip=b.position[3]-b.d,l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end obj.createButton(b)end})
+            btn('Selected Sets\nStart Game',            'Random Kingdom from selected sets and cards')
+            btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market','click_blackMarketLimit')
+            btn('Max Events: '..eventMax,               'The Maximum number of noncards in Kingdom','click_eventLimit')
+            btn.position[3]=btn.position[3]-1
+            btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
+            btn('Tutorial\nCard Types','Random Kingdom with half being Non Action Cards')
+            btn('Tutorial\nAdvanced',  'Random Kingdom with non vanilla sets')
             --[[
             btn('Currated Setup\nDesigners',      {14,0,-32}, 'Picks a Kingdom from a list of currated sets made by the Designers')
             btn('Currated Setup\nDominion League',{0,0,-32},  'Picks a Kingdom from a list of currated sets played in tournaments')
             btn('Currated Setup\nReddit Weekly',  {-14,0,-32},'Set Kingdom for this week from Reddit')
             ]]
-            btn('Currated Setup\nReddit Weekly',{14,0,-32},'Set Kingdom for this week from Reddit')
-            btn('Currated Setup\nDual Sets',     {0,0,-32},'Random Kingdom made with 5 cards of one set and 5 from another')
-            btn('Currated Setup\nTripple Sets',{-14,0,-32},'Random Kingdom made with atleast 3 card from 3 different sets')
-            
-            btn('Quick Setup\nAll Sets',  {14,0,-38}, 'Random Kingdom from every set')
-            btn('Quick Setup\nTwo Sets',  {0,0,-38},  'Random Kingdom from any two sets')
-            btn('Quick Setup\nThree Sets',{-14,0,-38},'Random Kingdom from any three sets')
+            btn('Currated Setup\nReddit Weekly','Set Kingdom for this week from Reddit')
+            btn.position[3]=btn.position[3]-1
+            btn('Balanced Setup\nDual Sets',    'Random Kingdom made with 5 cards of one set and 5 from another')
+            btn('Balanced Setup\nTripple Sets', 'Random Kingdom made with atleast 3 card from 3 different sets')
+            btn.position[3]=btn.position[3]-1
+            btn('Quick Setup\nTwo Sets',  'Random Kingdom from any two sets')
+            btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
+            btn('Quick Setup\nAll Sets',  'Random Kingdom from every set')
             
         end
         obj = getObjectFromGUID(ref_extraSupplyPiles[1].guid)
@@ -139,11 +145,11 @@ function onLoad(saved_data)
     end
 end
 function createEndButton()
-    local obj = getObjectFromGUID(ref_startButton)
+    local obj = getObjectFromGUID(ref.startButton)
     if obj ~= nil then
         obj.createButton({
             label='End Game', click_function='click_endGame',
-            function_owner=Global, position={0,0,24.5}, rotation={0,180,0},
+            function_owner=Global, position={0,0.5,0}, rotation={0,180,0},
             height=1500, width=4000, font_size=9000
         })
     end
@@ -175,7 +181,6 @@ function click_endGame(obj, color)
             move(gObjs('deckZone'))
             move(Player[currentPlayer].getHandObjects())
             move(gObjs('discardZone'))
-            move(gObjs('island'))
             for i, obj in ipairs(gObjs('tavern')) do
                 if obj.tag == 'Deck' then
                     for j, card in ipairs(obj.getObjects()) do
@@ -281,7 +286,7 @@ function click_endGame(obj, color)
                     if count > 9 then s = '' end
                     printToAll(s..count .. ' ' .. card, {1,1,1})
         end end end
-        local obj = getObjectFromGUID(ref_startButton)
+        local obj = getObjectFromGUID(ref.startButton)
         return 1
     end
     if obj then obj.clearButtons()end
@@ -296,7 +301,7 @@ newText = setmetatable({type='3DText',position={},rotation={90,0,0}
       o.TextTool.setValue(text)
       o.TextTool.setFontSize(f or 200)
     end})
-function rcs(a)return math.random(1,#ref_cardSets-(a or 4))end
+function rcs(a)return math.random(1,#ref_cardSets-(a or 5))end
 function check(v,n) return string.sub(v.getName(), 1, -6) == n end
 function timerStart(t)click_StartGame(t[1],t[2])end
 function findCard(trg,r,p)
@@ -314,43 +319,42 @@ function kingdomList(str,par)
   if s:find('Platinum')then usePlatinum,s=1,s:gsub(',Platinum','')else usePlatinum=2 end
   local i=0
   for t in s:gmatch('[^,]+')do i=i+1
-    if i==11 and s:find('Young Witch')then findCard(t,ref_cardSets,ref_baneSlot.pos)
+    if i==11 and s:find('Young Witch')then findCard(t,ref_cardSets,ref.baneSlot.pos)
     elseif i<11 then findCard(t,ref_cardSets,ref_kingdomSlots[i].pos)
-    elseif t=='Summon'then getObjectFromGUID(ref_eventSets[5].guid).setPosition(ref_eventSlots[i-10].pos)
+    elseif t=='Summon'then getObjectFromGUID(ref_eventSets[#ref_eventSets-1].guid).setPosition(ref_eventSlots[i-10].pos)
     else local j=i-10
       if s:find('Young Witch')then j=j+1 end
       findCard(t,ref_eventSets,ref_eventSlots[j].pos)end end
   Timer.create({identifier='RW',function_name='timerStart',parameters=par,delay=2})
 end
-local Use=setmetatable({' ',' '},{__call=function(t,s)local _,n=t[1]:gsub(s,s);if n>0 then return n end return false end})
+local Use=setmetatable({' ',' '},{__call=function(t,s)local _,n=t[1]:gsub(' '..s..' ',' '..s..' ');if n>0 then return n end return false end})
 function Use.Add(n)
   local x,s,c=0,' ',n
+  log(n)
   if getCost(c):sub(-1)=='1'then s=s..'Potion 'end
   if not getCost(c):find('D0')and not getCost(c):find('DX')then s=s..'Debt 'end
   for _,t in pairs({'Looter','Reserve','Doom','Fate','Project','Gathering'})do if getType(c):find(t)then s=s..t..' 'end end
   for i,v in pairs(ref_master)do if c==v.name then x=i;if v.depend then s=s..v.depend..' 'end break end end
   if 100<x and x<126 then s=s..'Platinum 'elseif 175<x and x<225 then s=s..'Shelters 'end
   createHeirlooms(c)
-  log(s,c)
+  log(s)
   Use[1]=Use[1]..c:gsub(' ','')..s
 end
 --Button Callbacks
 function click_selectDeck(obj, color)
-    local guid = obj.getGUID()
-    local inUse = true
-    for i, guid2 in ipairs(useSets)do
-        local obj2 = getObjectFromGUID(guid2)
-        if obj == obj2 then
-            obj.highlightOff()
-            inUse = false
-            table.remove(useSets, i)
-            break
-        end
-    end
-    if inUse then
-        obj.highlightOn({0,1,0})
-        table.insert(useSets, guid)
-    end
+  local guid,inUse,a=obj.getGUID(),true,{1,1,1}
+  for i,guid2 in ipairs(useSets)do
+    local obj2=getObjectFromGUID(guid2)
+    if obj==obj2 then
+      obj.highlightOff()
+      inUse=false
+      table.remove(useSets,i)
+      break end end
+  if inUse then a={0,1,0}
+    obj.highlightOn({0,1,0})
+    table.insert(useSets,guid)
+  end
+  obj.editButton({font_color=a})
 end
 function click_AllSets(obj, color)
     useSets={}
@@ -376,6 +380,41 @@ function click_ThreeSets(obj, color)
     table.insert(useSets,ref_cardSets[o].guid)
     
     click_StartGame(obj, color)
+end
+function click_DualSets(obj, color)
+  if #useSets>2 then
+    while #useSets>2 do table.remove(useSets,math.random(1,#useSets))end
+  elseif #useSets==1 then
+    local m=rcs()
+    for i,v in pairs(ref_cardSets)do
+      if useSets[1]==v.guid then
+        while m==i do m=rcs()end
+        table.insert(useSets,ref_cardSets[m].guid)
+      end
+    end
+  elseif #useSets==0 then
+    local n,m=rcs(),rcs()
+    while m==n do m=rcs()end
+    table.insert(useSets,ref_cardSets[n].guid)
+    table.insert(useSets,ref_cardSets[m].guid)
+  end
+  
+  for _,v in pairs(useSets)do getObjectFromGUID(v).shuffle()end
+  
+  function DualSetsCoroutine()
+    wait(2)
+    for i,v in pairs(ref_kingdomSlots)do getObjectFromGUID(useSets[(i%2)+1]).takeObject({position=v.pos,index=6-i,smooth=false})end
+    local eventPiles={}
+    for _,v in pairs(ref_cardSets[n].events)do table.insert(eventPiles,v)end
+    for _,v in pairs(ref_cardSets[m].events)do table.insert(eventPiles,v)end
+    for i,v in pairs(eventPiles)do
+      local pile=getObjectFromGUID(ref_eventSets[v].guid)
+      pile.takeObject({position=ref_eventSlots[i].pos,index=math.random(1,pile.getQuantity()),smooth=false})
+  end end
+  startLuaCoroutine(Global,'DualSetsCoroutine')
+end
+function click_TrippleSets(obj, color)
+  printToAll('This does nothing!',{1,1,1})
 end
 function click_RedditWeekly(obj, color)
   --https://www.reddit.com/r/dominion/search?q=title%3Akotw+author%3Aavocadro&sort=newl&utm_name=dominion&t=week
@@ -482,8 +521,8 @@ function click_VanillaSets(obj, color)
 end
 function click_BasicGame(obj, color)
   bcast('Beginner Tutorial')
-  newText({26.00,1,25.00},'THE GAME ENDS WHEN:\nAny 3 piles are empty or\nThe Province pile is empty.')
-  newText({0.00,1,11.00},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
+  newText({26.00,1,25},'THE GAME ENDS WHEN:\nAny 3 piles are empty or\nThe Province pile is empty.')
+  newText({0.00,1,11},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
   local knd = {
 'Cellar,Festival,Mine,Moat,Patrol,Poacher,Smithy,Village,Witch,Workshop',
 'Cellar,Market,Merchant,Militia,Mine,Moat,Remodel,Smithy,Village,Workshop',}
@@ -567,7 +606,7 @@ function click_StartGame(obj, color)
         if zoneObj.tag == 'Card' then
             if zoneObj.getName() == 'Young Witch' then
                 requireBane = true
-                local baneZone = getObjectFromGUID(ref_baneSlot.zone).getObjects()
+                local baneZone = getObjectFromGUID(ref.baneSlot.zone).getObjects()
                 for k in ipairs(baneZone) do
                     local baneObj = baneZone[k]
                     if baneObj.tag == 'Card' and baneObj.getName() ~= 'Bane pile' then
@@ -610,6 +649,7 @@ function click_StartGame(obj, color)
     for j, guid in ipairs(useSets) do
         local obj2 = getObjectFromGUID(guid)
         if obj2 ~= nil then
+            obj2.setLock(false)
             cardCount2 = #obj2.getObjects() + cardCount2
         end
     end
@@ -649,7 +689,7 @@ function removeButtons()
     local obj = getObjectFromGUID(ref_cardSets[i].guid)
     if obj ~= nil then obj.clearButtons()end
   end
-  local obj = getObjectFromGUID(ref_startButton)
+  local obj = getObjectFromGUID(ref.startButton)
   if obj ~= nil then obj.clearButtons()end
   obj = getObjectFromGUID(ref_extraSupplyPiles[1].guid)
   if obj ~= nil then obj.clearButtons()end
@@ -658,297 +698,307 @@ function removeButtons()
 end
 -- Function to setup the Kingdom
 function setupKingdom(summonException)
-    -- first we delete all the not in use sets and group the remaining
-    for i in ipairs(ref_cardSets) do
-        local found = false
-        local guid = ref_cardSets[i].guid
-        local obj = getObjectFromGUID(guid)
-        for j, guid2 in ipairs(useSets) do
-            local obj2 = getObjectFromGUID(guid2)
-            if obj == obj2 and obj ~= nil then
-                obj.setPosition(ref_randomizer.pos)
-                obj.flip()
-                found = true
-            end
-        end
-        local obj2 = nil
-        if guid == ref_cardSets[10].guid then
-            obj2 = getObjectFromGUID(ref_eventSets[1].guid)
-        elseif guid == ref_cardSets[11].guid then
-            obj2 = getObjectFromGUID(ref_eventSets[2].guid)
-            local obj3 = getObjectFromGUID(ref_eventSets[3].guid)
-            if obj3 ~= nil and found then
-                obj3.setRotation({0,0,0})
-                obj3.setPosition(ref_randomizer.pos)
-                obj3.flip()
-            elseif obj3 ~= nil and not found then obj3.destruct() end
-        --Renaissance
-        elseif guid == ref_cardSets[13].guid then
-            obj2 = getObjectFromGUID(ref_eventSets[4].guid)
-        --Promos
-        elseif guid == ref_cardSets[14].guid and not summonException then
-            obj2 = getObjectFromGUID(ref_eventSets[5].guid)
-        --Adamabrams
-        elseif guid == ref_cardSets[15].guid then
-            obj2 = getObjectFromGUID(ref_eventSets[6].guid)
-        --Menagerie
-        elseif guid == ref_cardSets[19].guid then
-            obj2 = getObjectFromGUID(ref_eventSets[7].guid)
-        end
-        if obj2 ~= nil and found then
-            obj2.setRotation({0,0,0})
-            obj2.setPosition(ref_randomizer.pos)
-            obj2.flip()
-        elseif obj2 ~=nil and not found then obj2.destruct() end
-        if not found and obj ~= nil then
-            obj.destruct()
+  -- first we delete all the not in use sets and group the remaining
+  for i in ipairs(ref_cardSets) do
+    local found = false
+    local guid = ref_cardSets[i].guid
+    local obj = getObjectFromGUID(guid)
+    for j, guid2 in ipairs(useSets) do
+        local obj2 = getObjectFromGUID(guid2)
+        if obj == obj2 and obj ~= nil then
+            obj.setPosition(ref.randomizer.pos)
+            obj.flip()
+            found = true
         end
     end
-    function setupKingdomCoroutine()
-        wait(2)
-        local zone = getObjectFromGUID(ref_randomizer.zone).getObjects()
-        local deck
-        for i, v in ipairs(zone) do if v.tag == 'Deck' then deck = v end end
-        if deck ~= nil then
-            deck.setRotation({0,180,180})
-            deck.shuffle()
-            deck.highlightOff()
+    local obj2 = nil
+    --Adventures
+    if guid == ref_cardSets[10].guid then
+        obj2 = getObjectFromGUID(ref_eventSets[1].guid)
+    --Empire
+    elseif guid == ref_cardSets[11].guid then
+        obj2 = getObjectFromGUID(ref_eventSets[2].guid)
+        local obj3 = getObjectFromGUID(ref_eventSets[3].guid)
+        if obj3 ~= nil and found then
+            obj3.setRotation({0,0,0})
+            obj3.setPosition(ref.randomizer.pos)
+            obj3.flip()
+        elseif obj3 ~= nil and not found then obj3.destruct() end
+    --Renaissance
+    elseif guid == ref_cardSets[13].guid then
+        obj2 = getObjectFromGUID(ref_eventSets[4].guid)
+    --Menagerie
+    elseif guid == ref_cardSets[14].guid then
+        obj2 = getObjectFromGUID(ref_eventSets[5].guid)
+        local obj3 = getObjectFromGUID(ref_eventSets[6].guid)
+        if obj3 ~= nil and found then
+            obj3.setRotation({0,0,0})
+            obj3.setPosition(ref.randomizer.pos)
+            obj3.flip()
+        elseif obj3 ~= nil and not found then obj3.destruct() end
+    --Promos
+    elseif guid == ref_cardSets[#ref_cardSets-4].guid and not summonException then
+        obj2 = getObjectFromGUID(ref_eventSets[#ref_eventSets-1].guid)
+    --Adamabrams
+    elseif guid == ref_cardSets[#ref_cardSets-3].guid then
+        obj2 = getObjectFromGUID(ref_eventSets[#ref_eventSets].guid)
+    end
+    if obj2 ~= nil and found then
+        obj2.setRotation({0,0,0})
+        obj2.setPosition(ref.randomizer.pos)
+        obj2.flip()
+    elseif obj2 ~=nil and not found then obj2.destruct() end
+    if not found and obj ~= nil then
+        obj.destruct()
+    end
+  end
+  function setupKingdomCoroutine()
+    wait(2)
+    local zone = getObjectFromGUID(ref.randomizer.zone).getObjects()
+    local deck
+    for i, v in ipairs(zone) do if v.tag == 'Deck' then deck = v end end
+    if deck ~= nil then
+        deck.setRotation({0,180,180})
+        deck.shuffle()
+        deck.highlightOff()
+    end
+    wait(1)
+    local events = {}
+    for i in ipairs(ref_eventSlots) do
+        zone = getObjectFromGUID(ref_eventSlots[i].zone).getObjects()
+        for j, v in ipairs(zone) do
+            if v.tag == 'Card' then table.insert(events, v) end
         end
-        wait(1)
-        local events = {}
-        for i in ipairs(ref_eventSlots) do
-            zone = getObjectFromGUID(ref_eventSlots[i].zone).getObjects()
-            for j, v in ipairs(zone) do
-                if v.tag == 'Card' then table.insert(events, v) end
-            end
-        end
-        for i in ipairs(events) do events[i].setPosition(ref_eventSlots[i].pos) end
-        eventCount = #events
-        if deck ~= nil then
-            for i in ipairs(ref_kingdomSlots) do
-                card = false
-                zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
-                for j, v in ipairs(zone) do if v.tag == 'Card' then card = true end end
-                while not card do
-                  for j, v in pairs(deck.getObjects()) do
-                    if v.description == 'Event' or v.description == 'Landmark' or v.description == 'Project' or v.description == 'Way' then
-                      if eventCount < eventMax then
-                        eventCount = eventCount + 1
-                        deck.takeObject({position = ref_eventSlots[eventCount].pos, index = v.index, callback = 'setCallback', callback_owner = Global})
-                        break end
-                    else
-                      card = true
-                      deck.takeObject({position = ref_kingdomSlots[i].pos, index = v.index, flip = true})
-                      break end end end end
-            wait(0.5)
-            local blackMarket, requireBane = false, false
-            for i in ipairs(ref_kingdomSlots) do
-                zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
-                for j, v in ipairs(zone) do
-                    if v.tag == 'Card' then
-                        Use.Add(v.getName())
-                        if v.getName() == 'Young Witch' then
-                            requireBane = true
-                            break
-                        elseif v.getName() == 'Black Market' then
-                            blackMarket = true
-            end end end end
-            if Use('BlackMarket') then
-                deck.setName('Black Market deck')
-                local cleanDeck = false
-                local deckAddPos = {deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
-                while not cleanDeck do
-                    cleanDeck = true
-                    for i, v in ipairs(deck.getObjects()) do
-                        if v.description == 'Event' or v.description == 'Landmark' or v.description == 'Project' or v.description == 'Way' then
-                            coroutine.yield(0)
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Knight' then
-                            coroutine.yield(0)
-                            getPile('Knights pile').shuffle()
-                            getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Castles' then
-                            coroutine.yield(0)
-                            getPile('Castles pile').shuffle()
-                            getPile('Castles pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Catapult / Rocks' then
-                            coroutine.yield(0)
-                            getPile('Catapult / Rocks pile').shuffle()
-                            getPile('Catapult / Rocks pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Encampment / Plunder' then
-                            coroutine.yield(0)
-                            getPile('Encampment / Plunder pile').shuffle()
-                            getPile('Encampment / Plunder pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Gladiator / Fortune' then
-                            coroutine.yield(0)
-                            getPile('Gladiator / Fortune pile').shuffle()
-                            getPile('Gladiator / Fortune pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Patrician / Emporium' then
-                            coroutine.yield(0)
-                            getPile('Patrician / Emporium pile').shuffle()
-                            getPile('Patrician / Emporium pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Settlers / Bustling Village' then
-                            coroutine.yield(0)
-                            getPile('Settlers / Bustling Village pile').shuffle()
-                            getPile('Settlers / Bustling Village pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Sauna / Avanto' then
-                            coroutine.yield(0)
-                            getPile('Sauna / Avanto pile').shuffle()
-                            getPile('Sauna / Avanto pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        end
-                    end
-                end
-                wait(2)
-                deck.shuffle()
-                while #deck.getObjects() > blackMarketMax + 1 do
-                    coroutine.yield(0)
-                    deck.takeObject({index = 1}).destruct()
-                end
-                -- check for young witch
-                for i, v in ipairs(deck.getObjects()) do
-                    if v.nickname == 'Young Witch' then
-                        requireBane = true
-                    end
-                end
-                if not requireBane then
-                    deck.takeObject({index = 1}).destruct()
-                end
-            end
-            local baneSet, blackMarket2Check = false, false
-            if requireBane then
-                zone = getObjectFromGUID(ref_baneSlot.zone).getObjects()
-                for i, v in ipairs(zone) do
-                    if v.tag == 'Card' and v.getName() ~= 'Bane pile' then
-                        Use.Add(v.getName())
-                        baneSet = true
-                        if v.getName() == 'Black Market' then
-                            blackMarket2Check = true
-                end end end
-                if not baneSet then
-                    for j, card in ipairs(deck.getObjects()) do
-                        if card.description == 'Event' or card.description == 'Landmark' or card.description == 'Project' or card.description == 'Way' then
-                        elseif getCost(card.nickname) == 'M2D0P0' or getCost(card.nickname) == 'M3D0P0' then
-                            Use.Add(v.getName())
-                            if card.nickname == 'Black Market' then
-                                blackMarket2Check = true
-                            end
-                            deck.takeObject({position = ref_baneSlot.pos, index = card.index, flip = true})
-                            break end end end end
-            if blackMarket2Check then
-                deck.setName('Black Market deck')
-                local cleanDeck = false
-                local deckAddPos = {deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
-                while not cleanDeck do
-                    cleanDeck = true
-                    for i, v in ipairs(deck.getObjects()) do
-                        if v.description=='Event'or v.description=='Landmark'or v.description =='Project'or v.description =='Way'then
-                            coroutine.yield(0)
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Knight' then
-                            coroutine.yield(0)
-                            getPile('Knights pile').shuffle()
-                            getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Castles' then
-                            coroutine.yield(0)
-                            getPile('Castles pile').shuffle()
-                            getPile('Castles pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Catapult / Rocks' then
-                            coroutine.yield(0)
-                            getPile('Catapult / Rocks pile').shuffle()
-                            getPile('Catapult / Rocks pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Encampment / Plunder' then
-                            coroutine.yield(0)
-                            getPile('Encampment / Plunder pile').shuffle()
-                            getPile('Encampment / Plunder pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Gladiator / Fortune' then
-                            coroutine.yield(0)
-                            getPile('Gladiator / Fortune pile').shuffle()
-                            getPile('Gladiator / Fortune pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Patrician / Emporium' then
-                            coroutine.yield(0)
-                            getPile('Patrician / Emporium pile').shuffle()
-                            getPile('Patrician / Emporium pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Settlers / Bustling Village' then
-                            coroutine.yield(0)
-                            getPile('Settlers / Bustling Village pile').shuffle()
-                            getPile('Settlers / Bustling Village pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break
-                        elseif v.nickname == 'Sauna / Avanto' then
-                            coroutine.yield(0)
-                            getPile('Sauna / Avanto pile').shuffle()
-                            getPile('Sauna / Avanto pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                            deck.takeObject({index = v.index}).destruct()
-                            cleanDeck = false
-                            break end end end
-                wait(2)
-                deck.shuffle()
-                while #deck.getObjects() > blackMarketMax do
-                    coroutine.yield(0)
-                    deck.takeObject({index = 1}).destruct()
-                end
-            end
-            if deck.getName() == 'Black Market deck' then
-                for i, card in ipairs(deck.getObjects()) do
-                    Use.Add(card.nickname)
-                    table.insert(bmDeck, card.nickname)
-                end
-            end
-        end
-        wait(1)
-        reorderKingdom()
+    end
+    for i in ipairs(events) do events[i].setPosition(ref_eventSlots[i].pos) end
+    eventCount = #events
+    if deck ~= nil then
+      local w=0
+        for i in ipairs(ref_kingdomSlots) do
+            card = false
+            zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
+            for j, v in ipairs(zone) do if v.tag == 'Card' then card = true end end
+            while not card do
+              for j, v in pairs(deck.getObjects()) do
+                local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
+                  if eventCount < eventMax then
+                    --local tp=getType(v.name) if tp=='Way'then if w==1 then break end w=w+1 end
+                    eventCount = eventCount + 1
+                    deck.takeObject({position = ref_eventSlots[eventCount].pos, index = v.index, callback = 'setCallback', callback_owner = Global})
+                    break end
+                else
+                  card = true
+                  deck.takeObject({position = ref_kingdomSlots[i].pos, index = v.index, flip = true})
+                  break end end end end
         wait(0.5)
-        createPile()
-        return 1
+        local blackMarket, requireBane = false, false
+        for i in ipairs(ref_kingdomSlots) do
+            zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
+            for j, v in ipairs(zone) do
+                if v.tag == 'Card' then
+                    Use.Add(v.getName())
+                    if v.getName() == 'Young Witch' then
+                        requireBane = true
+                        break
+                    elseif v.getName() == 'Black Market' then
+                        blackMarket = true
+        end end end end
+        if Use('BlackMarket') then
+            deck.setName('Black Market deck')
+            local cleanDeck = false
+            local deckAddPos = {deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
+            while not cleanDeck do
+                cleanDeck = true
+                for i, v in ipairs(deck.getObjects()) do
+                    local tp=getType(v.name) if tp=='Event' or tp=='Landmark' or tp=='Project' or tp=='Way' then
+                        coroutine.yield(0)
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Knight' then
+                        coroutine.yield(0)
+                        getPile('Knights pile').shuffle()
+                        getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Castles' then
+                        coroutine.yield(0)
+                        getPile('Castles pile').shuffle()
+                        getPile('Castles pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Catapult / Rocks' then
+                        coroutine.yield(0)
+                        getPile('Catapult / Rocks pile').shuffle()
+                        getPile('Catapult / Rocks pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Encampment / Plunder' then
+                        coroutine.yield(0)
+                        getPile('Encampment / Plunder pile').shuffle()
+                        getPile('Encampment / Plunder pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Gladiator / Fortune' then
+                        coroutine.yield(0)
+                        getPile('Gladiator / Fortune pile').shuffle()
+                        getPile('Gladiator / Fortune pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Patrician / Emporium' then
+                        coroutine.yield(0)
+                        getPile('Patrician / Emporium pile').shuffle()
+                        getPile('Patrician / Emporium pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Settlers / Bustling Village' then
+                        coroutine.yield(0)
+                        getPile('Settlers / Bustling Village pile').shuffle()
+                        getPile('Settlers / Bustling Village pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Sauna / Avanto' then
+                        coroutine.yield(0)
+                        getPile('Sauna / Avanto pile').shuffle()
+                        getPile('Sauna / Avanto pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    end
+                end
+            end
+            wait(2)
+            deck.shuffle()
+            while #deck.getObjects() > blackMarketMax + 1 do
+                coroutine.yield(0)
+                deck.takeObject({index = 1}).destruct()
+            end
+            -- check for young witch
+            for i, v in ipairs(deck.getObjects()) do
+                if v.nickname == 'Young Witch' then
+                    requireBane = true
+                end
+            end
+            if not requireBane then
+                deck.takeObject({index = 1}).destruct()
+            end
+        end
+        local baneSet, blackMarket2Check = false, false
+        if requireBane then
+            zone = getObjectFromGUID(ref.baneSlot.zone).getObjects()
+            for i, v in ipairs(zone) do
+                if v.tag == 'Card' and v.getName() ~= 'Bane pile' then
+                    Use.Add(v.getName())
+                    baneSet = true
+                    if v.getName() == 'Black Market' then
+                        blackMarket2Check = true
+            end end end
+            if not baneSet then
+                for j, card in ipairs(deck.getObjects()) do
+                    if card.description=='Event' or card.description=='Landmark' or card.description=='Project' or card.description=='Way' then
+                    elseif getCost(card.nickname) == 'M2D0P0' or getCost(card.nickname) == 'M3D0P0' then
+                        Use.Add(card.nickname)
+                        if card.nickname == 'Black Market' then
+                            blackMarket2Check = true
+                        end
+                        deck.takeObject({position = ref.baneSlot.pos, index = card.index, flip = true})
+                        break end end end end
+        if blackMarket2Check then
+            deck.setName('Black Market deck')
+            local cleanDeck = false
+            local deckAddPos = {deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
+            while not cleanDeck do
+                cleanDeck = true
+                for i, v in ipairs(deck.getObjects()) do
+                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
+                        coroutine.yield(0)
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Knight' then
+                        coroutine.yield(0)
+                        getPile('Knights pile').shuffle()
+                        getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Castles' then
+                        coroutine.yield(0)
+                        getPile('Castles pile').shuffle()
+                        getPile('Castles pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Catapult / Rocks' then
+                        coroutine.yield(0)
+                        getPile('Catapult / Rocks pile').shuffle()
+                        getPile('Catapult / Rocks pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Encampment / Plunder' then
+                        coroutine.yield(0)
+                        getPile('Encampment / Plunder pile').shuffle()
+                        getPile('Encampment / Plunder pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Gladiator / Fortune' then
+                        coroutine.yield(0)
+                        getPile('Gladiator / Fortune pile').shuffle()
+                        getPile('Gladiator / Fortune pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Patrician / Emporium' then
+                        coroutine.yield(0)
+                        getPile('Patrician / Emporium pile').shuffle()
+                        getPile('Patrician / Emporium pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Settlers / Bustling Village' then
+                        coroutine.yield(0)
+                        getPile('Settlers / Bustling Village pile').shuffle()
+                        getPile('Settlers / Bustling Village pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break
+                    elseif v.nickname == 'Sauna / Avanto' then
+                        coroutine.yield(0)
+                        getPile('Sauna / Avanto pile').shuffle()
+                        getPile('Sauna / Avanto pile').takeObject({index = 1, position = deckAddPos, flip = true})
+                        deck.takeObject({index = v.index}).destruct()
+                        cleanDeck = false
+                        break end end end
+        wait(2)
+        deck.shuffle()
+        while #deck.getObjects()>blackMarketMax do
+          coroutine.yield(0)
+          deck.takeObject({index = 1}).destruct()
+        end
+      end
+      if deck.getName() == 'Black Market deck' then
+        for i, card in ipairs(deck.getObjects()) do
+          Use.Add(card.nickname)
+          table.insert(bmDeck, card.nickname)
+        end
+      end
     end
-    startLuaCoroutine(Global, 'setupKingdomCoroutine')
+    wait(1)
+    reorderKingdom()
+    wait(0.5)
+    createPile()
+    return 1
+  end
+  startLuaCoroutine(Global, 'setupKingdomCoroutine')
 end
 -- Callback to fix the event position
 function setCallback(obj)obj.setRotation({0,90,0})end
@@ -1011,19 +1061,19 @@ function cleanUp()
   sp(useShelters,'Shelters')
   sp(usePlatinum,'Platinum')
   if usePlatinum~=1 then
-    getPile('Platinum pile').destruct()
-    getPile('Colony pile').destruct()
-    getPile('Gold pile').setPosition(ref_basicSlots[5].pos)
-    getPile('Silver pile').setPosition(ref_basicSlots[4].pos)
-    getPile('Copper pile').setPosition(ref_basicSlots[3].pos)
-    getPile('Potion pile').setPosition(ref_basicSlots[2].pos)
+    getPile('Platinums').destruct()
+    getPile('Colonies').destruct()
+    getPile('Golds').setPosition(ref_basicSlots[5].pos)
+    getPile('Silvers').setPosition(ref_basicSlots[4].pos)
+    getPile('Coppers').setPosition(ref_basicSlots[3].pos)
+    getPile('Potions').setPosition(ref_basicSlots[2].pos)
     getPile('Ruins pile').setPosition(ref_basicSlots[6].pos)
     getObjectFromGUID(ref_basicSlots[1].guid).destruct()
     getObjectFromGUID(ref_basicSlots[7].guid).destruct()
-  else getPile('Platinum pile').highlightOff()end
+  else getPile('Platinums').highlightOff()end
   
   if not Use('Potion') then
-    getPile('Potion pile').destruct()
+    getPile('Potions').destruct()
     if usePlatinum~=1 then
       getObjectFromGUID(ref_basicSlots[2].guid).destruct()
     else
@@ -1032,14 +1082,12 @@ function cleanUp()
   end
   
   if Use('Baker')then for i,obj in ipairs(getAllObjects())do if obj.getName()=='Coffers'then obj.call('baker')end end end
-  if not Use('TradeRoute')then getObjectFromGUID(ref_tradeRoute.guid).destruct()end
+  if not Use('TradeRoute')then getObjectFromGUID(ref.tradeRoute.guid).destruct()end
   if not Use('Looter')then getPile('Ruins pile').destruct()if usePlatinum~=1 then getObjectFromGUID(ref_basicSlots[6].guid).destruct() else getObjectFromGUID(ref_basicSlots[7].guid).destruct()end end
-  if not Use('Bane')then for i,v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects())do v.destruct()end end
-  if not Use('BlackMarket')then for i,v in ipairs(getObjectFromGUID(ref_randomizer.zone).getObjects())do v.destruct()end end
-  if not Use('Doom')and not Use('Fool')then getPile('States').destruct()end
-  if not Use('Zombie')then getPile('Zombie pile').destruct()end
-  if not Use('Embargo')then getObjectFromGUID('d3cafb').destruct()end
-  if not Use('Artifact')then getPile('Artifacts').destruct()end
+  if not Use('Bane')then for i,v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects())do v.destruct()end end
+  if not Use('BlackMarket')then for i,v in ipairs(getObjectFromGUID(ref.randomizer.zone).getObjects())do v.destruct()end end
+  if not Use('Zombie')then getPile('Zombies').destruct()end
+  if not Use('Embargo')then getObjectFromGUID('7c2165').destruct()end
   
   for i in ipairs(ref_replacementPiles)do
     local obj=getObjectFromGUID(ref_replacementPiles[i].guid)
@@ -1064,11 +1112,13 @@ function cleanUp()
   f(Use('Ghost'),'Ghost')
   f(Use('Imp'),'Imp')
   f(Use('Fate')or(Use('Imp')and Use('Ghost')),'Will-o\'-Wisp')
-  f(Use('Vampire'),'Bat')
   f(Use('Wish'),'Wish')
-  --f(Use('Horse'),'Horse')
-  f(Use('Fate'),'Boon')
-  f(Use('Doom'),'Hex')
+  f(Use('Vampire'),'Bat')
+  f(Use('Horse'),'Horses')
+  f(Use('Fate'),'Boons')
+  f(Use('Doom'),'Hexes')
+  f(Use('Doom')or Use('Fool'),'States')
+  f(Use('Artifact'),'Artifacts')
   f(Use('Hyde'),'Hyde')
   
   local dC=1
@@ -1076,7 +1126,9 @@ function cleanUp()
   
   for i,v in ipairs(sideSlots)do getPile(v..' pile').setPosition(ref_sideSlots[i].pos)end
   for i=#sideSlots+dC,#ref_sideSlots do getObjectFromGUID(ref_sideSlots[i].guid).destruct()end
-  for _,o in ipairs(getObjectFromGUID('06110c').getObjects())do o.shuffle()end
+  for _,o in ipairs(getObjectFromGUID(ref_storageZone.script).getObjects())do o.shuffle()o.setLock(false)end
+  
+  for _,g in pairs(ref_storageZone)do getObjectFromGUID(g).destruct()end
   
   for i,es in ipairs(ref_eventSlots)do
     local obj,zone=getObjectFromGUID(es.guid),getObjectFromGUID(es.zone)
@@ -1102,26 +1154,20 @@ function cleanUp()
     end
   end
   
-  local m=function(check,id)
-    if check then if id~='Tavern'and not Use('Reserve')then
-      for k,v in pairs(ref_mat[id])do
-        local obj=getObjectFromGUID(v)
-        local pos=obj.getPosition()
-        obj.setPosition({pos[1],pos[2],pos[3]-7})
-    end end else for _,v in pairs(ref_mat[id])do getObjectFromGUID(v).destruct()end end end
-  
-  m(Use('Reserve'),'Tavern')
-  --m(Use('Exile'),'Exile')
-  m(Use('NativeVillage'),'NativeVillage')
-  m(Use('Island'),'Island')
-  m(Use('PirateShip'),'PirateShip')
-  m(Use('PirateShip'),'CoinToken')
-  
-  local temp,names={'TradeRoute','PlusCard','PlusAction','TwoCost','PlusBuy','PlusCoin','MinusCoin','MinusCard','Trashing','Estate','Journey','Coffers','VP','Debt','Villager','Project'},{'Coin Tokens','+1 Card token','+1 Action token','-2 Cost token','+1 Buy token','+1 Coin token','-1 Coin token','-1 Card token','Trashing token','Estate token','Journey token','Coffers','VP Tokens','Debt Tokens','Villagers','Owns Project'}
-  for i,v in ipairs(temp)do if Use(v)then else for j, obj in ipairs(getAllObjects())do if obj.getName()==names[i]then if obj.getName()=='VP Tokens'and obj.getDescription()=='Landmark'then else obj.destruct()end end end end end
+  local temp,names={
+'Reserve',      'Exile',        'NativeVillage',     'Island',        'Project',     'PirateShip',
+'Aside',        'PlusCard',     'PlusAction',        'TwoCost',       'PlusBuy',     'TradeRoute',
+'PlusCoin',     'MinusCoin',    'MinusCard',         'Trashing',      'Estate',      'BlackMarket',
+'Journey',      'Coffers',      'VP',                'Debt',          'Villager'},{
+'Tavern Mat',   'Exile Mat',    'Native Village Mat','Island Mat',    'Owns Project','Pirate Ship Coins',
+'Set Aside',    '+1 Card Token','+1 Action Token',   '-2 Cost Token', '+1 Buy Token','Trade Route Mat',
+'+1 Coin Token','-1 Coin Token','-1 Card Token',     'Trashing Token','Estate Token','Black Market Mat',
+'Journey Token','Coffers',      'Victory Points',    'Debt Tokens',   'Villagers'}
+  for i,v in ipairs(temp)do if not Use(v)then for _,obj in pairs(getAllObjects())do if obj.getName()==names[i]then obj.destruct()end end end end
+  getObjectFromGUID(ref.board).destruct()
   local toRemove = {}
   if getPlayerCount() ~= 6 then
-    for i in pairs (ref_players) do
+    for i in pairs(ref_players) do
       local found = false
       for j = 1, #getSeatedPlayers() do
         local currentPlayer = getSeatedPlayers()[j]
@@ -1138,7 +1184,7 @@ function cleanUp()
     if Use('TradeRoute')or Use('Tax')or Use('Landmark')or Use('Gathering')then
       obeliskPiles={}
       local function slot(z)
-        for __,obj in ipairs(getObjectFromGUID(z).getObjects()) do
+        for __,obj in ipairs(getObjectFromGUID(z).getObjects())do
           if obj.tag=='Deck'then
             getSetup('Tax')(obj)
             getSetup('Obelisk')(obj)
@@ -1149,7 +1195,7 @@ function cleanUp()
             break end end end
       for _,v in ipairs(ref_basicSlotZones)do slot(v)end
       for _,v in ipairs(ref_kingdomSlots)do slot(v.zone)end
-      slot(ref_baneSlot.zone)
+      slot(ref.baneSlot.zone)
       
       for __,v in ipairs(ref_eventSlots)do
         for _,obj in ipairs(getObjectFromGUID(v.zone).getObjects())do
@@ -1188,7 +1234,6 @@ function cleanUp()
   end
 end
 function createHeirlooms(c)
-  local h=getObjectFromGUID('eb483b')
   for n,card in pairs({
     ['Magician'] = 'Rabbit',
     ['Secret Cave'] = 'Magic Lamp',
@@ -1198,7 +1243,7 @@ function createHeirlooms(c)
     ['Pooka'] = 'Cursed Gold',
     ['Pixie'] = 'Goat',
     ['Fool'] = 'Lucky Coin'}) do
-    if c==n then getPile('Heirlooms').takeObject({position={-40, 1.1, 31.50},guid=ref_heirlooms[card],flip=true})break end end end
+    if c==n then getPile('Heirlooms').takeObject({position=getObjectFromGUID(ref_storageZone.heirloom).getPosition(),guid=ref_heirlooms[card],flip=true})break end end end
 function createPile()
     for i in pairs(ref_kingdomSlots) do
         local zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
@@ -1268,13 +1313,13 @@ function createPile()
         end
     end
     local removeBane = true
-    for i, v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects()) do
+    for i, v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects()) do
         if v.tag == 'Card' and v.getName() ~= 'Bane pile' then
             removeBane = false
             local k = 1
             if getPlayerCount() == 2 and v.getName() == 'Castles' then
                 v.destruct()
-                getPile('Castles pile').setPosition(ref_baneSlot.pos)
+                getPile('Castles pile').setPosition(ref.baneSlot.pos)
                 for k = 1, 4 do
                     for l, card in ipairs(castlesPile.getObjects()) do
                         if k == 1 and card.nickname == 'Humble Castle' then
@@ -1295,39 +1340,39 @@ function createPile()
             --Then we do 3+ player Castles
             elseif v.getName() == 'Castles' then
                 v.destruct()
-                getPile('Castles pile').setPosition(ref_baneSlot.pos)
+                getPile('Castles pile').setPosition(ref.baneSlot.pos)
             --If we have a victory card and 2 players, we make 8 copies
             elseif getPlayerCount() == 2 and string.find(v.getDescription(), 'Victory') ~= nil then
                 while k < 8 do
-                    v.clone({position=ref_baneSlot.pos})
+                    v.clone({position=ref.baneSlot.pos})
                     k = k + 1
                 end
                 --If we have a victory card, we make 12 copies
             elseif string.find(v.getDescription(), 'Victory') ~= nil then
                 while k < 12 do
-                    v.clone({position=ref_baneSlot.pos})
+                    v.clone({position=ref.baneSlot.pos})
                     k = k + 1
                 end
             --If we have Knights, we swap in the Knights pile
             elseif v.getName() == 'Catapult / Rocks' then
                 v.destruct()
-                getPile('Catapult / Rocks pile').setPosition(ref_baneSlot.pos)
+                getPile('Catapult / Rocks pile').setPosition(ref.baneSlot.pos)
             elseif v.getName() == 'Encampment / Plunder' then
                 v.destruct()
-                getPile('Encampment / Plunder pile').setPosition(ref_baneSlot.pos)
+                getPile('Encampment / Plunder pile').setPosition(ref.baneSlot.pos)
             elseif v.getName() == 'Gladiator / Fortune' then
                 v.destruct()
-                getPile('Gladiator / Fortune pile').setPosition(ref_baneSlot.pos)
+                getPile('Gladiator / Fortune pile').setPosition(ref.baneSlot.pos)
             elseif v.getName() == 'Patrician / Emporium' then
                 v.destruct()
-                getPile('Patrician / Emporium pile').setPosition(ref_baneSlot.pos)
+                getPile('Patrician / Emporium pile').setPosition(ref.baneSlot.pos)
             elseif v.getName() == 'Settlers / Bustling Village' then
                 v.destruct()
-                getPile('Settlers / Bustling Village pile').setPosition(ref_baneSlot.pos)
+                getPile('Settlers / Bustling Village pile').setPosition(ref.baneSlot.pos)
             --All other cards get 10 copies
             else
                 while k < 10 do
-                    v.clone({position=ref_baneSlot.pos})
+                    v.clone({position=ref.baneSlot.pos})
                     k = k + 1
                 end
             end
@@ -1348,7 +1393,7 @@ function createPile()
             end
         end
         if not removeBane then
-            for i, v in pairs(getObjectFromGUID(ref_baneSlot.zone).getObjects()) do
+            for i, v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects()) do
                 if v.tag == 'Deck' then
                     if string.sub(v.getName(), -5) ~= ' pile' then
                         v.setName(v.takeObject({position=v.getPosition()}).getName() .. ' pile')
@@ -1373,47 +1418,46 @@ function getPile(pileName)
 end
 -- Function to set the correct count of base cards
 function setupBaseCardCount(useShelters, useHeirlooms)
-  local useBigBox = false
   local pCount = getPlayerCount()
   --Starting Estates
   if useShelters and getPile('Shelters') ~= nil then
-    removeFromPile(getPile('Estate pile'), 18)
+    removeFromPile(getPile('Estates'), 18)
   else
-    removeFromPile(getPile('Estate pile'), 18 - (pCount * 3))
+    removeFromPile(getPile('Estates'), 18 - (pCount * 3))
   end
   --Starting Curses
-  removeFromPile(getPile('Curse pile'), 50 - ((pCount - 1) * 10))
+  removeFromPile(getPile('Curses'), 50 - ((pCount - 1) * 10))
   if getPile('Ruins pile') ~= nil then
     getPile('Ruins pile').shuffle()
     removeFromPile(getPile('Ruins pile'), 50 - ((pCount - 1) * 10))
   end
   --Starting Treasures
-  if useBigBox and pCount > 4 then
-    removeFromPile(getPile('Copper pile'), 40)
-    removeFromPile(getPile('Silver pile'), 10)
-    removeFromPile(getPile('Gold pile'), 12)
+  if pCount > 4 then
+    removeFromPile(getPile('Coppers'), 40)
+    removeFromPile(getPile('Silvers'), 10)
+    removeFromPile(getPile('Golds'), 12)
   elseif pCount < 5 then
-    removeFromPile(getPile('Copper pile'), 60)
-    removeFromPile(getPile('Silver pile'), 40)
-    removeFromPile(getPile('Gold pile'), 30)
+    removeFromPile(getPile('Coppers'), 60)
+    removeFromPile(getPile('Silvers'), 40)
+    removeFromPile(getPile('Golds'), 30)
   end
   -- Remove Coppers when using Heirlooms
   if useHeirlooms then
-    removeFromPile(getPile('Copper pile'), (pCount * 7))
+    removeFromPile(getPile('Coppers'), (pCount * 7))
   end
   --Starting Provinces
   if pCount == 5 then
-    removeFromPile(getPile('Province pile'), 3)
+    removeFromPile(getPile('Provinces'), 3)
   elseif pCount < 5 then
-    removeFromPile(getPile('Province pile'), 6)
+    removeFromPile(getPile('Provinces'), 6)
   end
   --2 Player Victory Card Setup
   if pCount == 2 then
-    removeFromPile(getPile('Estate pile'), 4)
-    removeFromPile(getPile('Duchy pile'), 4)
-    removeFromPile(getPile('Province pile'), 4)
+    removeFromPile(getPile('Estates'), 4)
+    removeFromPile(getPile('Duchies'), 4)
+    removeFromPile(getPile('Provinces'), 4)
     if usePlatinum == 1 then
-        removeFromPile(getPile('Colony pile'), 4)
+        removeFromPile(getPile('Colonies'), 4)
     end
   end
   setupStartingDecks(useShelters, useHeirlooms)
@@ -1421,17 +1465,17 @@ end
 -- Function to setup starting Decks
 function setupStartingDecks(useShelters, useHeirlooms)
   --make a pile with used Heirlooms to copy
-  local c,z,h=1,getObjectFromGUID('eb483b').getObjects(),false
+  local c,z,h=1,getObjectFromGUID(ref_storageZone.heirloom).getObjects(),false
   for _,obj in pairs(z)do if obj.tag=='Deck'then c,h=1+obj.getQuantity(),obj elseif obj.tag=='Card'then c,h=2,obj end end
   --Creating the starting decks
   for i=1,#getSeatedPlayers()do
     local p=getSeatedPlayers()[i]
     if 0<Player[p].getHandCount()then
       if h then h.clone({position=ref_players[p].deck})end
-      for j=c,7 do getPile('Copper pile').takeObject({position=ref_players[p].deck,flip=true})end
+      for j=c,7 do getPile('Coppers').takeObject({position=ref_players[p].deck,flip=true})end
       if useShelters and getPile('Shelters')~=nil then
         getPile('Shelters').clone({position=ref_players[p].deck,rotation={0,180,180}})
-      else for j=1,3 do getPile('Estate pile').takeObject({position=ref_players[p].deck,flip=true})
+      else for j=1,3 do getPile('Estates').takeObject({position=ref_players[p].deck,flip=true})
   end end end end
   if useShelters and getPile('Shelters')~=nil then getPile('Shelters').destruct()end
   dealStartingHands()
@@ -1459,27 +1503,24 @@ function dealStartingHands()
     gameState = 3
     setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][ffffff]\n\nMake sure all cards are in each player\'s hand, deck, discard, Tavern mat, Island mat, or Native Village mat before pressing End Game. Any card outside of these areas will not be counted.')
     
-    local t = getSeatedPlayers()
-    local p = math.random(1,#t)
-    Turns.turn_color = t[p]
+    local t=getSeatedPlayers()
+    Turns.turn_color = t[math.random(1,#t)]
     Turns.enable = true
     return 1
   end
   startLuaCoroutine(Global, 'dealStartingHandsCoroutine')
 end
 function removeFromPile(pile, count)
-  local total = pile.getQuantity() - count
-  while pile.getQuantity() > total do
-    pile.takeObject({}).destruct()
-  end
-end
+  log(count,pile.getName())
+  local total=pile.getQuantity()-count
+  while pile.getQuantity()>total do pile.takeObject({}).destruct()
+end end
 -- Function to get a count of players sitting at the table with hands to be dealt to.
 function getPlayerCount()local c=#getSeatedPlayers()for i=1,#getSeatedPlayers()do if Player[getSeatedPlayers()[i]].getHandCount()<1 then p=p-1 end end if c==1 then return 6 end return c end
 -- Function to wait during coroutines
 function wait(time)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
 --Shortcut broadcast function to shorten them when I call them in the code
 function bcast(m,c,p)if c==nil then c={1,1,1}end if p then Player[p].broadcast(m,c)else broadcastToAll(m,c)end end
-
 function tokenCallback(obj,s)obj.call('setOwner',s)end
 function tokenMake(obj,key,n,pos,name)
   local p=obj.getPosition()
@@ -1497,175 +1538,168 @@ function tokenMake(obj,key,n,pos,name)
   getObjectFromGUID(ref_tokenBag[key]).takeObject(t)
 end
 --Function to set uninteractible objects
-function setUninteractible()for _,g in pairs({'377aaf','563a61','56dcad','d516bd','4b9597','497478','e700bc','7cbaf0','5acda1','28c05c','00d4cc','f7a574','b6ce05','755720','5e6695','fb0663','ea57b1','08e74d','3efdc8','4e4e40','4084c6','901432','5eb491','1f42f9','3d5008','a6f52e','7fb923','4733fe','bf7652','6be6f9','4ab1b9','48b491','03a180','25f0bd','2fad31','e6fed4','a96aef','adb237','e091ca','bb3643','1ff6fe','6ca433','06d4ed','44425f','0d6548','954ec6','017610','36f9e6','787ec5','79374a','4a393b','3e9fe7','333af8','33ccc0','e2dc84','4402ed','e3288c','48d5fd','753691','3cf4d4','a3859c','a25f0c','44a19a','e1102c','29d7df','4e986c','7e1e42','596d36','9eb71f','af0d7b','335c05','8c7c5c','40ad8f','183cc0','012eda','7c01f4','daf4ab','eff725','7ba0bf','de9a73','61ae8d','8cf7ae','d8a850','3ba1c2','bb0b4f','25756f','1e113a','811c7b','f0bd83','fa020b','eaf95e','7535f5','d5f986','2ea60a','bf9dda'})do obj=getObjectFromGUID(g)if obj and obj.interactable==false then print(g..' Duplicate guid!') elseif obj then obj.interactable=false else error('No Object with guid: '..g) end end end
+function setUninteractible(t)for k,g in pairs(t)do local obj=getObjectFromGUID(g.guid or g)
+  if obj and obj.interactable==false then print((g.guid or g)..' '..k..' is Duplicate guid!')
+  elseif obj then obj.interactable=false else log(g,k)end end end
 --Reference Tables
+ref={
+baneSlot   ={guid='df4a68',pos={15,1.3,22},zone='5b9b18'},
+randomizer ={guid='3d5008',pos={20,1.3,22},zone='fd0b1d'},
+tradeRoute ={guid='b853e8',pos={17.5,1.6,8.5}},
+startButton='176e6a',board='7636a9'}
 ref_heirlooms={}
+ref_storageZone={script='06110c',setup='b19032',fog='2c0471',fog2='ab5594',heirloom='eb483b'}
 ref_tokenBag={coin='491d9b',debt='7624c9',vp='b935ba'}
 ref_basicSlotZones={'198948','a5940e','86fa0b','810603','0bd7f8','2a639d','67f21e','b33712','d484d7','7f9e58','378afe'}
 ref_basicSlots={
-{pos={},guid='377aaf'},
-{pos={-20,1.3,31.5},guid='563a61'},
-{pos={-15,1.3,31.5},guid=''},
-{pos={-10,1.3,31.5},guid=''},
-{pos={ -5,1.3,31.5},guid=''},
-{pos={ 20,1.3,31.5},guid='28c05c'},
-{pos={},guid='00d4cc'}}
---https://www.dcode.fr/regexp-replacement#0
---(name) = ('.+'), (guid) = ('.+')
---\3=\4,\1=\2
+{guid='377aaf',pos={-25,1.3,31.5}},
+{guid='563a61',pos={-20,1.3,31.5}},
+{guid='56dcad',pos={-15,1.3,31.5}},
+{guid='d516bd',pos={-10,1.3,31.5}},
+{guid='4b9597',pos={ -5,1.3,31.5}},
+{guid='28c05c',pos={ 20,1.3,31.5}},
+{guid='00d4cc',pos={ 25,1.3,31.5}},
+{guid='497478'},{guid='e700bc'},{guid='2fad31'},{guid='b60e21'}}
 ref_sideSlots={
---Top Row
+--PageRow
 {guid='7ba0bf',pos={-14.5,1.3,23.15}},
 {guid='de9a73',pos={-17.9,1.3,23.15}},
 {guid='61ae8d',pos={-21.3,1.3,23.15}},
 {guid='f7a574',pos={-24.7,1.3,23.15}},
---Middle Row
+--PeaseantRow
 {guid='bb0b4f',pos={-14.5,1.3,18.3}},
 {guid='25756f',pos={-17.9,1.3,18.3}},
 {guid='1e113a',pos={-21.3,1.3,18.3}},
 {guid='2ea60a',pos={-24.7,1.3,18.3}},
---Bottom Row
+--SpoilsMercMadPrize
 {guid='8cf7ae',pos={-14.5,1.3,13.45}},
 {guid='d8a850',pos={-17.9,1.3,13.45}},
 {guid='3ba1c2',pos={-21.3,1.3,13.45}},
 {guid='d5f986',pos={-24.7,1.3,13.45}},
---Spirits
-{guid='f0bd83',pos={-28.1,1.3,13.45}},
-{guid='811c7b',pos={-28.1,1.3,18.3}},
-{guid='fa020b',pos={-28.1,1.3,23.15}},
---Bat Wish Horse
-{guid='a96aef',pos={-31.5,1.3,13.45}},
-{guid='5bd468',pos={-31.5,1.3,18.3}},
-{guid='e6fed4',pos={-31.5,1.3,23.15}},
---Empty
-{guid='5e6695',pos={-34.9,1.3,13.45}},
-{guid='fb0663',pos={-34.9,1.3,18.3}},
-{guid='755720',pos={-34.9,1.3,23.15}},
-{guid='bf7652',pos={-38.3,1.3,13.45}},
-{guid='b6ce05',pos={-38.3,1.3,18.3}},
-{guid='4733fe',pos={-38.3,1.3,23.15}},
-{guid='a6f52e',pos={-41.7,1.3,13.45}},
-{guid='7fb923',pos={-41.7,1.3,18.3}},
-{guid='bf9dda',pos={-41.7,1.3,23.15}},
-{guid='eaf95e',pos={-45.1,1.3,13.45}},
-{guid='7535f5',pos={-45.1,1.3,18.3}},
-{guid='adb237',pos={-45.1,1.3,23.15}}}
+--Spirits+Wish
+{guid='f0bd83',pos={-15.5,1.3,8.5}},
+{guid='811c7b',pos={-18.9,1.3,8.5}},
+{guid='fa020b',pos={-22.3,1.3,8.5}},
+{guid='a96aef',pos={-25.7,1.3,8.5}},
+--BatHorseBoonsHexes
+{guid='5bd468',pos={15.5,1.1,8.5}},
+{guid='e6fed4',pos={18.9,1.1,8.5}},
+{guid='5e6695',pos={22.3,1.1,8.5}},
+{guid='fb0663',pos={25.7,1.1,8.5}},
+--StatesArtifactsHydeEmpty
+{guid='755720',pos={8.3,1.1,37.75}},
+{guid='bf7652',pos={4.9,1.1,37.75}},
+{guid='b6ce05',pos={1.5,1.1,37.75}},
+{guid='4733fe',pos={-1.9,1.1,37.75}},
+{guid='a6f52e',pos={-5.3,1.1,37.75}},
+{guid='7fb923',pos={-8.71,1.1,37.75}},
+{guid='bf9dda',pos={-12.1,1.1,37.75}},
+{guid='eaf95e',pos={-15.5,1.1,37.75}},
+{guid='7535f5',pos={-18.9,1.1,37.75}},
+{guid='adb237',pos={-22.3,1.1,37.75}},
+{guid='fa776f',pos={-25.7,1.1,37.75}}}
 ref_eventSlots={
 {guid='e091ca',zone='f5e84d',pos={-10.5,1.25,8.5}},
 {guid='bb3643',zone='2ffd78',pos={ -3.5,1.25,8.5}},
 {guid='1ff6fe',zone='65aaf5',pos={  3.5,1.25,8.5}},
 {guid='6ca433',zone='0c28db',pos={ 10.5,1.25,8.5}}}
 ref_basicSupplyPiles={
-{guid='7660c1',name='Copper pile'},
-{guid='75009c',name='Silver pile'},
-{guid='029fa0',name='Gold pile'},
-{guid='8dc371',name='Curse pile'},
-{guid='f5b295',name='Estate pile'},
-{guid='8b4c2a',name='Duchy pile'},
-{guid='b5ddd4',name='Province pile'}}
+{guid='3a738e',name='Coppers'},
+{guid='a655a3',name='Silvers'},
+{guid='b11add',name='Golds'},
+{guid='d9a2c0',name='Curses'},
+{guid='4d0b0e',name='Estates'},
+{guid='d253c8',name='Duchies'},
+{guid='4a8334',name='Provinces'}}
 ref_extraSupplyPiles={
-{guid='984267',name='Platinum pile'},
-{guid='a9a549',name='Potion pile'},
-{guid='d476e3',name='Colony pile'},
-{guid='c62cfd',name='Ruins pile'},
-{guid='0815b9',name='Shelters'},
-{guid='4751d9',name='Heirlooms'},
-{guid='05733c',name='Zombie pile'}}
+{guid='85fcca',name='Platinums'},
+{guid='475de7',name='Potions'},
+{guid='6ce695',name='Colonies'},
+{guid='2adf43',name='Ruins pile'},
+{guid='9c6cd8',name='Shelters'},
+{guid='4033ec',name='Heirlooms'},
+{guid='aa2438',name='Zombies'}}
 ref_sidePiles={
-{guid='59e1ca',name='Hyde pile'},
-{guid='99658a',name='Artifacts'},
-{guid='34b255',name='States'},
-{guid='8c5446',name='Boon pile'},
---{guid='80ea32',name='Horse pile'},
-{guid='53dacd',name='Hex pile'},
-{guid='5e18d3',name='Wish pile'},
-{guid='d72486',name='Bat pile'},
-{guid='2a05d7',name='Will-o\'-Wisp pile'},
-{guid='dff6fe',name='Imp pile'},
-{guid='f5e244',name='Ghost pile'},
-{guid='4e3544',name='Prize pile'},
-{guid='a93696',name='Madman pile'},
-{guid='aff324',name='Mercenary pile'},
-{guid='eb4bd2',name='Spoils pile'},
-{guid='60b66d',name='Treasure Hunter pile'},
-{guid='5c1752',name='Warrior pile'},
-{guid='0fd8c1',name='Hero pile'},
-{guid='dcb599',name='Champion pile'},
-{guid='e3895e',name='Soldier pile'},
-{guid='94e71b',name='Fugitive pile'},
-{guid='dd6bc5',name='Disciple pile'},
-{guid='317b6e',name='Teacher pile'}}
+{name='Hyde pile'},
+{name='Artifacts pile'},
+{name='States pile'},
+{name='Horses pile'},
+{name='Boons pile'},
+{name='Hexes pile'},
+{name='Wish pile'},
+{name='Bat pile'},
+{name='Will-o\'-Wisp pile'},
+{name='Imp pile'},
+{name='Ghost pile'},
+{name='Prize pile'},
+{name='Madman pile'},
+{name='Mercenary pile'},
+{name='Spoils pile'},
+{name='Treasure Hunter pile'},
+{name='Warrior pile'},
+{name='Hero pile'},
+{name='Champion pile'},
+{name='Soldier pile'},
+{name='Fugitive pile'},
+{name='Disciple pile'},
+{name='Teacher pile'}}
 ref_replacementPiles={
-{guid='704e4f',name='Knights pile'},
-{guid='2ee7f2',name='Sauna / Avanto pile'},
-{guid='847cdb',name='Castles pile'},
-{guid='3486d4',name='Catapult / Rocks pile'},
-{guid='d4bf44',name='Encampment / Plunder pile'},
-{guid='fad46e',name='Gladiator / Fortune pile'},
-{guid='849ae3',name='Patrician / Emporium pile'},
-{guid='d53aae',name='Settlers / Bustling Village pile'}}
+{name='Knights pile'},
+{name='Sauna / Avanto pile'},
+{name='Castles pile'},
+{name='Catapult / Rocks pile'},
+{name='Encampment / Plunder pile'},
+{name='Gladiator / Fortune pile'},
+{name='Patrician / Emporium pile'},
+{name='Settlers / Bustling Village pile'}}
 ref_kingdomSlots={
-{zone='987e4a',pos={-10,1.3,22}},
-{zone='816553',pos={ -5,1.3,22}},
-{zone='7b20e5',pos={  0,1.3,22}},
-{zone='740c12',pos={  5,1.3,22}},
-{zone='fefd47',pos={ 10,1.3,22}},
-{zone='47d4f1',pos={-10,1.3,14.5}},
-{zone='4a3f91',pos={ -5,1.3,14.5}},
-{zone='9d12c3',pos={  0,1.3,14.5}},
-{zone='9e931d',pos={  5,1.3,14.5}},
-{zone='00770c',pos={ 10,1.3,14.5}}
-}
-ref_baneSlot  ={zone='5b9b18',pos={15,1.3 ,22}}
-ref_randomizer={zone='fd0b1d',pos={25,1.3 ,22}}
-ref_tradeRoute={guid='1f42f9',pos={20,1.14,22}}
-ref_startButton = '48b491'
-ref_mat={
-Exile        ={Red='b94b4e',White='4e5edb',Orange='d62906',Green='12bc3a',Yellow='2e8092',Blue='d8df82'},
-Tavern       ={Red='e1102c',White='44a19a',Orange='29d7df',Green='a25f0c',Yellow='4e986c',Blue='a3859c'},
-Island       ={Red='3e9fe7',White='787ec5',Orange='e2dc84',Green='954ec6',Yellow='48d5fd',Blue='06d4ed'},
-PirateShip   ={Red='333af8',White='79374a',Orange='4402ed',Green='017610',Yellow='753691',Blue='44425f'},
-CoinToken    ={Red='52f92f',White='2f0aec',Orange='24a62e',Green='5eb662',Yellow='fa449e',Blue='b84186'},
-NativeVillage={Red='33ccc0',White='4a393b',Orange='e3288c',Green='36f9e6',Yellow='3cf4d4',Blue='0d6548'}}
+{guid='ea57b1',zone='987e4a',pos={-10,1.3,22}},
+{guid='08e74d',zone='816553',pos={ -5,1.3,22}},
+{guid='3efdc8',zone='7b20e5',pos={  0,1.3,22}},
+{guid='4e4e40',zone='740c12',pos={  5,1.3,22}},
+{guid='4084c6',zone='fefd47',pos={ 10,1.3,22}},
+{guid='6be6f9',zone='47d4f1',pos={-10,1.3,14.5}},
+{guid='4ab1b9',zone='4a3f91',pos={ -5,1.3,14.5}},
+{guid='48b491',zone='9d12c3',pos={  0,1.3,14.5}},
+{guid='03a180',zone='9e931d',pos={  5,1.3,14.5}},
+{guid='25f0bd',zone='00770c',pos={ 10,1.3,14.5}}}
 ref_players={
-Red   ={deckZone='8fc66b',discardZone='58de65',zone='ae55f2',coins='ab5a25',vp='566e76',debt='190d40',island='2ff1c9',tavern='c8b2d7',deck={ 12  ,1.3,-27},discard={  7  ,1.27,-27}},
-White ={deckZone='16fcb6',discardZone='24e48a',zone='b6f79d',coins='b6bf41',vp='924430',debt='3d4844',island='4d79d4',tavern='d24813',deck={ -7  ,1.3,-27},discard={-12  ,1.27,-27}},
-Orange={deckZone='0c0478',discardZone='1436d5',zone='632a5e',coins='4afc72',vp='aafd0e',debt='fe6400',island='a8d77e',tavern='2b4ca6',deck={ 31  ,1.3,-27},discard={ 26  ,1.27,-27}},
-Green ={deckZone='027aa8',discardZone='073577',zone='55c136',coins='b91008',vp='7cb6ee',debt='357de0',island='940fae',tavern='b10a77',deck={-25.5,1.3,-27},discard={-30.5,1.27,-27}},
-Yellow={deckZone='88dbf1',discardZone='1d150a',zone='4237c3',coins='357898',vp='c1c72a',debt='11b3ae',island='9d8478',tavern='31f8ec',deck={ 50  ,1.3,-27},discard={ 45  ,1.27,-27}},
-Blue  ={deckZone='f5c470',discardZone='0b6997',zone='93ac6d',coins='250bfc',vp='4caeb9',debt='f83dc4',island='f1c054',tavern='d4e057',deck={-44.5,1.3,-27},discard={-49.5,1.27,-27}}}
+Blue  ={deckZone='307d12',discardZone='41de74',zone='062acc',coins='b2dc22',vp='b59b65',debt='186c83',tavern='015528',deck={-46.5,2,21},discard={-51.5,2,21}},
+Green ={deckZone='9359a4',discardZone='72ba37',zone='c11794',coins='22bdb3',vp='6ae2a8',debt='a34771',tavern='af5c58',deck={-46.5,2,-21},discard={-51.5,2,-21}},
+White ={deckZone='e6b388',discardZone='eb044b',zone='c95925',coins='b6bf41',vp='1b4618',debt='3d4844',tavern='d7d996',deck={-18.5,2,-21},discard={-23.5,2,-21}},
+Red   ={deckZone='5a6e68',discardZone='e09013',zone='d1c5af',coins='4b832d',vp='84f540',debt='9cfa4a',tavern='48295f',deck={23.5,2,-21},discard={18.5,2,-21}},
+Orange={deckZone='420340',discardZone='bf9b32',zone='10c425',coins='ce8828',vp='0d128b',debt='f2a253',tavern='fd4953',deck={51.5,2,-21},discard={46.5,2,-21}},
+Yellow={deckZone='7ee56d',discardZone='046cfd',zone='827520',coins='17dd2a',vp='c979ca',debt='10cb81',tavern='dea1f7',deck={51.5,2,21},discard={46.5,2,21}}}
 --All card sets/expansions
 ref_cardSets={
-{guid='982436',name='Dominion'},
-{guid='48bfb2',name='Intrigue'},
-{guid='de6f34',name='Seaside'},
-{guid='eacf53',name='Alchemy'},
-{guid='38b54d',name='Prosperity'},
-{guid='bc2d26',name='Cornucopia'},
-{guid='fc48a8',name='Hinterlands'},
-{guid='780f15',name='Dark Ages'},
-{guid='df7239',name='Guilds'},
-{guid='1ae0ae',name='Adventures'},
-{guid='1f81ef',name='Empires'},
-{guid='53ccb6',name='Nocturne'},
-{guid='042073',name='Renaissance'},--13
-{guid='c3d329',name='Promos'},--14
-{guid='c0f629',name='Adamabrams'},--15
-{guid='60d7e0',name='Dominion 1st Edition'},
-{guid='ac30ce',name='Intrigue 1st Edition'},
-{guid='a4a262',name='Original Printing'},
-{guid='f3a28a',name='Menagerie'}}
+{name='Dominion'},
+{name='Intrigue'},
+{name='Seaside'},
+{name='Alchemy'},
+{name='Prosperity'},
+{name='Cornucopia'},
+{name='Hinterlands'},
+{name='Dark Ages'},
+{name='Guilds'},
+{name='Adventures',events={1}},
+{name='Empires',events={2,3}},
+{name='Nocturne'},
+{name='Renaissance',events={4}},--13
+{name='Menagerie',events={5,6}},--14
+{name='Promos',events={7}},--15
+{name='Adamabrams',events={8}},--16
+{name='Cut Dominion cards'},
+{name='Cut Intrigue cards'},
+{name='Original Printing'}}
 ref_eventSets={
-{guid='746b6f',name='Adventures Events'},
-{guid='012ab1',name='Empires Events'},
-{guid='00805a',name='Empires Landmarks'},
-{guid='b79f00',name='Renaissance Projects'},
-{guid='8e196f',name='Promo Events'},
-{guid='f28e0f',name='Adamabrams Extras'},
-{guid='e53400',name='Menagerie Extras'}}
-
-
-
+{name='Adventures Events'},
+{name='Empires Events'},
+{name='Empires Landmarks'},
+{name='Renaissance Projects'},
+{name='Menagerie Events'},
+{name='Menagerie Ways'},
+{name='Summon'},
+{name='Adamabrams Extras'}}
 --Name of all cards along with costs, used for sorting
 ref_master={
 {cost='M0D0P0',name='Copper',type='Treasure'},
@@ -1933,7 +1967,7 @@ ref_master={
 {cost='M5D0P0',name='Royal Carriage',type='Action - Reserve'},
 {cost='M5D0P0',name='Storyteller',type='Action'},
 {cost='M5D0P0',name='Swamp Hag',type='Action - Attack - Duration'},
-{cost='M4D0P0',name='Transmorgrify',type='Action - Reserve'},
+{cost='M4D0P0',name='Transmogrify',type='Action - Reserve'},
 {cost='M5D0P0',name='Treasure Trove',type='Treasure'},
 {cost='M5D0P0',name='Wine Merchant',type='Action - Reserve'},
 {cost='M3D0P0',name='Treasure Hunter',type='Action - Traveller'},
@@ -1963,7 +1997,7 @@ ref_master={
 {cost='M5D0P0',type='Event',name='Seaway',depend='PlusBuy'},
 {cost='M5D0P0',type='Event',name='Trade'},
 {cost='M6D0P0',type='Event',name='Training',depend='PlusCoin'},
-{cost='M2D0P0',type='Event',name='Traveling Fair'},
+{cost='M2D0P0',type='Event',name='Travelling Fair'},
 {cost='M5D0P0',name='Archive',type='Action - Duration'},
 {cost='M5D0P0',name='Capital',type='Treasure',depend='Debt'},
 {cost='M3D0P0',name='Castles',type='Victory - Castle',depend='VP'},
@@ -2019,7 +2053,7 @@ ref_master={
 {cost='M0D5P0',type='Event',name='Triumph',depend='VP'},
 {cost='M4D3P0',type='Event',name='Wedding',depend='VP'},
 {cost='M5D0P0',type='Event',name='Windfall'},
-{cost='MXDXP0',type='Landmark',name='Aqueduct',depend='VP',setup=function(o)local n=o.getName()if n=='Gold pile'or n=='Silver pile'then tokenMake(o,'vp',8)end end},
+{cost='MXDXP0',type='Landmark',name='Aqueduct',depend='VP',setup=function(o)local n=o.getName()if n=='Golds'or n=='Silvers'then tokenMake(o,'vp',8)end end},
 {cost='MXDXP0',type='Landmark',name='Arena',depend='VP'},
 {cost='MXDXP0',type='Landmark',name='Bandit Fort',VP=function(t)return -((t.deck.Silver or 0)+(t.deck.Gold or 0))*2 end},
 {cost='MXDXP0',type='Landmark',name='Basilica',depend='VP'},
@@ -2036,7 +2070,7 @@ ref_master={
 {cost='MXDXP0',type='Landmark',name='Orchard',VP=function(t)return t.orchard*4 end},
 {cost='MXDXP0',type='Landmark',name='Palace',VP=function(t)return math.min(t.deck.Copper or 0, t.deck.Silver or 0, t.deck.Gold or 0)*3 end},
 {cost='MXDXP0',type='Landmark',name='Tomb',depend='VP'},
-{cost='MXDXP0',type='Landmark',name='Tower',VP=function(t)local vp,ne,zs,f=0,{},{},false;for _,g in ipairs(ref_basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end table.insert(zs,getObjectFromGUID(ref_baneSlot.zone))for _,s in ipairs(ref_kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do if o.tag=='Card'and o.getName()~='Bane Card'then if string.find(getType(o.getName()),'Knight')==nil then table.insert(ne,o.getName())else table.insert(ne,'Knights')end elseif o.tag=='Deck'then table.insert(ne,string.sub(o.getName(),1,-6))end end end for c,n in pairs(t.deck)do for _,p in ipairs(ne)do if p==c then f=true;end end if string.find(getType(c),'Knight')~=nil then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Global Blackmarket Var]]if string.find(getType(c),'Victory')==nil and not f then vp=vp+n end end return vp end},
+{cost='MXDXP0',type='Landmark',name='Tower',VP=function(t)local vp,ne,zs,f=0,{},{},false;for _,g in ipairs(ref_basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end table.insert(zs,getObjectFromGUID(ref.baneSlot.zone))for _,s in ipairs(ref_kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do if o.tag=='Card'and o.getName()~='Bane Card'then if string.find(getType(o.getName()),'Knight')==nil then table.insert(ne,o.getName())else table.insert(ne,'Knights')end elseif o.tag=='Deck'then table.insert(ne,string.sub(o.getName(),1,-6))end end end for c,n in pairs(t.deck)do for _,p in ipairs(ne)do if p==c then f=true;end end if string.find(getType(c),'Knight')~=nil then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Global Blackmarket Var]]if string.find(getType(c),'Victory')==nil and not f then vp=vp+n end end return vp end},
 {cost='MXDXP0',type='Landmark',name='Triumphal Arch',VP=function(t)local h,s=0,0;for card,c in pairs(t.deck)do if getType(card):find('Action')then if c>h then s=h;h=c elseif c>s then s=c end end end return s * 3 end},
 {cost='MXDXP0',type='Landmark',name='Wall',VP=function(t)return -(t.amount-15)end},
 {cost='MXDXP0',type='Landmark',name='Wolf Den',VP=function(t)log(t)return -t.wolf*3 end},--Nocturne
@@ -2133,39 +2167,45 @@ ref_master={
 {cost='M2D0P0',name='Black Cat',type='Action - Attack - Reaction'},
 {cost='M2D0P0',name='Sleigh',type='Treasure',depend='Horse'},
 {cost='M2D0P0',name='Supplies',type='Treasure',depend='Horse'},
-{cost='M3D0P0',name='Camel Train',type='Action',depend='Reserve Exile'},
+{cost='M3D0P0',name='Camel Train',type='Action',depend='Exile'},
 {cost='M3D0P0',name='Goatherd',type='Action'},
 {cost='M3D0P0',name='Scrap',type='Action',depend='Horse'},
 {cost='M3D0P0',name='Sheepdog',type='Action - Reaction'},
 {cost='M3D0P0',name='Snowy Village',type='Action'},
-{cost='M3D0P0',name='Stockpile',type='Treasure',depend='Reserve Exile'},
-{cost='M4D0P0',name='Bounty Hunter',type='Action',depend='Reserve Exile'},
-{cost='M4D0P0',name='Cardinal',type='Action - Attack',depend='Reserve Exile'},
+{cost='M3D0P0',name='Stockpile',type='Treasure',depend='Exile'},
+{cost='M4D0P0',name='Bounty Hunter',type='Action',depend='Exile'},
+{cost='M4D0P0',name='Cardinal',type='Action - Attack',depend='Exile'},
 {cost='M4D0P0',name='Cavalry',type='Action',depend='Horse'},
 {cost='M4D0P0',name='Groom',type='Action',depend='Horse'},
 {cost='M4D0P0',name='Hostelry',type='Action',depend='Horse'},
 {cost='M4D0P0',name='Village Green',type='Action - Duration - Reaction'},
 {cost='M5D0P0',name='Barge',type='Action - Duration'},
-{cost='M5D0P0',name='Coven',type='Action - Attack',depend='Reserve Exile'},
-{cost='M5D0P0',name='Displace',type='Action',depend='Reserve Exile'},
+{cost='M5D0P0',name='Coven',type='Action - Attack',depend='Exile'},
+{cost='M5D0P0',name='Displace',type='Action',depend='Exile'},
 {cost='M5D0P0',name='Falconer',type='Action - Reaction'},
 {cost='M5D0P0',name='Fisherman',type='Action'},
-{cost='M5D0P0',name='Gatekeeper',type='Action - Duration - Attack',depend='Reserve Exile'},
+{cost='M5D0P0',name='Gatekeeper',type='Action - Duration - Attack',depend='Exile'},
 {cost='M5D0P0',name='Hunting Lodge',type='Action'},
 {cost='M5D0P0',name='Kiln',type='Action'},
 {cost='M5D0P0',name='Livery',type='Action',depend='Horse'},
 {cost='M5D0P0',name='Mastermind',type='Action - Duration'},
 {cost='M5D0P0',name='Paddock',type='Action',depend='Horse'},
-{cost='M5D0P0',name='Sanctuary',type='Action',depend='Reserve Exile'},
+{cost='M5D0P0',name='Sanctuary',type='Action',depend='Exile'},
 {cost='M6D0P0',name='Destrier',type='Action'},
 {cost='M6D0P0',name='Wayfarer',type='Action'},
 {cost='M7D0P0',name='Animal Fair',type='Action'},
 {cost='M3D0P0',name='Horse',type='Action'},
 {cost='M0D0P0',type='Way',name='Way of the Butterfly'},
+{cost='M0D0P0',type='Way',name='Way of the Camel',depend='Exile'},
 {cost='M0D0P0',type='Way',name='Way of the Chameleon'},
+{cost='M0D0P0',type='Way',name='Way of the Frog'},
+{cost='M0D0P0',type='Way',name='Way of the Goat'},
 {cost='M0D0P0',type='Way',name='Way of the Horse'},
 {cost='M0D0P0',type='Way',name='Way of the Mole'},
-{cost='M0D0P0',type='Way',name='Way of the Mouse'},
+{cost='M0D0P0',type='Way',name='Way of the Monkey'},
+{cost='M0D0P0',type='Way',name='Way of the Mouse',setup=function()end},
+{cost='M0D0P0',type='Way',name='Way of the Mule'},
+{cost='M0D0P0',type='Way',name='Way of the Otter'},
 {cost='M0D0P0',type='Way',name='Way of the Owl'},
 {cost='M0D0P0',type='Way',name='Way of the Ox'},
 {cost='M0D0P0',type='Way',name='Way of the Pig'},
@@ -2174,6 +2214,7 @@ ref_master={
 {cost='M0D0P0',type='Way',name='Way of the Sheep'},
 {cost='M0D0P0',type='Way',name='Way of the Squirrel'},
 {cost='M0D0P0',type='Way',name='Way of the Turtle',depend='Aside'},
+{cost='M0D0P0',type='Way',name='Way of the Worm',depend='Exile'},
 {cost='M0D0P0',type='Event',name='Delay',depend='Aside'},
 {cost='M0D0P0',type='Event',name='Desperation'},
 {cost='M2D0P0',type='Event',name='Gamble'},
@@ -2182,10 +2223,10 @@ ref_master={
 {cost='M2D0P0',type='Event',name='Toil'},
 {cost='M3D0P0',type='Event',name='Enhance'},
 {cost='M3D0P0',type='Event',name='March'},
-{cost='M3D0P0',type='Event',name='Transport',depend='Reserve Exile'},
-{cost='M4D0P0',type='Event',name='Banish',depend='Reserve Exile'},
+{cost='M3D0P0',type='Event',name='Transport',depend='Exile'},
+{cost='M4D0P0',type='Event',name='Banish',depend='Exile'},
 {cost='M4D0P0',type='Event',name='Bargain',depend='Horse'},
-{cost='M4D0P0',type='Event',name='Invest',depend='Reserve Exile'},
+{cost='M4D0P0',type='Event',name='Invest',depend='Exile'},
 {cost='M4D0P0',type='Event',name='Seize the day',depend='Project'},
 {cost='M5D0P0',type='Event',name='Commerce'},
 {cost='M5D0P0',type='Event',name='Demand',depend='Horse'},
@@ -2197,6 +2238,7 @@ ref_master={
 {cost='M3D0P0',name='Black Market',type='Action'},
 {cost='M3D0P0',name='Church',type='Action - Duration'},
 {cost='M4D0P0',name='Envoy',type='Action'},
+{cost='M4D0P0',name='Dismantle',type='Action'},
 {cost='M4D0P0',name='Walled Village',type='Action'},
 {cost='M4D0P0',name='Sauna / Avanto',type='Action'},
 {cost='M4D0P0',name='Sauna',type='Action'},
