@@ -1,50 +1,44 @@
---DominionDefinitiveEditionModifiedByAmuzet2020_04_7_C
+--DominionDefinitiveEditionModifiedByAmuzet2020_04_14_C
 function onSave()
-    saved_data = ''
-
-    saved_data = JSON.encode({
-        gs = gameState,
-        emax = eventMax,
-        bmax = blackMarketMax,
-        ect = eventCount,
-        ust = useSets,
-        upt = usePlatinum,
-        ush = useShelters,
-        uhl = useHeirlooms,
-        obl = obeliskTarget,
-        bmd = bmDeck
-        --ref = globalVariable,
-    })
+  saved_data=JSON.encode({
+    gs=gameState,
+    emax=eventMax,
+    bmax=blackMarketMax,
+    ect=eventCount,
+    ust=useSets,
+    upt=usePlatinum,
+    ush=useShelters,
+    uhl=useHeirlooms,
+    obl=obeliskTarget,
+    bmd=bmDeck})
     return saved_data
 end
 --Runs when the map is first loaded
 function onLoad(saved_data)
   local Color={Blue={31/255,136/255,255/255},Green={49/255,179/255,43/255},Red={219/255,26/255,24/255},White={0.3,0.3,0.3},Orange={244/255,100/255,29/255},Yellow={231/255,229/255,44/255}}
-    if saved_data ~= '' then
-        local loaded_data = JSON.decode(saved_data)
-        gameState = loaded_data.gs
-        eventMax = loaded_data.emax
-        blackMarketMax = loaded_data.bmax
-        eventCount = loaded_data.ect
-        useSets = loaded_data.ust
-        usePlatinum = loaded_data.upt
-        useShelters = loaded_data.ush
-        useHeirlooms = loaded_data.uhl
-        obeliskTarget = loaded_data.obl
-        bmDeck = loaded_data.bmd
-        -- globalVariable = loaded_data.ref
+    if saved_data~=''then
+      local loaded_data=JSON.decode(saved_data)
+      gameState=loaded_data.gs
+      eventMax=loaded_data.emax
+      blackMarketMax=loaded_data.bmax
+      eventCount=loaded_data.ect
+      useSets=loaded_data.ust
+      usePlatinum=loaded_data.upt
+      useShelters=loaded_data.ush
+      useHeirlooms=loaded_data.uhl
+      obeliskTarget=loaded_data.obl
+      bmDeck=loaded_data.bmd
     else
-        gameState = 1
-        eventMax = 4
-        blackMarketMax = 25
-        eventCount = 0
-        usePlatinum = 0
-        useShelters = 0
-        useHeirlooms = false
-        useSets = {}
-        bmDeck = {}
-        obeliskTarget = nil
-        -- global variables that need to be saved between loads
+      gameState=1
+      eventMax=4
+      blackMarketMax=25
+      eventCount=0
+      usePlatinum=0
+      useShelters=0
+      useHeirlooms=false
+      useSets={}
+      bmDeck={}
+      obeliskTarget=nil
     end
     setUninteractible(ref_kingdomSlots)
     setUninteractible(ref_basicSlots)
@@ -56,11 +50,11 @@ function onLoad(saved_data)
     math.randomseed(os.time())
     if gameState==1 then
       for _,o in pairs(getObjectFromGUID(ref_storageZone.script).getObjects())do
-        if o.tag=='Deck' then local n=o.getName()
+        if o.tag=='Deck'then local n=o.getName()
           for i,c in pairs(ref_sidePiles)do if n==c.name then ref_sidePiles[i].guid=o.getGUID()break elseif i==#ref_sidePiles then o.highlightOn({1,0,0.5})end end end end
       for _,o in pairs(getObjectFromGUID(ref_storageZone.setup).getObjects())do
         local f,n=false,o.getName()
-        if(o.tag=='Deck'or o.tag=='Card')and n~='Heirlooms'and n~='Shelters' then
+        if(o.tag=='Deck'or o.tag=='Card')and n~='Heirlooms'and n~='Shelters'then
           if not f then for i,c in pairs(ref_replacementPiles)do if n==c.name then f,ref_replacementPiles[i].guid=true,o.getGUID()break end end end
           if not f then for i,c in pairs(ref_eventSets)do if n==c.name then f,ref_eventSets[i].guid=true,o.getGUID()break end end end
           if not f then for i,c in pairs(ref_cardSets)do if n==c.name then f,ref_cardSets[i].guid=true,o.getGUID()break end end end
@@ -68,24 +62,21 @@ function onLoad(saved_data)
         --Added Heirlooms
         for _,v in ipairs(getPile('Heirlooms').getObjects())do ref_heirlooms[v.name]=v.guid end
         setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][ffffff]\n\nBefore pressing Start Game, you may place any card from the expansion piles into the empty supply slots. Select any number of expansions to be randomly selected to fill all the remaining slots. You may also remove any undesireable card from its expansion deck to prevent it from being selected. You may save the game now to save your selected kingdom and expansions before pressing start.\n\n[FFFF00][b]Do not delete any decks or place any deck of cards into a supply slot.[/b]')
-        for i in ipairs(ref_cardSets) do
-            local obj = getObjectFromGUID(ref_cardSets[i].guid)
-            if obj ~= nil then
+        for i in ipairs(ref_cardSets)do
+            local obj=getObjectFromGUID(ref_cardSets[i].guid)
+            if obj then
                 obj.createButton({
                     label='Select\n'..obj.getName(),click_function='click_selectDeck',
                     function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
                     height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
-                for j, guid in ipairs(useSets) do
-                    local obj2 = getObjectFromGUID(guid)
-                    if obj == obj2 then
+                for j, guid in ipairs(useSets)do
+                    local obj2=getObjectFromGUID(guid)
+                    if obj==obj2 then
                         obj.highlightOn({0,1,0})
                         break
-                    end
-                end
-            end
-        end
-        local obj = getObjectFromGUID(ref.startButton)
-        if obj ~= nil then
+        end end end end
+        local obj=getObjectFromGUID(ref.startButton)
+        if obj then
             local btn=setmetatable({d=3,function_owner=Global,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
               b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end obj.createButton(b)end})
             btn('Max Events: '..eventMax,               'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
@@ -103,32 +94,32 @@ function onLoad(saved_data)
             btn('Quick Setup\nAll Sets',  'Random Kingdom from every set')
             btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{11,0,-16})
         end
-        obj = getObjectFromGUID(ref_extraSupplyPiles[1].guid)
-        if obj ~= nil then
+        obj=getObjectFromGUID(ref_extraSupplyPiles[1].guid)
+        if obj then
             obj.createButton({
                 label='Force\n'..obj.getName(),click_function='click_forcePile',
                 function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
                 height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
-            if usePlatinum == 1 then obj.highlightOn({0,1,0})
-            elseif usePlatinum == 2 then obj.highlightOn({1,0,0}) end
+            if usePlatinum==1 then obj.highlightOn({0,1,0})
+            elseif usePlatinum==2 then obj.highlightOn({1,0,0}) end
         end
-        obj = getObjectFromGUID(ref_extraSupplyPiles[5].guid)
-        if obj ~= nil then
+        obj=getObjectFromGUID(ref_extraSupplyPiles[5].guid)
+        if obj then
             obj.createButton({
                 label='Force\n'..obj.getName(), click_function='click_forcePile',
                 function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
                 height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
-            if useShelters == 1 then obj.highlightOn({0,1,0})
-            elseif useShelters == 2 then obj.highlightOn({1,0,0}) end
+            if useShelters==1 then obj.highlightOn({0,1,0})
+            elseif useShelters==2 then obj.highlightOn({1,0,0}) end
         end
     end
-    if gameState == 2 then
+    if gameState==2 then
         bcast('Setup was interrupted, please reset the game.')
     end
-    if gameState == 3 then
-        if obeliskTarget ~= nil then
-            for i, obj in ipairs(getAllObjects()) do
-                if obj.getName() == 'Obelisk'or obj.getName() == obeliskTarget .. ' pile' then
+    if gameState==3 then
+        if obeliskTarget then
+            for i, obj in ipairs(getAllObjects())do
+                if obj.getName()=='Obelisk'or obj.getName()==obeliskTarget .. ' pile'then
                     obj.highlightOn({1,0,1})
                 end
             end
@@ -137,8 +128,8 @@ function onLoad(saved_data)
     end
 end
 function createEndButton()
-    local obj = getObjectFromGUID(ref.startButton)
-    if obj ~= nil then
+    local obj=getObjectFromGUID(ref.startButton)
+    if obj then
         obj.createButton({
             label='End Game', click_function='click_endGame',
             function_owner=Global, position={0,0.5,0}, rotation={0,180,0},
@@ -152,57 +143,57 @@ function click_endGame(obj, color)
         return
     end
     setNotes('[40e0d0][b][u]Final Scores:[/b][/u][FFFFFF]\n')
-    vP = {Red = nil, White = nil, Orange = nil, Green = nil, Yellow = nil, Blue = nil}
-    dT = {Red = nil, White = nil, Orange = nil, Green = nil, Yellow = nil, Blue = nil}
+    vP={Red=nil, White=nil, Orange=nil, Green=nil, Yellow=nil, Blue=nil}
+    dT={Red=nil, White=nil, Orange=nil, Green=nil, Yellow=nil, Blue=nil}
     function scoreCoroutine()
       wait(2)
-      for i = 1, #getSeatedPlayers() do
-        local currentPlayer = getSeatedPlayers()[i]
-        local move = function(zone)
-          for _, obj in ipairs(zone) do
-            if obj.tag == 'Card'or obj.tag == 'Deck' then
-              local t = obj.getDescription()
+      for i=1, #getSeatedPlayers()do
+        local currentPlayer=getSeatedPlayers()[i]
+        local move=function(zone)
+          for _, obj in ipairs(zone)do
+            if obj.tag=='Card'or obj.tag=='Deck'then
+              local t=obj.getDescription()
               if t~='Boon'and t~='Hex'and t~='Artifact'and t~='State'and t~='Mat'then
                 obj.setRotation({0,180,180})
                 obj.setPosition(ref_players[currentPlayer].deck)
                 coroutine.yield(0) end end end end
-        local gObjs = function(s)return getObjectFromGUID(ref_players[currentPlayer][s]).getObjects() end
+        local gObjs=function(s)return getObjectFromGUID(ref_players[currentPlayer][s]).getObjects() end
         if Player[currentPlayer].getHandCount() > 0 then
             vP[currentPlayer],dT[currentPlayer]=0,{}
             
             move(gObjs('deckZone'))
             move(Player[currentPlayer].getHandObjects())
             move(gObjs('discardZone'))
-            for i, obj in ipairs(gObjs('tavern')) do
-                if obj.tag == 'Deck' then
-                    for j, card in ipairs(obj.getObjects()) do
-                        if card.nickname == 'Distant Lands' then
-                            vP[currentPlayer] = vP[currentPlayer] + 4
+            for i, obj in ipairs(gObjs('tavern'))do
+                if obj.tag=='Deck'then
+                    for j, card in ipairs(obj.getObjects())do
+                        if card.nickname=='Distant Lands'then
+                            vP[currentPlayer]=vP[currentPlayer] + 4
                 end end end
-                if obj.tag == 'Card' then
-                    if obj.getName() == 'Distant Lands' then
-                        vP[currentPlayer] = vP[currentPlayer] + 4
+                if obj.tag=='Card'then
+                    if obj.getName()=='Distant Lands'then
+                        vP[currentPlayer]=vP[currentPlayer] + 4
                 end end
-                if obj.tag == 'Card'or obj.tag == 'Deck' then
-                    local t = obj.getDescription()
-                    if t == 'Boon'or t == 'Hex'or t == 'Artifact'or t == 'State' then else
+                if obj.tag=='Card'or obj.tag=='Deck'then
+                    local t=obj.getDescription()
+                    if t=='Boon'or t=='Hex'or t=='Artifact'or t=='State'then else
                         obj.setRotation({0,180,180})
                         obj.setPosition(ref_players[currentPlayer].deck)
                         coroutine.yield(0)
             end end end
-            for i, obj in ipairs(gObjs('zone')) do
-                if obj.tag == 'Card' and obj.getName() == 'Miserable / Twice Miserable' then
-                    vP[currentPlayer] = vP[currentPlayer] - 2
-                    local rot = obj.getRotation()
+            for i, obj in ipairs(gObjs('zone'))do
+                if obj.tag=='Card'and obj.getName()=='Miserable / Twice Miserable'then
+                    vP[currentPlayer]=vP[currentPlayer] - 2
+                    local rot=obj.getRotation()
                     if 90 < rot.z and rot.z < 270 then
-                      vP[currentPlayer] = vP[currentPlayer] - 2
+                      vP[currentPlayer]=vP[currentPlayer] - 2
                       bcast(currentPlayer..' is Twice Miserable',{1,0,1})
                     else
                       bcast(currentPlayer..' is Miserable',{1,0,1})
         end end end end end
         wait(2)
-        for i = 1, #getSeatedPlayers() do
-            local cp = getSeatedPlayers()[i]
+        for i=1, #getSeatedPlayers()do
+            local cp=getSeatedPlayers()[i]
             if Player[cp].getHandCount() > 0 then
                 local tracker={
                   amount =0,
@@ -213,9 +204,9 @@ function click_endGame(obj, color)
                   knights=0,
                   uniques=0, --WolfDen
                   victory=0,
-                  deck = {}
+                  deck={}
                 }
-                for i, obj in ipairs(getObjectFromGUID(ref_players[cp].deckZone).getObjects()) do
+                for _, obj in ipairs(getObjectFromGUID(ref_players[cp].deckZone).getObjects())do
                     if obj.tag=='Deck'then
                         for v,card in ipairs(obj.getObjects())do
                             if dT[cp][card.nickname]==nil then
@@ -229,26 +220,26 @@ function click_endGame(obj, color)
                         else
                             dT[cp][card.getName()]=1+dT[cp][card.getName()]
                 end end end
-                tracker.deck = dT[cp]
-                for i, v in pairs(tracker.deck) do
-                    tracker.amount = tracker.amount + v
-                    if string.find(getType(i), 'Action') ~= nil then
-                        tracker.actions = tracker.actions + v
+                tracker.deck=dT[cp]
+                for i, v in pairs(tracker.deck)do
+                    tracker.amount=tracker.amount + v
+                    if getType(i):find('Action')then
+                        tracker.actions=tracker.actions + v
                         if v > 2 then
-                            tracker.orchard = tracker.orchard + 1
+                            tracker.orchard=tracker.orchard + 1
                         end
                     end
-                    if string.find(getType(i), 'Victory') ~= nil then
-                        tracker.victory = tracker.victory + v
+                    if getType(i):find('Victory')then
+                        tracker.victory=tracker.victory + v
                     end
-                    if string.find(getType(i), 'Castle') ~= nil then
-                        tracker.castles = tracker.castles + 1
+                    if getType(i):find('Castle')then
+                        tracker.castles=tracker.castles + 1
                     end
-                    if string.find(getType(i), 'Knight') ~= nil then
-                        tracker.knights = tracker.knights + v
+                    if getType(i):find('Knight')then
+                        tracker.knights=tracker.knights + v
                     end
-                    if v == 1 then
-                        tracker.uniques = tracker.uniques + 1
+                    if v==1 then
+                        tracker.uniques=tracker.uniques + 1
                     end
                 end
                 -- Score Gardens
@@ -258,43 +249,40 @@ function click_endGame(obj, color)
                     vP[cp]=vP[cp] + vp*v
                 end
                 -- Score VP tokens
-                if getObjectFromGUID(ref_players[cp].vp) ~= nil then
+                if getObjectFromGUID(ref_players[cp].vp)then
                     vP[cp]=vP[cp] + getObjectFromGUID(ref_players[cp].vp).call('getCount')
                 end
                 -- Landmarks
-                for _ in ipairs(ref_eventSlots) do
-                    for __,obj2 in ipairs(getObjectFromGUID(ref_eventSlots[i].zone).getObjects()) do
+                for _,es in ipairs(ref_eventSlots)do
+                    for _,obj2 in ipairs(getObjectFromGUID(es.zone).getObjects())do
                         if obj2.tag=='Card'then
                             local vp=getVP(obj2.getName())
-                            if type(vp)=='function'then
-                                vP[cp]=vP[cp]+vp(tracker,dT,cp)
-                            end end end end
-                setNotes(getNotes() .. '\n' .. cp .. ' VP: ' .. vP[cp])
+                            if type(vp)=='function'then vP[cp]=vP[cp]+vp(tracker,dT,cp)end end end end
+                setNotes(getNotes()..'\n'..cp..' VP: '..vP[cp])
                 
                 printToAll(cp .. '\'s Deck:', Color[cp])
                 
-                for card, count in pairs(dT[cp]) do
-                    local s = '0'
-                    if count > 9 then s = '' end
+                for card, count in pairs(dT[cp])do
+                    local s='0'
+                    if count > 9 then s='' end
                     printToAll(s..count .. ' ' .. card, {1,1,1})
         end end end
-        local obj = getObjectFromGUID(ref.startButton)
+        local obj=getObjectFromGUID(ref.startButton)
         return 1
     end
     if obj then obj.clearButtons()end
-    gameState = 4
+    gameState=4
     startLuaCoroutine(Global, 'scoreCoroutine')
 end
 --Used in Button Callbacks
-newText = setmetatable({type='3DText',position={},rotation={90,0,0}
-    },{__call = function(t,p,text,f)
+newText=setmetatable({type='3DText',position={},rotation={90,0,0}
+    },{__call=function(t,p,text,f)
       t.position=p
       local o=spawnObject(t)
       o.TextTool.setValue(text)
       o.TextTool.setFontSize(f or 200)
       return o.getGUID()end})
 function rcs(a)return math.random(1,#ref_cardSets-(a or 5))end
-function check(v,n) return string.sub(v.getName(), 1, -6) == n end
 function timerStart(t)click_StartGame(t[1],t[2])end
 function findCard(trg,r,p)
   log(trg)
@@ -396,19 +384,23 @@ function click_DualSets(obj, color)
     table.insert(useSets,ref_cardSets[n].guid)
     table.insert(useSets,ref_cardSets[m].guid)
   end
+  local eventPiles={}
+  for _,g in pairs(useSets)do for _,s in pairs(ref_cardSets)do if s.guid==g then
+      if s.events then for _,v in pairs(s.events)do
+      table.insert(eventPiles,ref_eventSets[v].guid)
+      end end break
+  end end end
   
   for _,v in pairs(useSets)do getObjectFromGUID(v).shuffle()end
+  for _,v in pairs(eventPiles)do getObjectFromGUID(v).shuffle()end
   
   function DualSetsCoroutine()
     wait(2)
-    for i,v in pairs(ref_kingdomSlots)do getObjectFromGUID(useSets[(i%2)+1]).takeObject({position=v.pos,index=6-i,smooth=false})end
-    local eventPiles={}
-    for _,v in pairs(ref_cardSets[n].events)do table.insert(eventPiles,v)end
-    for _,v in pairs(ref_cardSets[m].events)do table.insert(eventPiles,v)end
-    for i,v in pairs(eventPiles)do
-      local pile=getObjectFromGUID(ref_eventSets[v].guid)
-      pile.takeObject({position=ref_eventSlots[i].pos,index=math.random(1,pile.getQuantity()),smooth=false})
-  end end
+    for i,v in pairs(ref_kingdomSlots)do getObjectFromGUID(useSets[(i%2)+1]).takeObject({position=v.pos,index=6-math.ceil(i/2),smooth=false})end
+    for i,v in pairs(eventPiles)do getObjectFromGUID(v).takeObject({position=ref_eventSlots[i].pos,index=2,smooth=false})end
+    
+    click_StartGame(obj, color)
+  end
   startLuaCoroutine(Global,'DualSetsCoroutine')
 end
 function click_TrippleSets(obj, color)
@@ -416,7 +408,7 @@ function click_TrippleSets(obj, color)
 end
 function click_RedditWeekly(obj, color)
   --https://www.reddit.com/r/dominion/search?q=title%3Akotw+author%3Aavocadro&sort=newl&utm_name=dominion&t=week
-  local KotW = 'KotW 12/1: Bishop, Crown, Forager, Goons, Inventor, King\'s Court, Lighthouse, Lurker, Remake, Watchtower. Events: Dominate, Donate. Colony/Platinum; no Shelters. [Intrigue, Seaside, Prosperity, Cornucopia, Dark Ages, Empires, Renaissance]'
+  local KotW='KotW 12/1: Bishop, Crown, Forager, Goons, Inventor, King\'s Court, Lighthouse, Lurker, Remake, Watchtower. Events: Dominate, Donate. Colony/Platinum; no Shelters. [Intrigue, Seaside, Prosperity, Cornucopia, Dark Ages, Empires, Renaissance]'
   
   bcast('Kingdom of the Week '..KotW:match('%d+/%d+')..'/2019')
   local tbl={bane=KotW:match('%(Bane: (.+)%)'),P=KotW:match('[NOno ]*Colony/Platinum'),S=KotW:match('[NOno ]*Shelters')}
@@ -433,7 +425,7 @@ function click_RedditWeekly(obj, color)
 end
 function click_DominionLeague(obj, color)
   bcast('Beginner Tutorial')
-  local knd = {
+  local knd={
 'Vineyard,Pearl Diver,Stonemason,Oasis,Storeroom,Philosopher\'s Stone,Talisman,Herald,Cultist,Fairgrounds,Shelters',
 'Stonemason,Hermit,Wishing Well,Fortress,Nomad,Camp,Sea Hag,Golem,Bandit Camp,Merchant Guild,Mystic,Shelters',
 'Herbalist,Sage,Mining Village,Rats,Salvager,Highway,Horn of Plenty,Rogue,Soothsayer,Peddler',
@@ -479,7 +471,7 @@ function click_DominionLeague(obj, color)
 end
 function click_Designers(obj, color)
   bcast('Loading a Set created by the Designers')
-  local knd = {
+  local knd={
 'Courtyard,Minion,Steward,Mining Village,Conspirator,Bureaucrat,Chancellor,Council Room,Mine,Militia',
 'Herbalist,Transmute,Apothecary,Alchemist,Golem,Cellar,Chancellor,Festival,Militia,Smithy',
 'Bishop,Goons,Monument,Peddler,Grand Market,Council Room,Cellar,Library,Throne Room,Chancellor',
@@ -514,14 +506,14 @@ function click_Designers(obj, color)
 end
 function click_VanillaSets(obj, color)
   bcast('Setting up Base Game and Intrigue')
-  useSets = {ref_cardSets[1].guid,ref_cardSets[2].guid}
+  useSets={ref_cardSets[1].guid,ref_cardSets[2].guid}
   click_StartGame(obj,color)
 end
 function click_BasicGame(obj, color)
   bcast('Beginner Tutorial')
   newText({26.00,1,25},'THE GAME ENDS WHEN:\nAny 3 piles are empty or\nThe Province pile is empty.')
   newText({0.00,1,11},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
-  local knd = {
+  local knd={
 'Cellar,Festival,Mine,Moat,Patrol,Poacher,Smithy,Village,Witch,Workshop',
 'Cellar,Market,Merchant,Militia,Mine,Moat,Remodel,Smithy,Village,Workshop',}
   kingdomList( knd[ math.random(1,#knd) ] , {obj,color} )
@@ -537,23 +529,23 @@ function click_Advanced(obj, color)
 end
 
 function click_forcePile(obj, color)
-    local guid,c = obj.getGUID(),{1,1,1}
-    if guid == ref_extraSupplyPiles[1].guid then
+    local guid,c=obj.getGUID(),{1,1,1}
+    if guid==ref_extraSupplyPiles[1].guid then
         if usePlatinum < 2 then
-            usePlatinum = 1 + usePlatinum
+            usePlatinum=1 + usePlatinum
             if usePlatinum==1 then c={0,1,0}else c={1,0,0}end
             obj.highlightOn(c)
         else
-            usePlatinum = 0
+            usePlatinum=0
             obj.highlightOff()
         end
-    elseif guid == ref_extraSupplyPiles[5].guid then
+    elseif guid==ref_extraSupplyPiles[5].guid then
         if useShelters < 2 then
-            useShelters = 1 + useShelters
+            useShelters=1 + useShelters
             if useShelters==1 then c={0,1,0}else c={1,0,0}end
             obj.highlightOn(c)
         else
-            useShelters = 0
+            useShelters=0
             obj.highlightOff()
         end
     end
@@ -578,85 +570,76 @@ function click_StartGame(obj, color)
     bcast('This game needs 2 to 6 players to start.', {0.75,0.75,0.75}, color)
     return
   end
-  local summonException = false
-  for i in ipairs(ref_eventSlots) do
-    local summonCheck = getObjectFromGUID(ref_eventSlots[i].zone).getObjects()
-    for j, v in ipairs(summonCheck) do
-        if v.getName() == 'Summon' then
-            summonException = true
+  local summonException=false
+  for _,es in ipairs(ref_eventSlots)do
+    for j, v in ipairs(getObjectFromGUID(es.zone).getObjects())do
+        if v.getName()=='Summon'then
+            summonException=true
             break
         end
     end
   end
-  local requireBane = false
-  local requireBlackMarket = false
-  local cardCount = 0
-  for i in ipairs(ref_kingdomSlots) do
-    local supplyZone = getObjectFromGUID(ref_kingdomSlots[i].zone)
-    local supplyCheck = supplyZone.getObjects()
-    for j in ipairs(supplyCheck) do
-        local zoneObj = supplyCheck[j]
-        if zoneObj.tag == 'Card' then
-            if zoneObj.getName() == 'Young Witch' then
-                requireBane = true
-                local baneZone = getObjectFromGUID(ref.baneSlot.zone).getObjects()
-                for k in ipairs(baneZone) do
-                    local baneObj = baneZone[k]
-                    if baneObj.tag == 'Card' and baneObj.getName() ~= 'Bane pile' then
-                        if getCost(baneObj.getName()) ~= 'M2D0P0' and getCost(baneObj.getName()) ~= 'M3D0P0' then
-                            bcast('Bane card needs to cost 2 or 3 with no debt or potions.', {0.75,0.75,0.75}, color)
-                            return
-                        else
-                            requireBane = false
-                            break
-                        end
-                    end
-                end
-            end
-            if zoneObj.getName() == 'Black Market' then
-                requireBlackMarket = true
-            end
-            cardCount = cardCount + 1
-        end
-    end
-  end
+  local requireBane=false
+  local requireBlackMarket=false
+  local cardCount=0
+  for i in ipairs(ref_kingdomSlots)do
+    local supplyZone=getObjectFromGUID(ref_kingdomSlots[i].zone)
+    local supplyCheck=supplyZone.getObjects()
+    for j in ipairs(supplyCheck)do
+      local zoneObj=supplyCheck[j]
+      if zoneObj.tag=='Card'then
+        if zoneObj.getName()=='Young Witch'then
+          requireBane=true
+          local baneZone=getObjectFromGUID(ref.baneSlot.zone).getObjects()
+          for k in ipairs(baneZone)do
+            local baneObj=baneZone[k]
+            if baneObj.tag=='Card'and baneObj.getName()~='Bane pile'then
+              if getCost(baneObj.getName())~='M2D0P0'and getCost(baneObj.getName())~='M3D0P0'then
+                bcast('Bane card needs to cost 2 or 3 with no debt or potions.', {0.75,0.75,0.75}, color)
+                return
+              else
+                requireBane=false
+                break end end end end 
+        if zoneObj.getName()=='Black Market'then requireBlackMarket=true end
+        cardCount=cardCount + 1
+  end end end
   if not requireBane then
-    for j,guid in ipairs(useSets) do
+    for j,guid in ipairs(useSets)do
       local obj2=getObjectFromGUID(guid)
-      if obj2~=nil then
+      if obj2 then
         for _,ref in ipairs(obj2.getObjects())do
           if ref.nickname=='Young Witch'then
             requireBane=true
           elseif ref.nickname=='Black Market'then
             requireBlackMarket=true
   end end end end end
-  if cardCount == 10 and not requireBane and not requireBlackMarket then
+  if cardCount==10 and not requireBane and not requireBlackMarket then
     removeButtons()
     setupKingdom(summonException)
-    gameState = 2
+    gameState=2
   elseif cardCount > 10 then
     bcast('You have too many already chosen kingdom cards.', {0.75,0.75,0.75}, color)
     return
   else
-    local cardCount2 = 0
-    for j, guid in ipairs(useSets) do
-        local obj2 = getObjectFromGUID(guid)
-        if obj2 ~= nil then
+    local cardCount2=0
+    for j, guid in ipairs(useSets)do
+        local obj2=getObjectFromGUID(guid)
+        if obj2 then
             obj2.setLock(false)
-            cardCount2 = #obj2.getObjects() + cardCount2
+            cardCount2=#obj2.getObjects() + cardCount2
         end
     end
     if cardCount2 < 11 - cardCount then
         bcast('You don\'t have enough cards selected to form a random kingdom.', {0.75,0.75,0.75}, color)
         return
     elseif requireBane then
-        local deckCheck = false
-        for j, guid in ipairs(useSets) do
-            local obj2 = getObjectFromGUID(guid)
-            for k, ref in ipairs (obj2.getObjects()) do
-                if getCost(ref.nickname) == 'M2D0P0' or getCost(ref.nickname) == 'M3D0P0' then
-                    if ref.nickname ~= 'Young Witch' then
-                        deckCheck = true
+        local deckCheck=false
+        for j, guid in ipairs(useSets)do
+            local obj2=getObjectFromGUID(guid)
+            for k, ref in ipairs(obj2.getObjects())do
+                if getCost(ref.nickname)=='M2D0P0'or getCost(ref.nickname)=='M3D0P0'then
+                    if ref.nickname~='Young Witch'then
+                        deckCheck=true
         end end end end
         if not deckCheck then
             bcast('Selected cards need a valid possible Bane card.', {0.75,0.75,0.75}, color)
@@ -673,196 +656,192 @@ function click_StartGame(obj, color)
     gameState=2
   end
 end
-function getButton(o,s)for _,b in pairs(o.getButtons())do if b.label:find(s)~=nil then return b.index end end end
+function getButton(o,s)for _,b in pairs(o.getButtons())do if b.label:find(s)then return b.index end end end
 -- Function to remove all buttons
 function removeButtons()
-  local obj = getPile('Shelters')
-  if obj ~= nil then obj.flip() end
-  for i in ipairs(ref_cardSets) do
-    local obj = getObjectFromGUID(ref_cardSets[i].guid)
-    if obj ~= nil then obj.clearButtons()end
+  local obj=getPile('Shelters')
+  if obj then obj.flip() end
+  for i in ipairs(ref_cardSets)do
+    local obj=getObjectFromGUID(ref_cardSets[i].guid)
+    if obj then obj.clearButtons()end
   end
-  local obj = getObjectFromGUID(ref.startButton)
-  if obj ~= nil then obj.clearButtons()end
-  obj = getObjectFromGUID(ref_extraSupplyPiles[1].guid)
-  if obj ~= nil then obj.clearButtons()end
-  obj = getObjectFromGUID(ref_extraSupplyPiles[5].guid)
-  if obj ~= nil then obj.clearButtons()end
+  local obj=getObjectFromGUID(ref.startButton)
+  if obj then obj.clearButtons()end
+  obj=getObjectFromGUID(ref_extraSupplyPiles[1].guid)
+  if obj then obj.clearButtons()end
+  obj=getObjectFromGUID(ref_extraSupplyPiles[5].guid)
+  if obj then obj.clearButtons()end
 end
 -- Function to setup the Kingdom
 function setupKingdom(summonException)
   -- first we delete all the not in use sets and group the remaining
-  for i in ipairs(ref_cardSets) do
-    local found = false
-    local guid = ref_cardSets[i].guid
-    local obj = getObjectFromGUID(guid)
-    for j, guid2 in ipairs(useSets) do
-        local obj2 = getObjectFromGUID(guid2)
-        if obj == obj2 and obj ~= nil then
-            obj.setPosition(ref.randomizer.pos)
-            obj.flip()
-            found = true
-        end
+  for i,cs in ipairs(ref_cardSets)do
+    local found=false
+    local guid=cs.guid
+    local obj=getObjectFromGUID(guid)
+    for j, guid2 in ipairs(useSets)do
+      local obj2=getObjectFromGUID(guid2)
+      if obj==obj2 and obj then
+        obj.setPosition(ref.randomizer.pos)
+        obj.flip()
+        found=true
+      end
     end
-    local obj2 = nil
+    local obj2=nil
     --Adventures
-    if guid == ref_cardSets[10].guid then
-        obj2 = getObjectFromGUID(ref_eventSets[1].guid)
+    if guid==ref_cardSets[10].guid then
+        obj2=getObjectFromGUID(ref_eventSets[1].guid)
     --Empire
-    elseif guid == ref_cardSets[11].guid then
-        obj2 = getObjectFromGUID(ref_eventSets[2].guid)
-        local obj3 = getObjectFromGUID(ref_eventSets[3].guid)
-        if obj3 ~= nil and found then
+    elseif guid==ref_cardSets[11].guid then
+        obj2=getObjectFromGUID(ref_eventSets[2].guid)
+        local obj3=getObjectFromGUID(ref_eventSets[3].guid)
+        if obj3 and found then
             obj3.setRotation({0,0,0})
             obj3.setPosition(ref.randomizer.pos)
             obj3.flip()
-        elseif obj3 ~= nil and not found then obj3.destruct() end
+        elseif obj3 and not found then obj3.destruct() end
     --Renaissance
-    elseif guid == ref_cardSets[13].guid then
-        obj2 = getObjectFromGUID(ref_eventSets[4].guid)
+    elseif guid==ref_cardSets[13].guid then
+        obj2=getObjectFromGUID(ref_eventSets[4].guid)
     --Menagerie
-    elseif guid == ref_cardSets[14].guid then
-        obj2 = getObjectFromGUID(ref_eventSets[5].guid)
-        local obj3 = getObjectFromGUID(ref_eventSets[6].guid)
-        if obj3 ~= nil and found then
+    elseif guid==ref_cardSets[14].guid then
+        obj2=getObjectFromGUID(ref_eventSets[5].guid)
+        local obj3=getObjectFromGUID(ref_eventSets[6].guid)
+        if obj3 and found then
             obj3.setRotation({0,0,0})
             obj3.setPosition(ref.randomizer.pos)
             obj3.flip()
-        elseif obj3 ~= nil and not found then obj3.destruct() end
+        elseif obj3 and not found then obj3.destruct() end
     --Promos
-    elseif guid == ref_cardSets[#ref_cardSets-4].guid and not summonException then
-        obj2 = getObjectFromGUID(ref_eventSets[#ref_eventSets-1].guid)
+    elseif guid==ref_cardSets[#ref_cardSets-4].guid and not summonException then
+        obj2=getObjectFromGUID(ref_eventSets[#ref_eventSets-1].guid)
     --Adamabrams
-    elseif guid == ref_cardSets[#ref_cardSets-3].guid then
-        obj2 = getObjectFromGUID(ref_eventSets[#ref_eventSets].guid)
+    elseif guid==ref_cardSets[#ref_cardSets-3].guid then
+        obj2=getObjectFromGUID(ref_eventSets[#ref_eventSets].guid)
     end
-    if obj2 ~= nil and found then
+    if obj2 and found then
         obj2.setRotation({0,0,0})
         obj2.setPosition(ref.randomizer.pos)
         obj2.flip()
-    elseif obj2 ~=nil and not found then obj2.destruct() end
-    if not found and obj ~= nil then
+    elseif obj2 and not found then obj2.destruct() end
+    if not found and obj then
         obj.destruct()
     end
   end
   function setupKingdomCoroutine()
     wait(2)
-    local zone = getObjectFromGUID(ref.randomizer.zone).getObjects()
-    local deck
-    for i, v in ipairs(zone) do if v.tag == 'Deck' then deck = v end end
-    if deck ~= nil then
+    local deck=false
+    for i, v in ipairs(getObjectFromGUID(ref.randomizer.zone).getObjects())do if v.tag=='Deck'then deck=v end end
+    if deck then
         deck.setRotation({0,180,180})
         deck.shuffle()
         deck.highlightOff()
     end
     wait(1)
-    local events = {}
-    for i in ipairs(ref_eventSlots) do
-        zone = getObjectFromGUID(ref_eventSlots[i].zone).getObjects()
-        for j, v in ipairs(zone) do
-            if v.tag == 'Card' then table.insert(events, v) end
+    local events={}
+    for _,es in ipairs(ref_eventSlots)do
+        for j, v in ipairs(getObjectFromGUID(es.zone).getObjects())do
+            if v.tag=='Card'then table.insert(events, v) end
         end
     end
-    for i in ipairs(events) do events[i].setPosition(ref_eventSlots[i].pos) end
-    eventCount = #events
-    if deck ~= nil then
+    for i in ipairs(events)do events[i].setPosition(ref_eventSlots[i].pos) end
+    eventCount=#events
+    if deck then
       local w=0
-        for i in ipairs(ref_kingdomSlots) do
-            card = false
-            zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
-            for j, v in ipairs(zone) do if v.tag == 'Card' then card = true end end
+        for _,ks in ipairs(ref_kingdomSlots)do
+            card=false
+            for j, v in ipairs(getObjectFromGUID(ks.zone).getObjects())do if v.tag=='Card'then card=true end end
             while not card do
-              for j, v in pairs(deck.getObjects()) do
+              for j, v in pairs(deck.getObjects())do
                 local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
                   if eventCount < eventMax then
                     --local tp=getType(v.name) if tp=='Way'then if w==1 then break end w=w+1 end
-                    eventCount = eventCount + 1
-                    deck.takeObject({position = ref_eventSlots[eventCount].pos, index = v.index, callback = 'setCallback', callback_owner = Global})
+                    eventCount=eventCount + 1
+                    deck.takeObject({position=ref_eventSlots[eventCount].pos, index=v.index, callback='setCallback', callback_owner=Global})
                     break end
                 else
-                  card = true
-                  deck.takeObject({position = ref_kingdomSlots[i].pos, index = v.index, flip = true})
+                  card=true
+                  deck.takeObject({position=ks.pos, index=v.index, flip=true})
                   break end end end end
         wait(0.5)
-        local blackMarket, requireBane = false, false
-        for i in ipairs(ref_kingdomSlots) do
-            zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
-            for j, v in ipairs(zone) do
-                if v.tag == 'Card' then
+        local blackMarket, requireBane=false, false
+        for _,ks in ipairs(ref_kingdomSlots)do
+            for j, v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
+                if v.tag=='Card'then
                     Use.Add(v.getName())
-                    if v.getName() == 'Young Witch' then
-                        requireBane = true
+                    if v.getName()=='Young Witch'then
+                        requireBane=true
                         break
-                    elseif v.getName() == 'Black Market' then
-                        blackMarket = true
+                    elseif v.getName()=='Black Market'then
+                        blackMarket=true
         end end end end
-        if Use('BlackMarket') then
+        if Use('BlackMarket')then
             deck.setName('Black Market deck')
-            local cleanDeck = false
-            local deckAddPos = {deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
+            local cleanDeck=false
+            local deckAddPos={deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
             while not cleanDeck do
-                cleanDeck = true
-                for i, v in ipairs(deck.getObjects()) do
-                    local tp=getType(v.name) if tp=='Event' or tp=='Landmark' or tp=='Project' or tp=='Way' then
+                cleanDeck=true
+                for i, v in ipairs(deck.getObjects())do
+                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
                         coroutine.yield(0)
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Knights' then
+                    elseif v.nickname=='Knights'then
                         coroutine.yield(0)
                         getPile('Knights pile').shuffle()
-                        getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Knights pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Castles' then
+                    elseif v.nickname=='Castles'then
                         coroutine.yield(0)
                         getPile('Castles pile').shuffle()
-                        getPile('Castles pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Castles pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Catapult / Rocks' then
+                    elseif v.nickname=='Catapult / Rocks'then
                         coroutine.yield(0)
                         getPile('Catapult / Rocks pile').shuffle()
-                        getPile('Catapult / Rocks pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Catapult / Rocks pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Encampment / Plunder' then
+                    elseif v.nickname=='Encampment / Plunder'then
                         coroutine.yield(0)
                         getPile('Encampment / Plunder pile').shuffle()
-                        getPile('Encampment / Plunder pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Encampment / Plunder pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Gladiator / Fortune' then
+                    elseif v.nickname=='Gladiator / Fortune'then
                         coroutine.yield(0)
                         getPile('Gladiator / Fortune pile').shuffle()
-                        getPile('Gladiator / Fortune pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Gladiator / Fortune pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Patrician / Emporium' then
+                    elseif v.nickname=='Patrician / Emporium'then
                         coroutine.yield(0)
                         getPile('Patrician / Emporium pile').shuffle()
-                        getPile('Patrician / Emporium pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Patrician / Emporium pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Settlers / Bustling Village' then
+                    elseif v.nickname=='Settlers / Bustling Village'then
                         coroutine.yield(0)
                         getPile('Settlers / Bustling Village pile').shuffle()
-                        getPile('Settlers / Bustling Village pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Settlers / Bustling Village pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Sauna / Avanto' then
+                    elseif v.nickname=='Sauna / Avanto'then
                         coroutine.yield(0)
                         getPile('Sauna / Avanto pile').shuffle()
-                        getPile('Sauna / Avanto pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Sauna / Avanto pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
                     end
                 end
@@ -871,115 +850,114 @@ function setupKingdom(summonException)
             deck.shuffle()
             while #deck.getObjects() > blackMarketMax + 1 do
                 coroutine.yield(0)
-                deck.takeObject({index = 1}).destruct()
+                deck.takeObject({index=1}).destruct()
             end
             -- check for young witch
-            for i, v in ipairs(deck.getObjects()) do
-                if v.nickname == 'Young Witch' then
-                    requireBane = true
+            for i, v in ipairs(deck.getObjects())do
+                if v.nickname=='Young Witch'then
+                    requireBane=true
                 end
             end
             if not requireBane then
-                deck.takeObject({index = 1}).destruct()
+                deck.takeObject({index=1}).destruct()
             end
         end
-        local baneSet, blackMarket2Check = false, false
+        local baneSet, blackMarket2Check=false, false
         if requireBane then
-            zone = getObjectFromGUID(ref.baneSlot.zone).getObjects()
-            for i, v in ipairs(zone) do
-                if v.tag == 'Card' and v.getName() ~= 'Bane pile' then
+            for i, v in ipairs(getObjectFromGUID(ref.baneSlot.zone).getObjects())do
+                if v.tag=='Card'and v.getName()~='Bane pile'then
                     Use.Add(v.getName())
-                    baneSet = true
-                    if v.getName() == 'Black Market' then
-                        blackMarket2Check = true
+                    baneSet=true
+                    if v.getName()=='Black Market'then
+                        blackMarket2Check=true
             end end end
             if not baneSet then
-                for j, card in ipairs(deck.getObjects()) do
-                    if card.description=='Event' or card.description=='Landmark' or card.description=='Project' or card.description=='Way' then
-                    elseif getCost(card.nickname) == 'M2D0P0' or getCost(card.nickname) == 'M3D0P0' then
+                for j, card in ipairs(deck.getObjects())do
+                    if card.description=='Event'or card.description=='Landmark'or card.description=='Project'or card.description=='Way'then
+                    elseif getCost(card.nickname)=='M2D0P0'or getCost(card.nickname)=='M3D0P0'then
                         Use.Add(card.nickname)
-                        if card.nickname == 'Black Market' then
-                            blackMarket2Check = true
+                        if card.nickname=='Black Market'then
+                            blackMarket2Check=true
                         end
-                        deck.takeObject({position = ref.baneSlot.pos, index = card.index, flip = true})
+                        deck.takeObject({position=ref.baneSlot.pos, index=card.index, flip=true})
                         break end end end end
         if blackMarket2Check then
             deck.setName('Black Market deck')
-            local cleanDeck = false
-            local deckAddPos = {deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
+            local cleanDeck=false
+            local deckAddPos={deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
             while not cleanDeck do
-                cleanDeck = true
-                for i, v in ipairs(deck.getObjects()) do
+                cleanDeck=true
+                for i, v in ipairs(deck.getObjects())do
                     local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
                         coroutine.yield(0)
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Knights' then
+                    elseif v.nickname=='Knights'then
                         coroutine.yield(0)
                         getPile('Knights pile').shuffle()
-                        getPile('Knights pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Knights pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Castles' then
+                    elseif v.nickname=='Castles'then
                         coroutine.yield(0)
                         getPile('Castles pile').shuffle()
-                        getPile('Castles pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Castles pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Catapult / Rocks' then
+                    elseif v.nickname=='Catapult / Rocks'then
                         coroutine.yield(0)
                         getPile('Catapult / Rocks pile').shuffle()
-                        getPile('Catapult / Rocks pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Catapult / Rocks pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Encampment / Plunder' then
+                    elseif v.nickname=='Encampment / Plunder'then
                         coroutine.yield(0)
                         getPile('Encampment / Plunder pile').shuffle()
-                        getPile('Encampment / Plunder pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Encampment / Plunder pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Gladiator / Fortune' then
+                    elseif v.nickname=='Gladiator / Fortune'then
                         coroutine.yield(0)
                         getPile('Gladiator / Fortune pile').shuffle()
-                        getPile('Gladiator / Fortune pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Gladiator / Fortune pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Patrician / Emporium' then
+                    elseif v.nickname=='Patrician / Emporium'then
                         coroutine.yield(0)
                         getPile('Patrician / Emporium pile').shuffle()
-                        getPile('Patrician / Emporium pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Patrician / Emporium pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Settlers / Bustling Village' then
+                    elseif v.nickname=='Settlers / Bustling Village'then
                         coroutine.yield(0)
                         getPile('Settlers / Bustling Village pile').shuffle()
-                        getPile('Settlers / Bustling Village pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Settlers / Bustling Village pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break
-                    elseif v.nickname == 'Sauna / Avanto' then
+                    elseif v.nickname=='Sauna / Avanto'then
                         coroutine.yield(0)
                         getPile('Sauna / Avanto pile').shuffle()
-                        getPile('Sauna / Avanto pile').takeObject({index = 1, position = deckAddPos, flip = true})
-                        deck.takeObject({index = v.index}).destruct()
-                        cleanDeck = false
+                        getPile('Sauna / Avanto pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
                         break end end end
         wait(2)
         deck.shuffle()
         while #deck.getObjects()>blackMarketMax do
           coroutine.yield(0)
-          deck.takeObject({index = 1}).destruct()
+          deck.takeObject({index=1}).destruct()
         end
       end
-      if deck.getName() == 'Black Market deck' then
-        for i, card in ipairs(deck.getObjects()) do
+      if deck.getName()=='Black Market deck'then
+        for i, card in ipairs(deck.getObjects())do
           Use.Add(card.nickname)
           table.insert(bmDeck, card.nickname)
         end
@@ -998,56 +976,40 @@ function setCallback(obj)obj.setRotation({0,90,0})end
 -- Function to reorder the Kingdom
 function reorderKingdom()
     --First create an array with all the card names plus the costs in it
-    local sortedKingdom = {}
-    for i in ipairs(ref_kingdomSlots) do
-        local zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
-        for j, v in ipairs(zone) do
-            if v.tag == 'Card' then
+    local sortedKingdom={}
+    for _,ks in ipairs(ref_kingdomSlots)do
+        for j, v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
+            if v.tag=='Card'then
                 table.insert(sortedKingdom, getCost(v.getName()) .. v.getName())
-            end
-        end
-    end
+    end end end
     --Then sort the list
     table.sort(sortedKingdom)
     --Finally, set the positions based on the new order
-    for i, v in ipairs(sortedKingdom) do
-        sortedKingdom[i] = string.sub(v, 7)
-        for j in pairs(ref_kingdomSlots) do
-            local zone = getObjectFromGUID(ref_kingdomSlots[j].zone).getObjects()
-            for k, b in ipairs(zone) do
-                if b.getName() == sortedKingdom[i] then
+    for i, v in ipairs(sortedKingdom)do
+        sortedKingdom[i]=v:sub(7)
+        for _,ks in pairs(ref_kingdomSlots)do
+            for k, b in ipairs(getObjectFromGUID(ks.zone).getObjects())do
+                if b.getName()==sortedKingdom[i] then
                     b.setPosition(ref_kingdomSlots[i].pos)
-                end
-            end
-        end
-    end
+    end end end end
     --Do the same for events
     if eventCount > 0 then
-        local sortedEvents = {}
-        for i in ipairs(ref_eventSlots) do
-            local zone = getObjectFromGUID(ref_eventSlots[i].zone).getObjects()
-            for j, v in ipairs(zone) do
-                if v.tag == 'Card' then
+        local sortedEvents={}
+        for _,es in ipairs(ref_eventSlots)do
+            for j, v in ipairs(getObjectFromGUID(es.zone).getObjects())do
+                if v.tag=='Card'then
                     Use.Add(v.getName())
                     table.insert(sortedEvents, getCost(v.getName()) .. v.getName())
-                end
-            end
-        end
+        end end end
         table.sort(sortedEvents)
-        for i, v in ipairs(sortedEvents) do
-            sortedEvents[i] = string.sub(v, 7)
-            for j in ipairs(ref_eventSlots) do
-                local zone = getObjectFromGUID(ref_eventSlots[j].zone).getObjects()
-                for k, b in ipairs(zone) do
-                    if b.getName() == sortedEvents[i] then
-                        b.setPosition(ref_eventSlots[i].pos)
+        for i, v in ipairs(sortedEvents)do
+            sortedEvents[i]=v:sub(7)
+            for _,es in ipairs(ref_eventSlots)do
+                for k, b in ipairs(getObjectFromGUID(es.zone).getObjects())do
+                    if b.getName()==sortedEvents[i] then
+                        b.setPosition(es.pos)
                         b.setLock(true)
-                    end
-                end
-            end
-        end
-    end
-end
+end end end end end end
 
 function cleanUp()
   local sp=function(a,b)local _,c=Use[1]:gsub(b,b);if a==0 then if c>9 or math.random(a,1+c-a*5)>0 then a=1;end end end
@@ -1065,7 +1027,7 @@ function cleanUp()
     getObjectFromGUID(ref_basicSlots[7].guid).destruct()
   else getPile('Platinums').highlightOff()end
   
-  if not Use('Potion') then
+  if not Use('Potion')then
     getPile('Potions').destruct()
     if usePlatinum~=1 then
       getObjectFromGUID(ref_basicSlots[2].guid).destruct()
@@ -1088,8 +1050,8 @@ function cleanUp()
     if pos[1]>16 or pos[1]<-16 then obj.destruct()
     elseif pos[3]>23 or pos[3]<13 then obj.destruct()
   end end
-  local sideSlots = {}
-  local f = function(a,p)if a then table.insert(sideSlots,p)else getPile(p..' pile').destruct()end end
+  local sideSlots={}
+  local f=function(a,p)if a then table.insert(sideSlots,p)else getPile(p..' pile').destruct()end end
   f(Use('Page'),'Champion')
   f(Use('Page'),'Hero')
   f(Use('Page'),'Warrior')
@@ -1127,22 +1089,22 @@ function cleanUp()
     local obj,zone=getObjectFromGUID(es.guid),getObjectFromGUID(es.zone)
     for _,o2 in ipairs(zone.getObjects())do
       if o2.tag=='Card'then
-        if eventCount == 3 then
+        if eventCount==3 then
           o2.setPosition({o2.getPosition()[1]+3.5, o2.getPosition()[2], o2.getPosition()[3]})
-        elseif eventCount == 2 then
+        elseif eventCount==2 then
           o2.setPosition({o2.getPosition()[1]+7, o2.getPosition()[2], o2.getPosition()[3]})
-        elseif eventCount == 1 then
+        elseif eventCount==1 then
           o2.setPosition({o2.getPosition()[1]+10.5, o2.getPosition()[2], o2.getPosition()[3]})
         end
       end
     end
     if i > eventCount then
       obj.destruct()
-    elseif eventCount == 3 then
+    elseif eventCount==3 then
       obj.setPosition({obj.getPosition()[1]+3.5, obj.getPosition()[2], obj.getPosition()[3]})
-    elseif eventCount == 2 then
+    elseif eventCount==2 then
       obj.setPosition({obj.getPosition()[1]+7, obj.getPosition()[2], obj.getPosition()[3]})
-    elseif eventCount == 1 then
+    elseif eventCount==1 then
       obj.setPosition({obj.getPosition()[1]+10.5, obj.getPosition()[2], obj.getPosition()[3]})
     end
   end
@@ -1156,16 +1118,16 @@ function cleanUp()
 'Set Aside',    '+1 Card Token','+1 Action Token',   '-2 Cost Token', '+1 Buy Token','Trade Route Mat',
 '+1 Coin Token','-1 Coin Token','-1 Card Token',     'Trashing Token','Estate Token','Black Market Mat',
 'Journey Token','Coffers',      'Victory Points',    'Debt Tokens',   'Villagers'}
-  for i,v in ipairs(temp)do if not Use(v)then for _,obj in pairs(getAllObjects())do if obj.getName()==names[i]then obj.destruct()end end end end
+  for i,v in ipairs(temp)do if not Use(v)then for _,obj in pairs(getAllObjects())do if obj.getName()==names[i]or obj.getName()=='Rules '..names[i]then obj.destruct()end end end end
   getObjectFromGUID(ref.board).destruct()
-  local toRemove = {}
-  if getPlayerCount() ~= 6 then
-    for i in pairs(ref_players) do
-      local found = false
-      for j = 1, #getSeatedPlayers() do
-        local currentPlayer = getSeatedPlayers()[j]
-        if currentPlayer == i and Player[currentPlayer].getHandCount() > 0 then
-          found = true
+  local toRemove={}
+  if getPlayerCount()~=6 then
+    for i in pairs(ref_players)do
+      local found=false
+      for j=1, #getSeatedPlayers()do
+        local currentPlayer=getSeatedPlayers()[j]
+        if currentPlayer==i and Player[currentPlayer].getHandCount() > 0 then
+          found=true
       end end
       if not found then
         table.insert(toRemove,i)
@@ -1200,15 +1162,13 @@ function cleanUp()
                 local k=math.random(1,#obeliskPiles)
                 obj.highlightOn({1,0,1})
                 obeliskPiles[k].highlightOn({1,0,1})
-                obeliskTarget=string.sub(obeliskPiles[k].getName(),1,-6)
+                obeliskTarget=obeliskPiles[k].getName():sub(1,-6)
                 obeliskPiles =nil
             end break
     end end end end
-    if Use('BlackMarket')then
-      local g=0
-      pos=blackMarketDeck.getPosition()
-      for i, card in ipairs(blackMarketDeck.getObjects()) do
-        if string.find(card.description,'Gathering') ~= nil then g=g+1
+    if Use('BlackMarket')then pos=blackMarketDeck.getPosition()local g=0
+      for i,card in ipairs(blackMarketDeck.getObjects())do
+        if card.description:find('Gathering')then g=g+1
           if     g==1 then tokenMake(blackMarketDeck,'vp',0,nil,card.nickname)
           elseif g==2 then tokenMake(blackMarketDeck,'vp',0,{0.9,1,-1.25},card.nickname)
           else   tokenMake(blackMarketDeck,'vp',0,{-0.9,1,-1.25},card.nickname)
@@ -1219,7 +1179,7 @@ function cleanUp()
     return 1
   end
   startLuaCoroutine(Global, 'tokenCoroutine')
-  if useShelters ~= 1 and getPile('Shelters') ~= nil then
+  if useShelters~=1 and getPile('Shelters')then
     getPile('Shelters').destruct()
     setupBaseCardCount(false, false)
   else
@@ -1227,182 +1187,101 @@ function cleanUp()
   end
 end
 function createHeirlooms(c)
-  for n,card in pairs({
-    ['Magician'] = 'Rabbit',
-    ['Secret Cave'] = 'Magic Lamp',
-    ['Cemetery'] = 'Haunted Mirror',
-    ['Shepherd'] = 'Pasture',
-    ['Tracker'] = 'Pouch',
-    ['Pooka'] = 'Cursed Gold',
-    ['Pixie'] = 'Goat',
-    ['Fool'] = 'Lucky Coin'}) do
+  for n,card in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['Magician']='Rabbit'})do
     if c==n then getPile('Heirlooms').takeObject({position=getObjectFromGUID(ref_storageZone.heirloom).getPosition(),guid=ref_heirlooms[card],flip=true})break end end end
 function createPile()
-    for i in pairs(ref_kingdomSlots) do
-        local zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
-        for j, v in ipairs(zone) do
-            if v.tag == 'Card' then
-                --First we check for 2 player Castles
-                local k = 1
-                if v.getName() == 'Castles' then
-                    v.destruct()
-                    getPile('Castles pile').setPosition(ref_kingdomSlots[i].pos)
-                    if getPlayerCount() == 2 then
-                        for _,name in pairs({'Humble Castle','Small Castle','Opulent Castle','King\'s Castle'})do
-                            for l, card in ipairs(getPile('Castles pile').getObjects()) do
-                                if card.nickname == name then
-                                    getPile('Castles pile').takeObject({index=card.index}).destruct()
-                                    break
-                                end end end end
-                --If we have a victory card and 2 players, we make 8 copies
-                elseif getPlayerCount() == 2 and string.find(v.getDescription(), 'Victory') ~= nil then
-                    while k < 8 do
-                        v.clone({position=ref_kingdomSlots[i].pos})
-                        k = k + 1
-                    end
-                    --If we have a victory card or the card is Port, we make 12 copies
-                elseif string.find(v.getDescription(), 'Victory') ~= nil or v.getName() == 'Port' then
-                    while k < 12 do
-                        v.clone({position=ref_kingdomSlots[i].pos})
-                        k = k + 1
-                    end
-                --If we have Rats, we get 20 copies
-                elseif v.getName() == 'Rats' then
-                    while k < 20 do
-                        v.clone({position=ref_kingdomSlots[i].pos})
-                        k = k + 1
-                    end
-                --If we have Knights, we swap in the Knights pile
-                elseif v.getName() == 'Knights' then
-                    v.destruct()
-                    getPile('Knights pile').setPosition(ref_kingdomSlots[i].pos)
-                    getPile('Knights pile').shuffle()
-                elseif v.getName() == 'Catapult / Rocks' then
-                    v.destruct()
-                    getPile('Catapult / Rocks pile').setPosition(ref_kingdomSlots[i].pos)
-                elseif v.getName() == 'Encampment / Plunder' then
-                    v.destruct()
-                    getPile('Encampment / Plunder pile').setPosition(ref_kingdomSlots[i].pos)
-                elseif v.getName() == 'Gladiator / Fortune' then
-                    v.destruct()
-                    getPile('Gladiator / Fortune pile').setPosition(ref_kingdomSlots[i].pos)
-                elseif v.getName() == 'Patrician / Emporium' then
-                    v.destruct()
-                    getPile('Patrician / Emporium pile').setPosition(ref_kingdomSlots[i].pos)
-                elseif v.getName() == 'Settlers / Bustling Village' then
-                    v.destruct()
-                    getPile('Settlers / Bustling Village pile').setPosition(ref_kingdomSlots[i].pos)
-                elseif v.getName() == 'Sauna / Avanto' then
-                    v.destruct()
-                    getPile('Sauna / Avanto pile').setPosition(ref_kingdomSlots[i].pos)
-                --All other cards get 10 copies
-                else
-                    while k < 10 do
-                        v.clone({position=ref_kingdomSlots[i].pos})
-                        k = k + 1
-                    end
-                end
-            end
-        end
-    end
-    local removeBane = true
-    for i, v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects()) do
-        if v.tag == 'Card' and v.getName() ~= 'Bane pile' then
-            removeBane = false
-            local k = 1
-            if getPlayerCount() == 2 and v.getName() == 'Castles' then
-                v.destruct()
-                getPile('Castles pile').setPosition(ref.baneSlot.pos)
-                for k = 1, 4 do
-                    for l, card in ipairs(castlesPile.getObjects()) do
-                        if k == 1 and card.nickname == 'Humble Castle' then
-                            getPile('Castles pile').takeObject({index=card.index}).destruct()
-                            break
-                        elseif k == 2 and card.nickname == 'Small Castle' then
-                            getPile('Castles pile').takeObject({index=card.index}).destruct()
-                            break
-                        elseif k == 3 and card.nickname == 'Opulent Castle' then
-                            getPile('Castles pile').takeObject({index=card.index}).destruct()
-                            break
-                        elseif k == 4 and card.nickname == 'King\'s Castle' then
-                            getPile('Castles pile').takeObject({index=card.index}).destruct()
-                            break
-                        end
-                    end
-                end
-            --Then we do 3+ player Castles
-            elseif v.getName() == 'Castles' then
-                v.destruct()
-                getPile('Castles pile').setPosition(ref.baneSlot.pos)
-            --If we have a victory card and 2 players, we make 8 copies
-            elseif getPlayerCount() == 2 and string.find(v.getDescription(), 'Victory') ~= nil then
-                while k < 8 do
-                    v.clone({position=ref.baneSlot.pos})
-                    k = k + 1
-                end
-                --If we have a victory card, we make 12 copies
-            elseif string.find(v.getDescription(), 'Victory') ~= nil then
-                while k < 12 do
-                    v.clone({position=ref.baneSlot.pos})
-                    k = k + 1
-                end
-            --If we have Knights, we swap in the Knights pile
-            elseif v.getName() == 'Catapult / Rocks' then
-                v.destruct()
-                getPile('Catapult / Rocks pile').setPosition(ref.baneSlot.pos)
-            elseif v.getName() == 'Encampment / Plunder' then
-                v.destruct()
-                getPile('Encampment / Plunder pile').setPosition(ref.baneSlot.pos)
-            elseif v.getName() == 'Gladiator / Fortune' then
-                v.destruct()
-                getPile('Gladiator / Fortune pile').setPosition(ref.baneSlot.pos)
-            elseif v.getName() == 'Patrician / Emporium' then
-                v.destruct()
-                getPile('Patrician / Emporium pile').setPosition(ref.baneSlot.pos)
-            elseif v.getName() == 'Settlers / Bustling Village' then
-                v.destruct()
-                getPile('Settlers / Bustling Village pile').setPosition(ref.baneSlot.pos)
-            --All other cards get 10 copies
-            else
-                while k < 10 do
-                    v.clone({position=ref.baneSlot.pos})
-                    k = k + 1
-                end
-            end
-        end
-    end
-    --Coroutine names the piles after they form
-    function createPileCoroutine()
-        wait(1)
-        if getPile('Heirlooms') ~= nil then getPile('Heirlooms').destruct() end
-        for i in pairs(ref_kingdomSlots) do
-            local zone = getObjectFromGUID(ref_kingdomSlots[i].zone).getObjects()
-            for j, v in ipairs(zone) do
-                if v.tag == 'Deck' then
-                    if string.sub(v.getName(), -5) ~= ' pile' then
-                        v.setName(v.takeObject({position=v.getPosition()}).getName() .. ' pile')
-                    end
-                end
-            end
-        end
-        if not removeBane then
-            for i, v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects()) do
-                if v.tag == 'Deck' then
-                    if string.sub(v.getName(), -5) ~= ' pile' then
-                        v.setName(v.takeObject({position=v.getPosition()}).getName() .. ' pile')
-                    end
-                end
-            end
-        end
-        cleanUp()
-        return 1
-    end
-    startLuaCoroutine(Global, 'createPileCoroutine')
-end
+  for _,ks in pairs(ref_kingdomSlots)do
+    for j,v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
+      if v.tag=='Card'then local k=1--First we check for 2 player Castles
+        if v.getName()=='Castles'then v.destruct()getPile('Castles pile').setPosition(ks.pos)
+          if getPlayerCount()==2 then
+            for _,name in pairs({'Humble Castle','Small Castle','Opulent Castle','King\'s Castle'})do
+              for l, card in ipairs(getPile('Castles pile').getObjects())do
+                if card.nickname==name then
+                  getPile('Castles pile').takeObject({index=card.index}).destruct()
+                  break end end end end
+        --If we have a victory card and 2 players, we make 8 copies
+        elseif getPlayerCount()==2 and getType(v.getName()):find('Victory')then
+          while k<8 do v.clone({position=ks.pos})k=k+1 end
+          --If we have a victory card or the card is Port, we make 12 copies
+        elseif getType(v.getName()):find('Victory')or v.getName()=='Port'then
+          while k<12 do v.clone({position=ks.pos})k=k+1 end
+        --If we have Rats, we get 20 copies
+        elseif v.getName()=='Rats'then
+          while k<20 do v.clone({position=ks.pos})k=k+1 end
+        --If we have Knights, we swap in the Knights pile
+        elseif v.getName()=='Knights'then
+          v.destruct()getPile('Knights pile').setPosition(ks.pos)getPile('Knights pile').shuffle()
+        elseif v.getName()=='Catapult / Rocks'then
+          v.destruct()getPile('Catapult / Rocks pile').setPosition(ks.pos)
+        elseif v.getName()=='Encampment / Plunder'then
+          v.destruct()getPile('Encampment / Plunder pile').setPosition(ks.pos)
+        elseif v.getName()=='Gladiator / Fortune'then
+          v.destruct()getPile('Gladiator / Fortune pile').setPosition(ks.pos)
+        elseif v.getName()=='Patrician / Emporium'then
+          v.destruct()getPile('Patrician / Emporium pile').setPosition(ks.pos)
+        elseif v.getName()=='Settlers / Bustling Village'then
+          v.destruct()getPile('Settlers / Bustling Village pile').setPosition(ks.pos)
+        elseif v.getName()=='Sauna / Avanto'then
+          v.destruct()getPile('Sauna / Avanto pile').setPosition(ks.pos)
+        --All other cards get 10 copies
+        else while k<10 do v.clone({position=ks.pos})k=k+1
+  end end end end end
+  local removeBane=true
+  for i,v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects())do
+    if v.tag=='Card'then removeBane=false local k=1
+      if getPlayerCount()==2 and v.getName()=='Castles'then v.destruct()getPile('Castles pile').setPosition(ref.baneSlot.pos)
+        for k=1,4 do
+          for l,card in ipairs(castlesPile.getObjects())do
+            if k==1 and card.nickname=='Humble Castle'then
+              getPile('Castles pile').takeObject({index=card.index}).destruct()break
+            elseif k==2 and card.nickname=='Small Castle'then
+              getPile('Castles pile').takeObject({index=card.index}).destruct()break
+            elseif k==3 and card.nickname=='Opulent Castle'then
+              getPile('Castles pile').takeObject({index=card.index}).destruct()break
+            elseif k==4 and card.nickname=='King\'s Castle'then
+              getPile('Castles pile').takeObject({index=card.index}).destruct()break
+        end end end
+      --Then we do 3+ player Castles
+      elseif v.getName()=='Castles'then v.destruct()getPile('Castles pile').setPosition(ref.baneSlot.pos)
+      --If we have a victory card and 2 players, we make 8 copies
+      elseif getPlayerCount()==2 and getType(v.getName()):find('Victory')then
+        while k<8 do v.clone({position=ref.baneSlot.pos})k=k+1 end
+      --If we have a victory card, we make 12 copies
+      elseif v.getDescription():find('Victory')then
+        while k<12 do v.clone({position=ref.baneSlot.pos})k=k+1 end
+      --If we have Knights, we swap in the Knights pile
+      elseif v.getName()=='Catapult / Rocks'then
+        v.destruct()getPile('Catapult / Rocks pile').setPosition(ref.baneSlot.pos)
+      elseif v.getName()=='Encampment / Plunder'then
+        v.destruct()getPile('Encampment / Plunder pile').setPosition(ref.baneSlot.pos)
+      elseif v.getName()=='Gladiator / Fortune'then
+        v.destruct()getPile('Gladiator / Fortune pile').setPosition(ref.baneSlot.pos)
+      elseif v.getName()=='Patrician / Emporium'then
+        v.destruct()getPile('Patrician / Emporium pile').setPosition(ref.baneSlot.pos)
+      elseif v.getName()=='Settlers / Bustling Village'then
+        v.destruct()getPile('Settlers / Bustling Village pile').setPosition(ref.baneSlot.pos)
+      --All other cards get 10 copies
+      else while k<10 do v.clone({position=ref.baneSlot.pos})k=k+1
+  end end end end
+  --Coroutine names the piles after they form
+  function createPileCoroutine()wait(2)
+    if getPile('Heirlooms')then getPile('Heirlooms').destruct()end
+    for _,ks in pairs(ref_kingdomSlots)do
+      for j,v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
+        if v.tag=='Deck'and v.getName():sub(-5)~=' pile'then
+            v.setName(v.takeObject({position=v.getPosition()}).getName()..' pile')
+    end end end
+    if not removeBane then
+      for _,v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects())do
+        if v.tag=='Deck'and v.getName():sub(-5)~=' pile'then
+            v.setName(v.takeObject({position=v.getPosition()}).getName()..' pile')
+    end end end cleanUp()return 1
+  end startLuaCoroutine(Global, 'createPileCoroutine')end
 function getVP(n)for _,v in pairs(ref_master)do if n==v.name then if v.VP then return v.VP end return 0 end end end
-function getSetup(n)if Use(n:gsub(' ',''))then for _,v in pairs(ref_master)do if n==v.name then if v.setup then return v.setup end end end end return function()end end
 function getCost(n)for _,v in pairs(ref_master)do if n==v.name then return v.cost end end return'M0D0P0'end
 function getType(n)for _,v in pairs(ref_master)do if n==v.name then return v.type end end return'Event'end
+function getSetup(n)if Use(n:gsub(' ',''))then for _,v in pairs(ref_master)do if n==v.name then if v.setup then return v.setup end end end end return function()end end
 function getPile(pileName)
   for _,p in pairs(ref_replacementPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
   for _,p in pairs(ref_basicSupplyPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
@@ -1411,16 +1290,16 @@ function getPile(pileName)
 end
 -- Function to set the correct count of base cards
 function setupBaseCardCount(useShelters, useHeirlooms)
-  local pCount = getPlayerCount()
+  local pCount=getPlayerCount()
   --Starting Estates
-  if useShelters and getPile('Shelters') ~= nil then
+  if useShelters and getPile('Shelters')then
     removeFromPile(getPile('Estates'), 18)
   else
     removeFromPile(getPile('Estates'), 18 - (pCount * 3))
   end
   --Starting Curses
   removeFromPile(getPile('Curses'), 50 - ((pCount - 1) * 10))
-  if getPile('Ruins pile') ~= nil then
+  if getPile('Ruins pile')then
     getPile('Ruins pile').shuffle()
     removeFromPile(getPile('Ruins pile'), 50 - ((pCount - 1) * 10))
   end
@@ -1439,17 +1318,17 @@ function setupBaseCardCount(useShelters, useHeirlooms)
     removeFromPile(getPile('Coppers'), (pCount * 7))
   end
   --Starting Provinces
-  if pCount == 5 then
+  if pCount==5 then
     removeFromPile(getPile('Provinces'), 3)
   elseif pCount < 5 then
     removeFromPile(getPile('Provinces'), 6)
   end
   --2 Player Victory Card Setup
-  if pCount == 2 then
+  if pCount==2 then
     removeFromPile(getPile('Estates'), 4)
     removeFromPile(getPile('Duchies'), 4)
     removeFromPile(getPile('Provinces'), 4)
-    if usePlatinum == 1 then
+    if usePlatinum==1 then
         removeFromPile(getPile('Colonies'), 4)
     end
   end
@@ -1466,39 +1345,39 @@ function setupStartingDecks(useShelters, useHeirlooms)
     if 0<Player[p].getHandCount()then
       if h then h.clone({position=ref_players[p].deck})end
       for j=c,7 do getPile('Coppers').takeObject({position=ref_players[p].deck,flip=true})end
-      if useShelters and getPile('Shelters')~=nil then
+      if useShelters and getPile('Shelters')then
         getPile('Shelters').clone({position=ref_players[p].deck,rotation={0,180,180}})
       else for j=1,3 do getPile('Estates').takeObject({position=ref_players[p].deck,flip=true})
   end end end end
-  if useShelters and getPile('Shelters')~=nil then getPile('Shelters').destruct()end
+  if useShelters and getPile('Shelters')then getPile('Shelters').destruct()end
   dealStartingHands()
 end
 -- Function to deal starting hands
 function dealStartingHands()
   function dealStartingHandsCoroutine()
     wait(2)
-    for i, v in pairs(ref_players) do
-      for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects()) do
-        if b.tag == 'Deck' then
+    for i, v in pairs(ref_players)do
+      for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects())do
+        if b.tag=='Deck'then
           b.shuffle()
         end
       end
     end
     wait(0.5)
-    for i, v in pairs(ref_players) do
-      for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects()) do
-        if b.tag == 'Deck' then
+    for i, v in pairs(ref_players)do
+      for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects())do
+        if b.tag=='Deck'then
             b.deal(5, i)
         end
       end
     end
     createEndButton()
-    gameState = 3
+    gameState=3
     setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][ffffff]\n\nMake sure all cards are in each player\'s hand, deck, discard, Tavern mat, Island mat, or Native Village mat before pressing End Game. Any card outside of these areas will not be counted.')
     
     local t=getSeatedPlayers()
-    Turns.turn_color = t[math.random(1,#t)]
-    Turns.enable = true
+    Turns.turn_color=t[math.random(1,#t)]
+    Turns.enable=true
     return 1
   end
   startLuaCoroutine(Global, 'dealStartingHandsCoroutine')
@@ -2046,7 +1925,7 @@ ref_master={
 {cost='MXDXP0',type='Landmark',name='Colonnade',depend='VP'},
 {cost='MXDXP0',type='Landmark',name='Defiled Shrine',depend='VP',setup=function(o)local t=o.getObjects()[1].description;if t:find('Action')and not t:find('Gathering')then tokenMake(o,'vp',2)end end},
 {cost='MXDXP0',type='Landmark',name='Fountain',VP=function(t)if t.deck.Copper>9 then return 15 end end},
-{cost='MXDXP0',type='Landmark',name='Keep',VP=function(t,dT,cp)local v=0;for c,n in pairs(t.deck)do if string.find(getType(c),'Treasure')~=nil then local w=true;for o,d in pairs(dT)do if o~=cp and d~=nil and d[c]~=nil and d[c]>n then w=false;end end end if w then v=v+5 end end end},
+{cost='MXDXP0',type='Landmark',name='Keep',VP=function(t,dT,cp)local v=0;for c,n in pairs(t.deck)do if getType(c):find('Treasure')then local w=true;for o,d in pairs(dT)do if o~=cp and d and d[c] and d[c]>n then w=false;end end end if w then v=v+5 end end end},
 {cost='MXDXP0',type='Landmark',name='Labyrinth',depend='VP'},
 {cost='MXDXP0',type='Landmark',name='Mountain Pass',depend='VP Debt'},
 {cost='MXDXP0',type='Landmark',name='Museum',VP=function(t)return #t.deck*2 end},
@@ -2054,7 +1933,7 @@ ref_master={
 {cost='MXDXP0',type='Landmark',name='Orchard',VP=function(t)return t.orchard*4 end},
 {cost='MXDXP0',type='Landmark',name='Palace',VP=function(t)return math.min(t.deck.Copper or 0, t.deck.Silver or 0, t.deck.Gold or 0)*3 end},
 {cost='MXDXP0',type='Landmark',name='Tomb',depend='VP'},
-{cost='MXDXP0',type='Landmark',name='Tower',VP=function(t)local vp,ne,zs,f=0,{},{},false;for _,g in ipairs(ref_basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end table.insert(zs,getObjectFromGUID(ref.baneSlot.zone))for _,s in ipairs(ref_kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do if o.tag=='Card'and o.getName()~='Bane Card'then if string.find(getType(o.getName()),'Knight')==nil then table.insert(ne,o.getName())else table.insert(ne,'Knights')end elseif o.tag=='Deck'then table.insert(ne,string.sub(o.getName(),1,-6))end end end for c,n in pairs(t.deck)do for _,p in ipairs(ne)do if p==c then f=true;end end if string.find(getType(c),'Knight')~=nil then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Global Blackmarket Var]]if string.find(getType(c),'Victory')==nil and not f then vp=vp+n end end return vp end},
+{cost='MXDXP0',type='Landmark',name='Tower',VP=function(t)local vp,ne,zs,f=0,{},{},false;for _,g in ipairs(ref_basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end table.insert(zs,getObjectFromGUID(ref.baneSlot.zone))for _,s in ipairs(ref_kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do if o.tag=='Card'and o.getName()~='Bane Card'then if getType(o.getName()):find('Knight')==nil then table.insert(ne,o.getName())else table.insert(ne,'Knights')end elseif o.tag=='Deck'then table.insert(ne,o.getName():sub(1,-6))end end end for c,n in pairs(t.deck)do for _,p in ipairs(ne)do if p==c then f=true;end end if getType(c):find('Knight')then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Global Blackmarket Var]]if getType(c):find('Victory')==nil and not f then vp=vp+n end end return vp end},
 {cost='MXDXP0',type='Landmark',name='Triumphal Arch',VP=function(t)local h,s=0,0;for card,c in pairs(t.deck)do if getType(card):find('Action')then if c>h then s=h;h=c elseif c>s then s=c end end end return s * 3 end},
 {cost='MXDXP0',type='Landmark',name='Wall',VP=function(t)return -(t.amount-15)end},
 {cost='MXDXP0',type='Landmark',name='Wolf Den',VP=function(t)log(t)return -t.wolf*3 end},--Nocturne

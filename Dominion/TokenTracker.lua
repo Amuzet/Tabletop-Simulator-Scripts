@@ -12,7 +12,7 @@ function onload(s)
 
   self.createButton({click_function='none',function_owner=self,position={0,y+0.05,0},height=0,width=0,font_size=1500,label=count})
 
-  for i,v in ipairs({{val=1,label='+',pos={0.8,y,-0.7}},{val=-1,label='-',pos={-0.8,y,0.7}}})do
+  for i,v in pairs({{val=1,label='+',pos={0.8,y,-0.7}},{val=-1,label='-',pos={-0.8,y,0.7}}})do
     local fn='valueChange'..i
     self.setVar(fn,function(o,c)click_changeValue(o,c,v.val)end)
     self.createButton({click_function=fn,function_owner=self,position=v.pos,height=500,width=500,label=v.label,font_size=1000,color={1,1,1,1}})
