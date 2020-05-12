@@ -7,7 +7,7 @@ function onload(s)
   local y=0.05
   ref_type,owner=self.getName(),self.getDescription()
   if ref_type=='Pirate Ship Coins'or ref_type=='Villagers'then y=y*2
-  elseif ref_type=='Owns Project'then y=1 end
+  elseif ref_type=='Owns Project'then y=0.6 end
   if s~=''then local ld=JSON.decode(s);count=ld.c else count=0 end
 
   self.createButton({click_function='none',function_owner=self,position={0,y+0.05,0},height=0,width=0,font_size=1500,label=count})
