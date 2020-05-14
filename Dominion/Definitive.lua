@@ -1,4 +1,5 @@
---DominionDefinitiveEditionModifiedByAmuzet2020_05_11_D
+--DominionDefinitiveEditionModifiedByAmuzet2020_05_13_F
+VERSION,GITURL=2.0,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
 function onSave()
   saved_data=JSON.encode({
     gs=gameState,
@@ -15,6 +16,17 @@ function onSave()
 end
 --Runs when the map is first loaded
 function onLoad(saved_data)
+  WebRequest.get(GITURL,function(wr)
+      vCheck=function()
+        while wr.download_progress<1 do print('Checking Version')wait(3)end
+        local v=wr.text:match('VERSION,GITURL=(%d+%p%d+)')
+        if v then v=tonumber(v)
+          if v<VERSION then     broadcastToAll('Oh look at you with a Testing Version\nPlease Report any bugs to Amuzet.',{0,1,1})
+          elseif v>VERSION then broadcastToAll('There is an UPDATE!\nCan be found in TTSClub.',{1,1,0})
+          else                  broadcastToAll('Up to Date!\nHave a nice time playing.',{0,1,0})end
+        else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end
+      
+      startLuaCoroutine(self,'vCheck')end)
   local Color={Blue={31/255,136/255,255/255},Green={49/255,179/255,43/255},Red={219/255,26/255,24/255},White={0.3,0.3,0.3},Orange={244/255,100/255,29/255},Yellow={231/255,229/255,44/255}}
     if saved_data~=''then
       local loaded_data=JSON.decode(saved_data)
@@ -45,14 +57,29 @@ function onLoad(saved_data)
     setUninteractible(ref_eventSlots)
     setUninteractible(ref_sideSlots)
     for k,r in pairs(ref_sideSlots)do local p=getObjectFromGUID(r.guid).getPosition();ref_sideSlots[k].pos={p[1],1.3,p[3]}end
+    for k,r in pairs(ref_basicSlots)do local p=getObjectFromGUID(r.guid).getPosition();ref_basicSlots[k].pos={p[1],1.3,p[3]}end
+    for k,r in pairs(ref_kingdomSlots)do local p=getObjectFromGUID(r.guid).getPosition();ref_kingdomSlots[k].pos={p[1],1.3,p[3]}end
     setUninteractible(ref)
     for _,o in pairs(getAllObjects())do if o.getLock()and o.getName()==''then o.interactable=false end end
-    for k,p in pairs(ref_players)do for _,o in pairs(getObjectFromGUID(p.zone).getObjects())do o.setDescription(k)end end
     math.randomseed(os.time())
+    
+    for k,p in pairs(ref_players)do
+      for _,o in pairs(getObjectFromGUID(p.zone).getObjects())do
+        if o.getName()=='Victory Points'then
+          ref_players[k].vp=o.getGUID()
+        elseif o.getName()=='Debt Tokens'then
+          ref_players[k].debt=o.getGUID()
+        elseif o.getName()=='Coffers'then
+          ref_players[k].coin=o.getGUID()
+    end end end
+    
     if gameState==1 then
       for _,o in pairs(getObjectFromGUID(ref_storageZone.script).getObjects())do
         if o.tag=='Deck'then local n=o.getName()
           for i,c in pairs(ref_sidePiles)do if n==c.name then ref_sidePiles[i].guid=o.getGUID()break elseif i==#ref_sidePiles then o.highlightOn({1,0,0.5})end end end end
+      for _,o in pairs(getObjectFromGUID(ref_storageZone.script).getObjects())do
+        if o.tag=='Deck'then local n=o.getName()
+          for i,c in pairs(ref_cardSets)do if n==c.name then ref_cardSets[i].guid=o.getGUID();o.highlightOff()break end end end end
       for _,o in pairs(getObjectFromGUID(ref_storageZone.setup).getObjects())do
         local f,n=false,o.getName()
         if(o.tag=='Deck'or o.tag=='Card')and n~='Heirlooms'and n~='Shelters'then
@@ -78,24 +105,18 @@ function onLoad(saved_data)
         end end end end
         local obj=getObjectFromGUID(ref.startButton)
         if obj then
-            local btn=setmetatable({d=3,function_owner=Global,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
+            local btn=setmetatable({d=-3,function_owner=Global,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
               b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end obj.createButton(b)end})
-            btn('Max Events: '..eventMax,               'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
-            btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',nil,'click_blackMarketLimit')
-            btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks',{23,0,-11})
-            btn('Tutorial\nCard Types','Random Kingdom with half being Non Action Cards')
-            btn('Tutorial\nAdvanced',  'Random Kingdom with non vanilla sets')
-            btn('Balanced Setup\nDual Sets',    'Random Kingdom made with 5 cards of one set and 5 from another')--[[
-            btn('Currated Setup\nDesigners',      {14,0,-32}, 'Picks a Kingdom from a list of currated sets made by the Designers')
-            btn('Currated Setup\nDominion League',{0,0,-32},  'Picks a Kingdom from a list of currated sets played in tournaments')
-            btn('Currated Setup\nReddit Weekly','Set Kingdom for this week from Reddit')
-            btn('Balanced Setup\nTripple Sets', 'Random Kingdom made with atleast 3 card from 3 different sets')]]
-            btn('Quick Setup\nTwo Sets',  'Random Kingdom from any two sets',{0,0,-62})
+            btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{8.5,0,8.5})
+            btn('Quick Setup\nTwo Sets','Random Kingdom from any two sets',{0,0,-48})
             btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
-            btn('Quick Setup\nAll Sets',  'Random Kingdom from every set')
-            btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{13,0,-16})
+            btn('Quick Setup\nAll Sets','Random Kingdom from every set')
+            btn('Balanced Setup\nDual Sets','Random Kingdom made with 5 cards of one set and 5 from another')
+            btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{-22.5,0,2},'click_blackMarketLimit')
+            btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
+            btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
         end
-        obj=getObjectFromGUID(ref_extraSupplyPiles[1].guid)
+        obj=getObjectFromGUID(ref_supplyPiles[1].guid)
         if obj then
             obj.createButton({
                 label='Force\n'..obj.getName(),click_function='click_forcePile',
@@ -104,7 +125,7 @@ function onLoad(saved_data)
             if usePlatinum==1 then obj.highlightOn({0,1,0})
             elseif usePlatinum==2 then obj.highlightOn({1,0,0}) end
         end
-        obj=getObjectFromGUID(ref_extraSupplyPiles[5].guid)
+        obj=getObjectFromGUID(ref_supplyPiles[5].guid)
         if obj then
             obj.createButton({
                 label='Force\n'..obj.getName(), click_function='click_forcePile',
@@ -133,7 +154,7 @@ function createEndButton()
     if obj then
         obj.createButton({
             label='End Game', click_function='click_endGame',
-            function_owner=Global, position={0,0.5,0}, rotation={0,180,0},
+            function_owner=Global, position={0,0,3}, rotation={0,180,0},
             height=1500, width=4000, font_size=9000
         })
     end
@@ -313,7 +334,7 @@ function Use.Add(n)
   log(n)
   if getCost(c):sub(-1)=='1'then s=s..'Potion 'end
   if not getCost(c):find('D0')and not getCost(c):find('DX')then s=s..'Debt 'end
-  for _,t in pairs({'Looter','Reserve','Doom','Fate','Project','Gathering'})do if getType(c):find(t)then s=s..t..' 'end end
+  for _,t in pairs({'Looter','Reserve','Doom','Fate','Project','Gathering','Fame','Season'})do if getType(c):find(t)then s=s..t..' 'end end
   for i,v in pairs(ref_master)do if c==v.name then x=i;if v.depend then s=s..v.depend..' 'end break end end
   if 100<x and x<126 then s=s..'Platinum 'elseif 175<x and x<225 then s=s..'Shelters 'end
   createHeirlooms(c)
@@ -339,7 +360,7 @@ function click_selectDeck(obj, color)
     for _,s in pairs(ref_cardSets)do
       if g==s.guid then l=l..s.name..'\n'
   break end end end
-  b.editButton({index=#b.getButtons()-1,label=l..'[009911]Start Game[-]',height=790*(#useSets+2)+100})
+  b.editButton({index=0,label=l..'[009911]Start Game[-]',height=790*(#useSets+2)+100})
   obj.editButton({font_color=a})
 end
 function click_AllSets(obj, color)useSets={}
@@ -393,111 +414,9 @@ function click_DualSets(obj, color)
     wait(2)
     for i,v in pairs(ref_kingdomSlots)do getObjectFromGUID(useSets[(i%2)+1]).takeObject({position=v.pos,index=6-math.ceil(i/2),smooth=false})end
     for i,v in pairs(eventPiles)do getObjectFromGUID(v).takeObject({position=ref_eventSlots[i].pos,index=2,smooth=false})end
-    
     click_StartGame(obj, color)
   end
   startLuaCoroutine(Global,'DualSetsCoroutine')
-end
-function click_TrippleSets(obj, color)
-  printToAll('This does nothing!',{1,1,1})
-end
-function click_RedditWeekly(obj, color)
-  --https://www.reddit.com/r/dominion/search?q=title%3Akotw+author%3Aavocadro&sort=newl&utm_name=dominion&t=week
-  local KotW='KotW 12/1: Bishop, Crown, Forager, Goons, Inventor, King\'s Court, Lighthouse, Lurker, Remake, Watchtower. Events: Dominate, Donate. Colony/Platinum; no Shelters. [Intrigue, Seaside, Prosperity, Cornucopia, Dark Ages, Empires, Renaissance]'
-  
-  bcast('Kingdom of the Week '..KotW:match('%d+/%d+')..'/2019')
-  local tbl={bane=KotW:match('%(Bane: (.+)%)'),P=KotW:match('[NOno ]*Colony/Platinum'),S=KotW:match('[NOno ]*Shelters')}
-  if tbl.P and tbl.P:find('[Nn][Oo]')then tbl.P=false end
-  if tbl.S and tbl.S:find('[Nn][Oo]')then tbl.S=false end
-  local x=KotW:gsub('%p ([%s%w\']+)',function(a)table.insert(tbl,a)return''end,10)
-  local g=function(b)x:match('[s]?(: [%s%w,])[%.;]'):gsub('%p ([%s%w\']+)',function(a)table.insert(tbl,a)end)end
-  g('Landmark')
-  g('Project')
-  g('Event')
-  log(tbl)
-  --KotW.gsub()
-  kingdomList(tbl,{obj,color})
-end
-function click_DominionLeague(obj, color)
-  bcast('Beginner Tutorial')
-  local knd={
-'Vineyard,Pearl Diver,Stonemason,Oasis,Storeroom,Philosopher\'s Stone,Talisman,Herald,Cultist,Fairgrounds,Shelters',
-'Stonemason,Hermit,Wishing Well,Fortress,Nomad,Camp,Sea Hag,Golem,Bandit Camp,Merchant Guild,Mystic,Shelters',
-'Herbalist,Sage,Mining Village,Rats,Salvager,Highway,Horn of Plenty,Rogue,Soothsayer,Peddler',
-'Embargo,Secret Chamber,Watchtower,Swindler,Bridge,Procession,Talisman,Gardens,Jester,Mint',
-'Oracle,Village,Fortress,Moneylender,Plaza,Silk Road,City,Contraband,Library,Pillage',
-'University,Menagerie,Horse Traders,Bazaar,Embassy,Margrave,Pillage,Altar,Grand Market,Expand,Platinum',
-'Moat,Vagrant,Scheme,Island,Throne Room,Salvager,Jester,Rabble,Fairgrounds,Peddler',
-'Oasis,Shanty Town,Marauder,Young Witch,Mining Village,Silk Road,Market,Stables,Merchant Ship,Graverobber,Vagrant',
-'Storeroom,Wishing Well,Coppersmith,Mining Village,Salvager,Throne Room,Mint,Tactician,Bank,Forge,Platinum',
-'Horse Traders,Fool\'s Gold,Menagerie,Develop,Warehouse,Conspirator,Minion,Duke,Horn of Plenty,Candlestick Maker',
-'Counting,House,Mountebank,Inn,Festival,Throne Room,Plaza,Gardens,Trade Route,Storeroom,Scheme,Platinum',
-'Poor House,Hamlet,Tunnel,Oracle,Doctor,Remake,Sea Hag,Inn,Merchant Guild,King\'s Court',
-'Squire,Bridge,Apprentice,Haggler,Marauder,Urchin,Shanty Town,Library,Hoard,Harem,Shelter',
-'Stonemason,Tunnel,Storeroom,Watchtower,Rats,Bishop,Fortress,Catacombs,Minion,Hunting Grounds,Shelters',
-'Fool\'s Gold,Native Village,Stonemason,Market,Square,Wishing Well,Ironmonger,Procession,Catacombs,Witch,Adventurer',
-'Scavenger,Philosopher\'s Stone,Gardens,Squire,Worker\'s Village,Vault,Steward,Caravan,Mountebank,Adventurer,Platinum',
-'Vineyard,Apothecary,Fishing Village,Menagerie,Envoy,Young Witch,Market,Goons,Hoard,Expand,Wishing Well,Platinum',
-'Fool\'s Gold,Lookout,Shanty Town,Warehouse,Woodcutter,Remodel,Sea Hag,Apprentice,Bazaar,Hoard',
-'Hamlet,Menagerie,Tunnel,Watchtower,Monument,Remake,Inn,Tactician,Adventurer,Bank',
-'Courtyard,Oracle,Trade Route,Tournament,Golem,Bazaar,Mint,Rabble,Fairgrounds,King\'s Court',
-'Vineyard,Herbalist,Fishing Village,Philosopher\'s Stone,Caravan,Young Witch,Horn of Plenty,Mandarin,Royal Seal,Trading Post,Watchtower',
-'Ambassador,Lookout,Wishing Well,Bishop,Ironworks,Monument,Trader,Venture,Expand,Peddler,Platinum',
-'Crossroads,Embargo,Trade Route,Tunnel,Village,Warehouse,Workshop,Silk Road,Spice Merchant,Apprentice',
-'Moat,Fortune,Teller,Bridge,Moneylender,Smithy,Throne Room,Festival,Jester,Vault,Fairgrounds',
-'Chapel,Embargo,Fool\'s Gold,Oasis,Workshop,Thief,Throne Room,Worker\'s Village,Margrave,Wharf',
-'Haven,Fishing Village,Scheme,Steward,Horse Traders,Mountebank,Upgrade,Festival,Library,Goons',
-'Native Village,Talisman,Treasure Map,Worker\'s Village,City,Vault,Venture,Grand Market,Expand,Peddler,Platinum',
-'Moat,Tunnel,Bishop,Gardens,Ironworks,Young Witch,Tournament,Council Room,Torturer,Border Village,Hamlet',
-'Crossroads,Loan,Silk Road,Baron,Bureaucrat,Apprentice,Duke,Farmland,Harem,Nobles,Platinum',
-'Haven,Great,Hall,Workshop,Masquerade,Ironworks,Island,Throne Room,Tactician,Goons,King\'s Court',
-'Lookout,Masquerade,Oracle,Smithy,Worker\'s Village,Festival,Ghost Ship,Margrave,Mountebank,Treasury',
-'Embargo,University,Scrying Pool,Worker\'s Village,Remodel,Wharf,Rabble,Grand Market,Forge,Peddler,Platinum',
-'Menagerie,Tunnel,Ghost Ship,Governor,Inn,Monument,Worker\'s Village,Grand Market,Goons,Adventurer',
-'Embargo,Scheme,Menagerie,Watchtower,Fishing Village,Remake,Haggler,Vault,Grand Market,Expand,Platinum',
-'Crossroads,Secret Chamber,Warehouse,Loan,Ambassador,Caravan,Worker\'s Village,Bureaucrat,Merchant Ship,Grand Market,Platinum',
-'Chapel,Fishing Village,Watchtower,Ironworks,Gardens,Bridge,Highway,Mountebank,Ill-Gotten,Gains,Goons,Platinum',
-'Torturer,Merchant Ship,Moneylender,Caravan,Familiar,Watchtower,Steward,University,Embargo,Hamlet',
-'Counting,House,Vault,Laboratory,Golem,Coppersmith,Worker\'s Village,Tunnel,Chancellor,Apothecary,Hamlet',
-'Harem,Venture,Golem,Tournament,Bishop,Thief,Remake,Tunnel,Fishing Village,Fool\'s Gold',
-'Forge,Torturer,Governor,Mountebank,Wharf,Sea Hag,Worker\'s Village,Familiar,Fishing Village,Chapel',
-'Fairgrounds,Nobles,Golem,Spy,Quarry,Ironworks,Throne Room,Menagerie,Black Market,Native Village'}
-  kingdomList( knd[ math.random(1,#knd) ] , {obj,color} )
-end
-function click_Designers(obj, color)
-  bcast('Loading a Set created by the Designers')
-  local knd={
-'Courtyard,Minion,Steward,Mining Village,Conspirator,Bureaucrat,Chancellor,Council Room,Mine,Militia',
-'Herbalist,Transmute,Apothecary,Alchemist,Golem,Cellar,Chancellor,Festival,Militia,Smithy',
-'Bishop,Goons,Monument,Peddler,Grand Market,Council Room,Cellar,Library,Throne Room,Chancellor',
-'Bank,Expand,Forge,King\'s Court,Vault,Bridge,Coppersmith,Swindler,Tribute,Wishing Well',
-'Fairgrounds,Farming Village,Horse Traders,Jester,Young Witch,Feast,Laboratory,Market,Remodel,Workshop,Cellar',
-'Crossroads,Farmland,Fool\'s Gold,Oracle,Spice Merchant,Adventurer,Chancellor,Festival,Laboratory,Remodel',
-'Bureaucrat,Council Room,Feast,Laboratory,Market,Moneylender,Remodel,Smithy,Village,Workshop',
-'Adventurer,Laboratory,Library,Militia,Throne Room,Bridge,Masquerade,Shanty Town,Steward,Trading Post',
-'Cellar,Feast,Gardens,Witch,Workshop,Ambassador,Fishing Village,Lighthouse,Merchant Ship,Treasury',
-'Adventurer,Council Room,Mine,Moneylender,Village,Expand,Loan,Quarry,Vault,Venture',
-'Cellar,Gardens,Market,Militia,Mine,Remodel,Throne Room,Alchemist,Apothecary,Herbalist',
-'Bureaucrat,Chancellor,Chapel,Festival,Library,Moat,Hamlet,Horse Traders,Jester,Remake',
-'Conspirator,Coppersmith,Courtyard,Duke,Harem,Nobles,Scout,Trading Post,Upgrade,Wishing Well',
-'Conspirator,Coppersmith,Harem,Masquerade,Mining Village,Ambassador,Caravan,Merchant Ship,Native Village,Tactician',
-'Great Hall,Ironworks,Masquerade,Mining Village,Upgrade,City,Grand Market,Royal Seal,Talisman,Trade Route',
-'Courtyard,Duke,Great Hall,Minion,Nobles,Scout,Wishing Well,Herbalist,Transmute,Vineyard',
-'Bridge,Ironworks,Minion,Shanty Town,Steward,Upgrade,Fairgrounds,Harvest,Horse Traders,Young Witch,Courtyard',
-'Caravan,Embargo,Explorer,Fishing Village,Ghost Ship,Island,Lighthouse,Salvager,Treasury,Warehouse',
-'Ghost Ship,Haven,Island,Lookout,Tactician,Bishop,Trade Route,Venture,Watchtower,Worker\'s Village',
-'Bazaar,Cutpurse,Lookout,Pearl Diver,Salvager,Warehouse,Wharf,Apprentice,University,Vineyard',
-'Bazaar,Embargo,Haven,Navigator,Warehouse,Wharf,Fortune Teller,Hamlet,Horn of Plenty,Hunting Party',
-'Bank,Expand,Goons,Hoard,Mint,Monument,Peddler,Royal Seal,Talisman,Worker\'s Village',
-'Bank,Goons,Hoard,Mint,Quarry,Vault,Watchtower,Apothecary,Apprentice,Transmute',
-'Bishop,Grand Market,Loan,Monument,Peddler,Rabble,Farming Village,Horn of Plenty,Menagerie,Tournament',
-'Cellar,Festival,Library,Market,Militia,Moneylender,Smithy,Thief,Throne Room,Woodcutter',
-'Conspirator,Coppersmith,Duke,Great Hall,Harem,Pawn,Scout,Steward,Torturer,Upgrade',
-'Adventurer,Bureaucrat,Council Room,Remodel,Workshop,Caravan,Ghost Ship,Merchant Ship,Native Village,Outpost',
-'Chancellor,Festival,Moat,Witch,Woodcutter,Apprentice,Golem,Philosopher\'s Stone,University,Vineyard',
-'Cellar,Council Room,Gardens,Thief,Village,Forge,Hoard,Loan,Rabble,Venture',
-'Cellar,Feast,Laboratory,Mine,Workshop,Fairgrounds,Farming Village,Fortune Teller,Horn of Plenty,Menagerie'}
-  kingdomList(knd[math.random(1,#knd)],{obj,color})
 end
 function click_VanillaSets(obj, color)
   bcast('Setting up Base Game and Intrigue')
@@ -513,19 +432,10 @@ function click_BasicGame(obj, color)
 'Cellar,Market,Merchant,Militia,Mine,Moat,Remodel,Smithy,Village,Workshop',}
   kingdomList( knd[ math.random(1,#knd) ] , {obj,color} )
 end
-function click_CardTypes(obj, color)
-  bcast('Not Implemented Yet')
-  --click_StartGame(obj,color)
-end
-function click_Advanced(obj, color)
-  bcast('Not Implemented Yet')
- 
-  --click_StartGame(obj,color)
-end
 
 function click_forcePile(obj, color)
     local guid,c=obj.getGUID(),{1,1,1}
-    if guid==ref_extraSupplyPiles[1].guid then
+    if guid==ref_supplyPiles[1].guid then
         if usePlatinum < 2 then
             usePlatinum=1 + usePlatinum
             if usePlatinum==1 then c={0,1,0}else c={1,0,0}end
@@ -534,7 +444,7 @@ function click_forcePile(obj, color)
             usePlatinum=0
             obj.highlightOff()
         end
-    elseif guid==ref_extraSupplyPiles[5].guid then
+    elseif guid==ref_supplyPiles[5].guid then
         if useShelters < 2 then
             useShelters=1 + useShelters
             if useShelters==1 then c={0,1,0}else c={1,0,0}end
@@ -561,7 +471,8 @@ function click_StartGame(obj, color)
     bcast('Only the host and promoted players can start the game.', {0.75,0.75,0.75}, color)
     return
   end
-  if getPlayerCount() < 2 or getPlayerCount() > 6 then
+  Turns.enable=false
+  if getPlayerCount() > 6 then
     bcast('This game needs 2 to 6 players to start.', {0.75,0.75,0.75}, color)
     return
   end
@@ -662,9 +573,9 @@ function removeButtons()
   end
   local obj=getObjectFromGUID(ref.startButton)
   if obj then obj.clearButtons()end
-  obj=getObjectFromGUID(ref_extraSupplyPiles[1].guid)
+  obj=getObjectFromGUID(ref_supplyPiles[1].guid)
   if obj then obj.clearButtons()end
-  obj=getObjectFromGUID(ref_extraSupplyPiles[5].guid)
+  obj=getObjectFromGUID(ref_supplyPiles[5].guid)
   if obj then obj.clearButtons()end
 end
 -- Function to setup the Kingdom
@@ -719,7 +630,7 @@ function setupKingdom(summonException)
             for j, v in ipairs(getObjectFromGUID(ks.zone).getObjects())do if v.tag=='Card'then card=true end end
             while not card do
               for j, v in pairs(deck.getObjects())do
-                local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
+                local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
                   if eventCount < eventMax then
                     --local tp=getType(v.name) if tp=='Way'then if w==1 then break end w=w+1 end
                     eventCount=eventCount + 1
@@ -748,7 +659,7 @@ function setupKingdom(summonException)
             while not cleanDeck do
                 cleanDeck=true
                 for i, v in ipairs(deck.getObjects())do
-                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
+                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
                         coroutine.yield(0)
                         deck.takeObject({index=v.index}).destruct()
                         cleanDeck=false
@@ -839,7 +750,7 @@ function setupKingdom(summonException)
             end end end
             if not baneSet then
                 for j, card in ipairs(deck.getObjects())do
-                    if getType(card.name)=='Event'or getType(card.name)=='Landmark'or getType(card.name)=='Project'or getType(card.name)=='Way'then
+                    local tp=getType(card.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
                     elseif getCost(card.nickname)=='M2D0P0'or getCost(card.nickname)=='M3D0P0'then
                         Use.Add(card.nickname)
                         if card.nickname=='Black Market'then
@@ -854,7 +765,7 @@ function setupKingdom(summonException)
             while not cleanDeck do
                 cleanDeck=true
                 for i, v in ipairs(deck.getObjects())do
-                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'then
+                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
                         coroutine.yield(0)
                         deck.takeObject({index=v.index}).destruct()
                         cleanDeck=false
@@ -912,6 +823,20 @@ function setupKingdom(summonException)
                         coroutine.yield(0)
                         getPile('Sauna / Avanto pile').shuffle()
                         getPile('Sauna / Avanto pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
+                        break
+                    elseif v.nickname=='Stallions'then
+                        coroutine.yield(0)
+                        getPile('Stallions pile').shuffle()
+                        getPile('Stallions pile').takeObject({index=1, position=deckAddPos, flip=true})
+                        deck.takeObject({index=v.index}).destruct()
+                        cleanDeck=false
+                        break
+                    elseif v.nickname=='Panda / Gardener'then
+                        coroutine.yield(0)
+                        getPile('Panda / Gardener pile').shuffle()
+                        getPile('Panda / Gardener pile').takeObject({index=1, position=deckAddPos, flip=true})
                         deck.takeObject({index=v.index}).destruct()
                         cleanDeck=false
                         break end end end
@@ -982,29 +907,27 @@ function cleanUp()
   sp(useShelters,'Shelters')
   sp(usePlatinum,'Platinum')
   if usePlatinum~=1 then
+    usePlatinum=0
     getPile('Platinums').destruct()
     getPile('Colonies').destruct()
-    getPile('Golds').setPosition(ref_basicSlots[5].pos)
-    getPile('Silvers').setPosition(ref_basicSlots[4].pos)
-    getPile('Coppers').setPosition(ref_basicSlots[3].pos)
-    getPile('Potions').setPosition(ref_basicSlots[2].pos)
-    getPile('Ruins pile').setPosition(ref_basicSlots[6].pos)
-    getObjectFromGUID(ref_basicSlots[1].guid).destruct()
-    getObjectFromGUID(ref_basicSlots[7].guid).destruct()
+    getPile('Boulder Trap pile').setPosition(ref_basicSlots[5].pos)
+    getPile('Ruins pile').setPosition(ref_basicSlots[11].pos)
+    getObjectFromGUID(ref_basicSlots[6].guid).destruct()
+    getObjectFromGUID(ref_basicSlots[12].guid).destruct()
   else getPile('Platinums').highlightOff()end
   
-  if not Use('Potion')then
-    getPile('Potions').destruct()
-    if usePlatinum~=1 then
-      getObjectFromGUID(ref_basicSlots[2].guid).destruct()
-    else
-      getObjectFromGUID(ref_basicSlots[1].guid).destruct()
-    end
-  end
+  local n=5+usePlatinum
+  if not Use('Looter')then getPile('Ruins pile').destruct()
+    getObjectFromGUID(ref_basicSlots[n].guid).destruct()n=n+6
+    getPile('Boulder Trap pile').setPosition(ref_basicSlots[n].pos)end
+  if not Use('BoulderTrap')then getPile('Boulder Trap pile').destruct()
+    getObjectFromGUID(ref_basicSlots[n].guid).destruct()end
+  if not Use('Potion')then getPile('Potions').destruct()
+    getObjectFromGUID(ref_basicSlots[1].guid).destruct()
+    getPile('Curses').setPosition(ref_basicSlots[7].pos)end
   
   if Use('Baker')then for i,obj in ipairs(getAllObjects())do if obj.getName()=='Coffers'then obj.call('baker')end end end
   if not Use('TradeRoute')then getObjectFromGUID(ref.tradeRoute.guid).destruct()end
-  if not Use('Looter')then getPile('Ruins pile').destruct()if usePlatinum~=1 then getObjectFromGUID(ref_basicSlots[6].guid).destruct() else getObjectFromGUID(ref_basicSlots[7].guid).destruct()end end
   if not Use('Bane')then for i,v in pairs(getObjectFromGUID(ref.baneSlot.zone).getObjects())do v.destruct()end end
   if not Use('BlackMarket')then for i,v in ipairs(getObjectFromGUID(ref.randomizer.zone).getObjects())do v.destruct()end end
   if not Use('Zombie')then getPile('Zombies').destruct()end
@@ -1042,10 +965,10 @@ function cleanUp()
   f(Use('Artifact'),'Artifacts')
   f(Use('Hyde'),'Hyde')
   f(Use('Heir'),'Heir')
-  f(Use('BogusLands'),'Bogus Lands')
-  f(Use('Road'),'Road')
-  f(Use('ZombieLegacy'),'Zombie Legacy')
-  f(Use('LoyalSubjects'),'Loyal Subjects')
+  f(Use('Lessor'),'Bogus Lands')
+  f(Use('Town'),'Road')
+  f(Use('NecromancerLegacy'),'Zombie Legacy')
+  f(Use('Delegate'),'Loyal Subjects')
   
   local dC=1
   if Use('Druid')then dC=4 end
@@ -1084,11 +1007,11 @@ function cleanUp()
 'Reserve',      'Exile',        'NativeVillage',     'Island',        'Project',     'PirateShip',
 'Aside',        'PlusCard',     'PlusAction',        'TwoCost',       'PlusBuy',     'TradeRoute',
 'PlusCoin',     'MinusCoin',    'MinusCard',         'Trashing',      'Estate',      'BlackMarket',
-'Journey',      'Coffers',      'VP',                'Debt',          'Villager'},{
+'Journey',      'Coffers',      'VP',                'Debt',          'Villager',    'Fame','Spellcaster','Season'},{
 'Tavern Mat',   'Exile Mat',    'Native Village Mat','Island Mat',    'Owns Project','Pirate Ship Coins',
 'Set Aside',    '+1 Card Token','+1 Action Token',   '-2 Cost Token', '+1 Buy Token','Trade Route Mat',
 '+1 Coin Token','-1 Coin Token','-1 Card Token',     'Trashing Token','Estate Token','Black Market Mat',
-'Journey Token','Coffers',      'Victory Points',    'Debt Tokens',   'Villagers'}
+'Journey Token','Coffers',      'Victory Points',    'Debt Tokens',   'Villagers',   'Feat Mat','Spell Tokens','Season Mat'}
   for i,v in ipairs(temp)do if not Use(v)then for _,obj in pairs(getAllObjects())do if obj.getName()==names[i]or obj.getName()=='Rules '..names[i]then obj.destruct()end end end end
   getObjectFromGUID(ref.board).destruct()
   local toRemove={}
@@ -1107,7 +1030,7 @@ function cleanUp()
   function tokenCoroutine()
     wait(4)
     log(Use[1])
-    if Use('TradeRoute')or Use('Tax')or Use('Landmark')or Use('Gathering')then
+    if Use('Landmark')or Use('Gathering')or Use('TradeRoute')or Use('Tax')or Use('Panda / Gardener')then
       obeliskPiles={}
       local function slot(z)
         for __,obj in ipairs(getObjectFromGUID(z).getObjects())do
@@ -1117,6 +1040,7 @@ function cleanUp()
             getSetup('Aqueduct')(obj)
             getSetup('Trade Route')(obj)
             getSetup('Defiled Shrine')(obj)
+            getSetup('Panda / Gardener')(obj)
             if getType(obj.getObjects()[obj.getQuantity()].name):find('Gathering')then tokenMake(obj,'vp')end
             break end end end
       for _,v in ipairs(ref_basicSlotZones)do slot(v)end
@@ -1158,8 +1082,8 @@ function cleanUp()
   end
 end
 function createHeirlooms(c)
-  for n,card in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['Magician']='Rabbit'})do
-    if c==n then getPile('Heirlooms').takeObject({position=getObjectFromGUID(ref_storageZone.heirloom).getPosition(),guid=ref_heirlooms[card],flip=true})break end end end
+  for n,h in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['Magician']='Rabbit',['Jinxed Jewel']='Jinxed Jewel',['Burned Village']='Rescuers'})do
+    if c==n then getPile('Heirlooms').takeObject({position=getObjectFromGUID(ref_storageZone.heirloom).getPosition(),guid=ref_heirlooms[h],flip=true})break end end end
 function createPile()
   for _,ks in pairs(ref_kingdomSlots)do
     for j,v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
@@ -1174,9 +1098,13 @@ function createPile()
         --If we have a victory card and 2 players, we make 8 copies
         elseif getPlayerCount()==2 and getType(v.getName()):find('Victory')then
           while k<8 do v.clone({position=ks.pos})k=k+1 end
-          --If we have a victory card or the card is Port, we make 12 copies
+        --If we have a victory card or the card is Port, we make 12 copies
         elseif getType(v.getName()):find('Victory')or v.getName()=='Port'then
           while k<12 do v.clone({position=ks.pos})k=k+1 end
+        elseif v.getName()=='Dig'then
+          local n=12
+          if getPlayerCount()==2 then n=8 end
+          while k<n do v.clone({position=ks.pos})k=k+1 end
         --If we have Rats, we get 20 copies
         elseif v.getName()=='Rats'then
           while k<20 do v.clone({position=ks.pos})k=k+1 end
@@ -1195,6 +1123,10 @@ function createPile()
           v.destruct()getPile('Settlers / Bustling Village pile').setPosition(ks.pos)
         elseif v.getName()=='Sauna / Avanto'then
           v.destruct()getPile('Sauna / Avanto pile').setPosition(ks.pos)
+        elseif v.getName()=='Stallions'then
+          v.destruct()getPile('Stallions pile').setPosition(ks.pos)
+        elseif v.getName()=='Panda / Gardener'then
+          v.destruct()getPile('Panda / Gardener pile').setPosition(ks.pos)
         --All other cards get 10 copies
         else while k<10 do v.clone({position=ks.pos})k=k+1
   end end end end end
@@ -1232,6 +1164,10 @@ function createPile()
         v.destruct()getPile('Patrician / Emporium pile').setPosition(ref.baneSlot.pos)
       elseif v.getName()=='Settlers / Bustling Village'then
         v.destruct()getPile('Settlers / Bustling Village pile').setPosition(ref.baneSlot.pos)
+      elseif v.getName()=='Stallions'then
+        v.destruct()getPile('Stallions pile').setPosition(ref.baneSlot.pos)
+      elseif v.getName()=='Panda / Gardener'then
+        v.destruct()getPile('Panda / Gardener pile').setPosition(ks.pos)
       --All other cards get 10 copies
       else while k<10 do v.clone({position=ref.baneSlot.pos})k=k+1
   end end end end
@@ -1255,9 +1191,8 @@ function getType(n)for _,v in pairs(ref_master)do if n==v.name then return v.typ
 function getSetup(n)if Use(n:gsub(' ',''))then for _,v in pairs(ref_master)do if n==v.name then if v.setup then return v.setup end end end end return function()end end
 function getPile(pileName)
   for _,p in pairs(ref_replacementPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
-  for _,p in pairs(ref_basicSupplyPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
-  for _,p in pairs(ref_extraSupplyPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
-  for _,p in pairs(ref_sidePiles       )do if pileName==p.name then return getObjectFromGUID(p.guid)end end
+  for _,p in pairs(ref_supplyPiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
+  for _,p in pairs(ref_sidePiles)do if pileName==p.name then return getObjectFromGUID(p.guid)end end
 end
 -- Function to set the correct count of base cards
 function setupBaseCardCount(useShelters, useHeirlooms)
@@ -1364,20 +1299,20 @@ function getPlayerCount()local c=#getSeatedPlayers()for i=1,#getSeatedPlayers()d
 function wait(time)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
 --Shortcut broadcast function to shorten them when I call them in the code
 function bcast(m,c,p)if c==nil then c={1,1,1}end if p then Player[p].broadcast(m,c)else broadcastToAll(m,c)end end
-function tokenCallback(obj,s)obj.call('setOwner',s)end
+function tokenCallback(obj,m)obj.call('setOwner',m)end
 function tokenMake(obj,key,n,pos,name)
   local p=obj.getPosition()
-  if pos then
-    p={p[1]+pos[1],p[2]+pos[2],p[3]+pos[3]}
+  if pos then p={p[1]+pos[1],p[2]+pos[2],p[3]+pos[3]}
   elseif key=='vp'then
     p={p[1]+0.9,p[2]+1,p[3]+1.25}
   elseif key=='debt'then
     p={p[1]-0.9,p[2]+1,p[3]-1.25}
   else
     p={p[1]-0.9,p[2]+1,p[3]-1.25}
-  end 
+  end
   local t={position=p,rotation={0,180,0},callback='tokenCallback',callback_owner=Global,params={name or obj.getName(),n or 0}}
   log(t.params)
+  if not n then t.callback=nil end
   getObjectFromGUID(ref_tokenBag[key]).takeObject(t)
 end
 --Function to set uninteractible objects
@@ -1395,34 +1330,35 @@ ref_storageZone={script='06110c',setup='b19032',fog='2c0471',fog2='ab5594',heirl
 ref_tokenBag={coin='491d9b',debt='7624c9',vp='b935ba'}
 ref_basicSlotZones={'198948','a5940e','86fa0b','810603','0bd7f8','2a639d','67f21e','b33712','d484d7','7f9e58','378afe'}
 ref_basicSlots={
-{guid='377aaf',pos={-25,1.3,31.5}},
-{guid='563a61',pos={-20,1.3,31.5}},
-{guid='56dcad',pos={-15,1.3,31.5}},
-{guid='d516bd',pos={-10,1.3,31.5}},
-{guid='4b9597',pos={ -5,1.3,31.5}},
-{guid='28c05c',pos={ 20,1.3,31.5}},
-{guid='00d4cc',pos={ 25,1.3,31.5}},
-{guid='497478'},{guid='e700bc'},{guid='81d094'},{guid='b60e21'}}
+{guid='497478'},{guid='e700bc'},{guid='7cbaf0'},{guid='5acda1'},{guid='28c05c'},{guid='00d4cc'},
+{guid='377aaf'},{guid='563a61'},{guid='56dcad'},{guid='d516bd'},{guid='4b9597'},{guid='4ca7f5'}}
 ref_sideSlots={
 {guid='7ba0bf'},{guid='de9a73'},{guid='61ae8d'},{guid='f7a574'},
 {guid='bb0b4f'},{guid='25756f'},{guid='1e113a'},{guid='2ea60a'},
 {guid='8cf7ae'},{guid='d8a850'},{guid='3ba1c2'},{guid='d5f986'},
 {guid='f0bd83'},{guid='811c7b'},{guid='fa020b'},{guid='a96aef'},
-{guid='5bd468'},{guid='e6fed4'},{guid='5e6695'},{guid='fb0663'},
 
-{guid='7535f5'},{guid='eaf95e'},{guid='adb237'},{guid='bf9dda'},
-{guid='18a0ba'},{guid='98bcc2'},{guid='561fa6'},{guid='72bf1b'},
+{guid='755720'},{guid='4733fe'},{guid='a6f52e'},{guid='7fb923'},
 {guid='bf7652'},{guid='5750e9'},{guid='5a0bb6'},{guid='08dc7f'},
-{guid='dc9cf0'},{guid='fa776f'},{guid='7fb923'},{guid='788b21'},
-{guid='a6f52e'},{guid='91e763'},{guid='4733fe'},{guid='e47c8a'},
-{guid='b6ce05'},{guid='8a299d'},{guid='bf7652'},{guid='6c4cb9'},
-{guid='755720'},{guid='5c1bf4'},}
+{guid='b6ce05'},{guid='bf9dda'},{guid='adb237'},{guid='788b21'},
+{guid='dc9cf0'},{guid='eaf95e'},{guid='7535f5'},{guid='fa776f'},
+{guid='8a299d'},{guid='6c4cb9'},{guid='5c1bf4'},{guid='18a0ba'},
+{guid='fb0663'},{guid='5e6695'},{guid='e6fed4'},{guid='5bd468'},
+{guid='360c35'},{guid='72bf1b'},{guid='561fa6'},{guid='98bcc2'}}
 ref_eventSlots={
 {guid='e091ca',zone='f5e84d',pos={-10.5,1.25,8.5}},
 {guid='bb3643',zone='2ffd78',pos={ -3.5,1.25,8.5}},
 {guid='1ff6fe',zone='65aaf5',pos={  3.5,1.25,8.5}},
 {guid='6ca433',zone='0c28db',pos={ 10.5,1.25,8.5}}}
-ref_basicSupplyPiles={
+ref_supplyPiles={
+{guid='85fcca',name='Platinums'},
+{guid='475de7',name='Potions'},
+{guid='6ce695',name='Colonies'},
+{guid='2adf43',name='Ruins pile'},
+{guid='9c6cd8',name='Shelters'},
+{guid='1e2942',name='Boulder Trap pile'},
+{guid='4033ec',name='Heirlooms'},
+{guid='aa2438',name='Zombies'},
 {guid='3a738e',name='Coppers'},
 {guid='a655a3',name='Silvers'},
 {guid='b11add',name='Golds'},
@@ -1430,14 +1366,6 @@ ref_basicSupplyPiles={
 {guid='4d0b0e',name='Estates'},
 {guid='d253c8',name='Duchies'},
 {guid='4a8334',name='Provinces'}}
-ref_extraSupplyPiles={
-{guid='85fcca',name='Platinums'},
-{guid='475de7',name='Potions'},
-{guid='6ce695',name='Colonies'},
-{guid='2adf43',name='Ruins pile'},
-{guid='9c6cd8',name='Shelters'},
-{guid='4033ec',name='Heirlooms'},
-{guid='aa2438',name='Zombies'}}
 ref_sidePiles={
 {name='Loyal Subjects pile'},
 {name='Zombie Legacy pile'},
@@ -1476,25 +1404,26 @@ ref_replacementPiles={
 {name='Gladiator / Fortune pile'},
 {name='Patrician / Emporium pile'},
 {name='Settlers / Bustling Village pile'},
-{name='Stallions pile'}}
+{name='Stallions pile'},
+{name='Panda / Gardener pile'}}
 ref_kingdomSlots={
-{guid='ea57b1',zone='987e4a',pos={-10,1.3,22}},
-{guid='08e74d',zone='816553',pos={ -5,1.3,22}},
-{guid='3efdc8',zone='7b20e5',pos={  0,1.3,22}},
-{guid='4e4e40',zone='740c12',pos={  5,1.3,22}},
-{guid='4084c6',zone='fefd47',pos={ 10,1.3,22}},
-{guid='6be6f9',zone='47d4f1',pos={-10,1.3,14.5}},
-{guid='4ab1b9',zone='4a3f91',pos={ -5,1.3,14.5}},
-{guid='48b491',zone='9d12c3',pos={  0,1.3,14.5}},
-{guid='03a180',zone='9e931d',pos={  5,1.3,14.5}},
-{guid='25f0bd',zone='00770c',pos={ 10,1.3,14.5}}}
+{guid='ea57b1',zone='987e4a'},
+{guid='08e74d',zone='816553'},
+{guid='3efdc8',zone='7b20e5'},
+{guid='4e4e40',zone='740c12'},
+{guid='4084c6',zone='fefd47'},
+{guid='6be6f9',zone='47d4f1'},
+{guid='4ab1b9',zone='4a3f91'},
+{guid='48b491',zone='9d12c3'},
+{guid='03a180',zone='9e931d'},
+{guid='25f0bd',zone='00770c'}}
 ref_players={
-Blue  ={deckZone='307d12',discardZone='41de74',zone='062acc',coins='b2dc22',vp='b59b65',debt='186c83',tavern='015528',deck={-46.5,3,21},discard={-51.5,3,21}},
-Green ={deckZone='9359a4',discardZone='72ba37',zone='c11794',coins='22bdb3',vp='6ae2a8',debt='a34771',tavern='af5c58',deck={-46.5,3,-21},discard={-51.5,3,-21}},
-White ={deckZone='e6b388',discardZone='eb044b',zone='c95925',coins='b6bf41',vp='1b4618',debt='3d4844',tavern='d7d996',deck={-18.5,3,-21},discard={-23.5,3,-21}},
-Red   ={deckZone='5a6e68',discardZone='e09013',zone='d1c5af',coins='4b832d',vp='84f540',debt='9cfa4a',tavern='48295f',deck={23.5,3,-21},discard={18.5,3,-21}},
-Orange={deckZone='420340',discardZone='bf9b32',zone='10c425',coins='ce8828',vp='0d128b',debt='f2a253',tavern='fd4953',deck={51.5,3,-21},discard={46.5,3,-21}},
-Yellow={deckZone='7ee56d',discardZone='046cfd',zone='827520',coins='17dd2a',vp='c979ca',debt='10cb81',tavern='dea1f7',deck={51.5,3,21},discard={46.5,3,21}}}
+Blue  ={deckZone='307d12',discardZone='41de74',zone='062acc',coins='b2dc22',vp='b59b65',debt='186c83',tavern='015528',deck={-39.5,4,14.5},discard={-44.5,4,14.5}},
+Green ={deckZone='9359a4',discardZone='72ba37',zone='c11794',coins='22bdb3',vp='6ae2a8',debt='a34771',tavern='af5c58',deck={-39.5,4,-27.5},discard={-44.5,4,-27.5}},
+White ={deckZone='e6b388',discardZone='eb044b',zone='c95925',coins='b6bf41',vp='1b4618',debt='3d4844',tavern='d7d996',deck={-11.5,4,-27.5},discard={-16.5,4,-27.5}},
+Red   ={deckZone='5a6e68',discardZone='e09013',zone='d1c5af',coins='4b832d',vp='84f540',debt='9cfa4a',tavern='48295f',deck={16.5,4,-27.5},discard={11.5,4,-27.5}},
+Orange={deckZone='420340',discardZone='bf9b32',zone='10c425',coins='ce8828',vp='0d128b',debt='f2a253',tavern='fd4953',deck={44.5,4,-27.5},discard={-39.5,4,-27.5}},
+Yellow={deckZone='7ee56d',discardZone='046cfd',zone='827520',coins='17dd2a',vp='c979ca',debt='10cb81',tavern='dea1f7',deck={44.5,4,14.5},discard={39.5,4,14.5}}}
 --All card sets/expansions
 ref_cardSets={
 {name='Dominion'},
@@ -1511,6 +1440,7 @@ ref_cardSets={
 {name='Nocturne'},
 {name='Renaissance',events={4}},
 {name='Menagerie',events={5,6}},
+{name='Antiquities'},
 {name='Xtras'},
 {name='Legacy',events={9}},
 {name='Legacy Expert',events={9,10}},
@@ -2107,7 +2037,7 @@ ref_master={
 {cost='M3D0P0',name='Informer',type='Action - Command'},
 {cost='M3D0P0',name='Notary',type='Action',depend='Heir'},
 {cost='M4D0P0',name='Lease',type='Action'},
-{cost='M4D0P0',name='Lessor',type='Action - Attack',depend='BogusLands'},
+{cost='M4D0P0',name='Lessor',type='Action - Attack'},
 {cost='M4D0P0',name='Statue',type='Action - Victory',depend='Aside'},
 {cost='M4D0P0',name='Vigil',type='Action - Attack'},
 {cost='M4D0P0',name='Watchmaker',type='Action - Reserve'},
@@ -2124,6 +2054,30 @@ ref_master={
 {cost='M8D0P0',name='Friesian',type='Action - Victory - Stallion',VP=3},
 {cost='M9D0P0',name='Arabian Horse',type='Victory - Stallion',VP=function(t)if t.deck['Arabian Horse']==1 then return t.deck.Horse or 0 else return 0 end end},
 --Legacy
+{cost='M0D0P0',type='Edict',name='L Trade Agreement'},
+{cost='M0D0P0',type='Edict',name='L Supervision'},
+{cost='M0D0P0',type='Edict',name='L Simplicity',depend='Villagers'},
+{cost='M0D0P0',type='Edict',name='L Monarchy'},
+{cost='M0D0P0',type='Edict',name='L Inflation'},
+{cost='M0D0P0',type='Edict',name='L Imperialism',depend='Platinum'},
+{cost='M0D0P0',type='Edict',name='L Gigantism'},--3 More supply piles
+{cost='M0D0P0',type='Edict',name='L Expansion',depend='MinusCoin'},
+{cost='M0D0P0',type='Edict',name='L Exile',depend='Aside'},
+{cost='M0D0P0',type='Edict',name='L Diplomacy'},
+{cost='M0D0P0',type='Edict',name='L Banishment'},
+{cost='M0D0P0',type='Edict',name='L Appeasement'},
+{cost='M0D0P0',type='Edict',name='L Tyranny',depend='MinusCoin'},
+{cost='M0D0P0',type='Edict',name='L Urbanisation'},--Replace estate/shelter with copper
+{cost='M3D0P0',type='Event',name='L Exodus'},
+{cost='M6D0P0',type='Event',name='L Contest'},--Makes a Contest pile of 10 5Costs
+{cost='M0D0P0',type='Event',name='L Blessing'},
+{cost='M5D0P0',type='Event',name='L Bureaucracy'},--token on Province pile
+{cost='M6D0P0',type='Event',name='L Bargain',depend='Coffers'},
+{cost='M0D0P1',type='Event',name='L Research'},
+{cost='M0D0P0',type='Event',name='L Tithe'},
+{cost='M3D0P0',type='Event',name='L Plundering',depend='Spoils'},
+{cost='M3D0P0',type='Event',name='L Parting',depend='Journey'},
+{cost='M5D0P0',type='Event',name='L Improve'},
 {cost='M1D0P0',name='Alley',type='Action'},
 {cost='M2D0P0',name='Decree',type='Treasure'},
 {cost='M2D0P0',name='Headhunter',type='Action - Fame'},
@@ -2150,10 +2104,36 @@ ref_master={
 {cost='M5D0P0',name='Tribunal',type='Action - Attack'},
 {cost='M6D0P0',name='Hall of Fame',type='Victory - Fame'},
 {cost='M6D0P0',name='Meadow',type='Victory',VP=2},
+--Antiquities
+{cost='M5D0P0',name='Agora',type='Action - Reaction'},
+{cost='M4D0P0',name='Aquifer',type='Action'},
+{cost='M7D0P0',name='Archaeologist',type='Action'},
+{cost='M4D0P0',name='Boulder Trap',type='Trap',VP=-1},
+{cost='M4D0P0',name='Collector',type='Action'},
+{cost='M4D0P0',name='Curio',type='Treasure'},
+{cost='M8D0P0',name='Dig',type='Action',depend='VP'},
+{cost='M2D0P0',name='Discovery',type='Treasure'},
+{cost='M6D0P0',name='Encroach',type='Action'},
+{cost='M3D0P0',name='Gamepiece',type='Treasure - Reaction'},
+{cost='M3D0P0',name='Grave Watcher',type='Action - Attack'},
+{cost='M1D0P0',name='Graveyard',type='Action'},
+{cost='M3D0P0',name='Inscription',type='Action - Reaction'},
+{cost='M3D0P0',name='Inspector',type='Action - Attack'},
+{cost='M5D0P0',name='Mastermind Antiquities',type='Action'},
+{cost='M6D0P0',name='Mausoleum',type='Action',depend='Aside Memory'},
+{cost='M4D0P0',name='Mendicant',type='Action',depend='VP'},
+{cost='M3D0P0',name='Miner',type='Action'},
+{cost='M5D0P0',name='Mission House',type='Action',depend='VP'},
+{cost='M4D0P0',name='Moundbuilder Village',type='Action'},
+{cost='M8D0P0',name='Pharaoh',type='Action - Attack'},
+{cost='M3D0P0',name='Profiteer',type='Action'},
+{cost='M5D0P0',name='Pyramid',type='Action',VP=function()broadcastToAll('Pyramid Not Implemented Yet',{1,1,0}) end},
+{cost='M3D0P0',name='Shipwreck',type='Action'},
+{cost='M4D0P0',name='Snake Charmer',type='Action - Attack'},
+{cost='M4D0P0',name='Stoneworks',type='Action',depend='VP'},
+{cost='M5D0P0',name='Stronghold',type='Action - Reaction'},
+{cost='M3D0P0',name='Tomb Raider',type='Action - Attack'},
 --LegacyExpert
-{cost='MD0P0',name='',type=''},
-{cost='MD0P0',name='',type=''},
-{cost='MD0P0',name='',type=''},
 {cost='M0D0P1',name='Homunculus',type='Action'},
 {cost='M0D8P0',name='Promenade',type='Action'},
 {cost='M0D8P0',name='Institute',type='Action'},
@@ -2166,11 +2146,11 @@ ref_master={
 {cost='M4D0P0',name='Hunter',type='Action - Reserve'},
 {cost='M4D0P0',name='Lady-in-waiting',type='Action - Reserve'},
 {cost='M4D0P0',name='Scribe',type='Action - Attack - Duration',depend='Debt'},
-{cost='M4D0P0',name='Town',type='Action',depend='Road'},
+{cost='M4D0P0',name='Town',type='Action'},
 {cost='M4D0P0',name='Waggon Village',type='Action',depend='Debt'},
-{cost='M5D0P0',name='Delegate',type='Action',depend='LoyalSubjects'},
+{cost='M5D0P0',name='Delegate',type='Action'},
 {cost='M5D0P0',name='Lich',type='Action',depend='Zombie'},
-{cost='M5D0P0',name='Necromancer Legacy',type='Action',depend='ZombieLegacy'},
+{cost='M5D0P0',name='Necromancer Legacy',type='Action'},
 {cost='M5D0P0',name='Sanctuary',type='Action'},
 {cost='M6D0P0',name='Minister',type='Action',depend='VP'},
 {cost='M0D0P0',name='Road',type='Action'},
@@ -2178,6 +2158,13 @@ ref_master={
 {cost='M3D0P0',name='Zombie Legacy',type='Action - Attack'},
 {cost='M3D0P0',name='Loyal Subjects',type='Action - Attack'},
 --Spellcasters
+{cost='M2D0P0',type='Spell',name='S Wisdom'},
+{cost='M4D0P0',type='Spell',name='S Wealth'},
+{cost='M2D0P0',type='Spell',name='S Purity'},
+{cost='M3D0P0',type='Spell',name='S Harm'},
+{cost='M8D0P0',type='Spell',name='S Glory'},
+{cost='M1D0P0',type='Spell',name='S Esprit'},
+{cost='M4D0P0',type='Spell',name='S Dexterity'},
 {cost='M2D0P0',name='Trickster',type='Action - Spellcaster'},
 {cost='M3D0P0',name='Stone Circle',type='Victory - Spellcaster',VP=2},
 {cost='M3D0P0',name='Magician',type='Action - Spellcaster'},
@@ -2220,18 +2207,32 @@ ref_master={
 {cost='M4D0P0',name='Discretion',type='Action - Reserve',depend='VP Coffers Villager'},
 {cost='M4D0P0',name='Plot',type='Night',depend='VP'},
 {cost='M4D0P0',name='Investor',type='Action',depend='Debt'},
-{cost='M6D0P0',name='Contest',type='Action - Looter'},
+{cost='M6D0P0',name='Contest',type='Action - Looter',depend='Prize'},
 {cost='M6D0P0',name='Uneven Road',type='Action - Victory',depend='Estate',VP=3},
 {cost='M3D0P1',name='Jekyll',type='Action',depend='Hyde'},
 {cost='M4D0P1',name='Hyde',type='Night - Attack'},
 {cost='M5D0P0',name='Stormy Seas',type='Night',depend='Debt'},
-{cost='M0D4P0',name='Liquid Luck',type='Action - Fate'},
+{cost='M0D4P0',name='Liquid Luck',type='Action - Fate',depend='VP Potion'},
 {cost='M6D0P0',name='Cheque',type='Treasure - Command'},
 {cost='M2D0P0',name='Balance',type='Action - Reserve - Fate - Doom'},
+--Custom
+{cost='M5D0P0',name='Burned Village',type='Action - Night'},
+{cost='M4D0P0',name='Rescuers',type='Treasure - Heirloom'},
+{cost='M5D0P0',name='Ancient Coin',type='Treasure - Duration'},
+{cost='M5D0P0',name='Witching Hour',type='Night - Duration - Attack'},
+{cost='M4D0P0',name='Panda / Gardener',type='Action',depend='Coffers Villager',setup=function(o)if getType(o.getObjects()[1].name):find('Action')then tokenMake(o,'coin')tokenMake(o,'coin')end end},
+{cost='M4D0P0',name='Panda',type='Action'},
+{cost='M6D0P0',name='Gardener',type='Action'},
+{cost='M0D0P8',name='Bacchanal',type='Night',depend='Villager'},
+{cost='M4D0P0',name='Homestead',type='Action'},
+{cost='M4D0P0',name='Tulip Field',type='Victory',depend='Coffers Villager'},
+{cost='M5D0P0',name='Backstreet',type='Night',depend='Coffers Villager'},
 {cost='M0D0P0',name='Rabbit',type='Action - Treasure'},
 {cost='M5D0P0',name='Magician',type='Action',depend='Rabbit'},
 {cost='M4D0P0',name='Fishing Boat',type='Action - Duration'},
 {cost='M3D0P0',name='Drawbridge',type='Action - Reserve'},
-{cost='M4D0P0',name='Jinxed Jewel',type='Treasure - Night - Heirloom'},
+{cost='M4D0P0',name='Jinxed Jewel v1',type='Treasure - Night - Heirloom'},
+{cost='M4D0P0',name='Jinxed Jewel',type='Treasure - Night - Heirloom',depend='Heirloom'},
+{cost='M0D0P0',name='',type=''},
 {cost='M0D0P0',name='-1 Card Token',type=''}
 }

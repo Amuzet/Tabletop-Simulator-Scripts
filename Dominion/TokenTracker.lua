@@ -2,20 +2,25 @@ function updateSave()self.script_state=JSON.encode({['c']=count})end
 function wait(t)local s=os.time()repeat coroutine.yield(0)until os.time()>s+t end
 function baker()count=1 self.editButton({index=0,label=count})updateSave()end
 function getCount()return count end
+function setOwner(params)
+  owner,count=params[1],count+params[2]
+  self.editButton({index=0,label=count})
+  updateSave()
+end
 function onload(s)
   --Loads the tracking for if the game has started yet
-  local y=0.05
-  ref_type,owner=self.getName(),self.getDescription()
-  if ref_type=='Pirate Ship Coins'or ref_type=='Villagers'then y=y*2
-  elseif ref_type=='Owns Project'then y=0.6 end
   if s~=''then local ld=JSON.decode(s);count=ld.c else count=0 end
+  rType,owner=self.getName(),self.getDescription()
+  local a,b=0.9,{click_function='none',function_owner=self,label=count,position={0,0.1,0},scale={0.8,0.8,0.8},height=0,width=0,font_size=1500,color={0,0,0}}
+  if rType=='Owns Project'then b.position[2]=0.7 else a,b.scale=1.3,{1.1,1.1,1.1}end
 
-  self.createButton({click_function='none',function_owner=self,position={0,y+0.05,0},height=0,width=0,font_size=1500,label=count})
-
-  for i,v in pairs({{val=1,label='+',pos={0.8,y,-0.7}},{val=-1,label='-',pos={-0.8,y,0.7}}})do
-    local fn='valueChange'..i
-    self.setVar(fn,function(o,c)click_changeValue(o,c,v.val)end)
-    self.createButton({click_function=fn,function_owner=self,position=v.pos,height=500,width=500,label=v.label,font_size=1000,color={1,1,1,1}})
+  self.createButton(b)
+  b.height,b.width,b.font_size,b.font_color=450,600,1000,stringColorToRGB(owner)
+  for i,v in pairs({{val=1,label='+',pos={0,b.position[2],-a}},{val=-1,label='-',pos={0,b.position[2],a}}})do
+    b.click_function='valueChange'..i
+    self.setVar(b.click_function,function(o,c)click_changeValue(o,c,v.val)end)
+    b.position,b.label=v.pos,v.label
+    self.createButton(b)
   end
 end
 function click_changeValue(obj, color, val)
@@ -26,7 +31,7 @@ function click_changeValue(obj, color, val)
     if C2==nil then C2=C3 end
     wait(3)
     if C1==count and C2~=nil then
-      local txt,n=owner..' %s %s '..ref_type..'.',math.abs(count-C2)
+      local txt,n=owner..' %s %s '..rType..'.',math.abs(count-C2)
       if n~=1 then txt=txt:gsub('s%.','.')end
       if C1>C2 then
         txt=txt:format('gains',n)
@@ -42,4 +47,4 @@ end
 p=self.getPosition()
 self.setPosition({p[1],1.1,p[3]})
 self.setRotation({0,180,0})
-ref_type,owner,C2='Test','White',nil
+rType,owner,C2='Test','White',nil
