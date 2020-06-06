@@ -1,14 +1,11 @@
 --By Amuzet
-mod_name='Card Importer'
-version=1.77
+mod_name,version='Card Importer',1.78
 self.setName(mod_name..' '..version)
-author='76561198045776458'
-WorkshopID='https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922'
+WorkshopID,author='https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','76561198045776458'
 
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL)end end
-
 newText=setmetatable({type='3DText',position={0,2,0},rotation={90,0,0}},{__call=function(t,p,text,f)t.position=p local o=spawnObject(t);o.TextTool.setValue(text)o.TextTool.setFontSize(f or 50)return function(t)if t then o.TextTool.setValue(t)else o.destruct()end end end})
 --[[Variables]]
 local Tick,Test,Quality,Back=0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
@@ -18,18 +15,17 @@ local Deck=setmetatable({White={n=0,did='',cd='',co='',json='',position={0,0,0}}
   "Nickname":"%s","Description":"%s",
   "DeckIDs":[%s],
   "CustomDeck":{%s},
-  "ContainedObjects":[%s]
-}]]},{__call=function(t,qTbl)
+  "ContainedObjects":[%s]}]]},{__call=function(t,qTbl)
     t[qTbl.color].json=t.j:format(Player[qTbl.color].steam_name,qTbl.url or'Notebook',t[qTbl.color].did:sub(1,-2),t[qTbl.color].cd:sub(1,-2),t[qTbl.color].co:sub(1,-2))
     t[qTbl.color].position=qTbl.position or{0,2,0}
     t[qTbl.color].position[2]=t[qTbl.color].position[2]+1
     t[qTbl.color].did,t[qTbl.color].cd,t[qTbl.color].co,t[qTbl.color].n='','','',0
-    spawnObjectJSON(t[qTbl.color])end})
+    spawnObjectJSON(t[qTbl.color])endLoop()end})
 local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,callback='INC',callback_owner=self,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
   {__call=function(t,c,qTbl)
       --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
       t.json,c.face,c.oracle,c.back='','','',Back[qTbl.player]or Back.___
-      c.name=c.name:gsub('"','\'')..'\n'..c.type_line:gsub(' // .*','')..' '..c.cmc..'CMC'
+      c.name=c.name:gsub('"','')..'\n'..c.type_line:gsub(' // .*','')..' '..c.cmc..'CMC'
       --Oracle text Handling for Split/DFCs
       if c.card_faces then
         for _,f in ipairs(c.card_faces)do c.oracle=c.oracle..c.name:gsub('"','\'')..'\n'..setOracle(f)end
@@ -70,7 +66,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
         uLog(qTbl.color..' Spawned '..c.name:gsub('\n.*',''))
         t.position=qTbl.position or{0,2,0}
         t.position[2]=t.position[2]+Tick
-        spawnObjectJSON(t)end end})
+        spawnObjectJSON(t)endLoop()end end})
 
 function INC(obj)obj.hide_when_face_down,Card.hwfd,Card.n=Card.hwfd,true,Card.n+1 end
 function setOracle(c)local n='\n[b]'if c.power then n=n..c.power..'/'..c.toughness elseif c.loyalty then n=n..tostring(c.loyalty)else n='[b]'end return c.oracle_text:gsub('\"',"'")..n..'[/b]'end
@@ -82,30 +78,22 @@ function setCard(wr,qTbl)
       if json.lang=='en'then
         Card(json,qTbl)
       else
-        WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/en',function(a)
-          setCard(a,qTbl)
-        end)
-      end
+        WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/en',function(a)setCard(a,qTbl)end)
+      end return
     elseif json.object=='error'then Player[qTbl.color].broadcast(json.details,{1,0,0})end
-  else error('No Data Returned Contact Amuzet. setCard')end end
+  else error('No Data Returned Contact Amuzet. setCard')end endLoop()end
 
 function spawnList(wr,qTbl)
   uLog(wr.url)
-  if wr.text and tonumber(wr.text:match('%d+'))<30 then
+  if wr.text then
     local n,json=1,JSON.decode(wr.text)
-    if json.object=='list'then
-      for i,v in ipairs(json.data) do Wait.time(function()Card(v,qTbl)end,i*Tick)end
-      n=#json.data
+    if json.object=='list'then qTbl.deck=#json.data
+      for i,v in ipairs(json.data) do Wait.time(function()Card(v,qTbl)end,i*Tick)end return
     elseif json.object=='card'then
-      Card(json,qTbl)
+      Card(json,qTbl)return
     elseif json.object=='error'then
       Player[qTbl.color].broadcast(json.details,{1,0,0})
-    end
-    delay('endLoop',n)
-  else
-    local n=wr.text:match('%d+')
-    if n then Player[qTbl.player].broadcast('PLEASE do not spawn that many cards! '..n)
-    else error(JSON.decode(wr.text).details)end endLoop()end end
+  end end endLoop()end
 --[[DeckFormatHandle]]
 local dFile={
   dckCheck='%[[%w_]+:%w+%]',dck=function(line)
@@ -204,11 +192,7 @@ local DeckSites={
       for i=1,v.quantity do
         Wait.time(function()
           WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
-            function(c)setCard(c,qTbl)end)
-          end,i*Tick*2)
-      end
-    end
-    delay('endLoop',qTbl.deck)end end,
+            function(c)setCard(c,qTbl)end)end,i*Tick*2)end end end end,
   cubetutor=function(a)return a,function(wr,qTbl)spawnCube(wr,qTbl,'class="cardPreview "[^>]*>([^<]*)<')end end,
   cubecobra=function(a)return a:gsub('list','download/plaintext'),function(wr,qTbl)spawnCube(wr,qTbl,'[^\n]+')end end,
 }
@@ -222,9 +206,7 @@ local Importer=setmetatable({
         spawnList(wr,qTbl)end)end,
   
   Back=function(qTbl)
-    if qTbl.target then
-      qTbl.url=qTbl.target.getJSON():match('BackURL": "([^"]*)"')
-    end
+    if qTbl.target then qTbl.url=qTbl.target.getJSON():match('BackURL": "([^"]*)"')end
     Back[qTbl.player]=qTbl.url
     Player[qTbl.color].broadcast('Card Backs set to\n'..qTbl.url,{0.9,0.9,0.9})
     endLoop()end,
@@ -236,31 +218,24 @@ local Importer=setmetatable({
           WebRequest.get('https://api.scryfall.com/cards/search?unique=card&q=t%3Atoken+'..qTbl.name:gsub(' ','%%20'),function(wr)
               spawnList(wr,qTbl)end)
           return false
-        else
-          setCard(wr,qTbl)
-          endLoop()
-        end end)end,
+        else setCard(wr,qTbl)end end)end,
     
   Token=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         local json=JSON.decode(wr.text)
         if json.all_parts then
+          qTbl.deck=#json.all_parts-1
           for _,v in ipairs(json.all_parts) do
             if v.name~=json.name then
-            WebRequest.get(v.uri,function(wr)
-                setCard(wr,qTbl)
-              end)end end
-          delay('endLoop',#json.all_parts)
+              WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end end
         --What is this elseif json.oracle
-        else
-          Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})
-          endLoop()end end)end,
+        else Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})endLoop()end end)end,
   
   Print=function(qTbl)
     local url,n='https://api.scryfall.com/cards/search?unique=prints&q=',qTbl.name:lower():gsub('%s','')
     if n=='plains'or n=='island'or n=='swamp'or n=='mountain'or n=='forest'then
       --url=url:gsub('prints','art')end
-      broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic find its art online\nSpawn it using "Importer URL BASICLANDNAME"',{0.9,0.9,0.9})
+      broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic find its art online\nSpawn it using "Scryfall search t:basic+set:SET"',{0.9,0.9,0.9})
       endLoop()
     else
     WebRequest.get(url..qTbl.name,function(wr)
@@ -378,7 +353,7 @@ local Usage=[[    [753FC9][b]%s[-]
 [b][ff7700]random[/b] [i]isecalpwubrg<>=# quantity[/i] [-][Fills field with ANY random card]
 [b][ff7700]quality[/b] [i]mode[/i] [-][Changes the quality of the image]
 [i]small,normal,large,art_crop,border_crop[/i] ]]
-function endLoop()if Importer.request[1]then if Importer.request[1].text then Importer.request[1].text()end table.remove(Importer.request,1)end Importer()end
+function endLoop()if Importer.request[1]then Importer.request[1].text()table.remove(Importer.request,1)end Importer()end
 function delay(fN,tbl)local timerParams={function_name=fN,identifier=fN..'Timer'}
   if type(tbl)=='table'then timerParams.parameters=tbl end
   if type(tbl)=='number'then timerParams.delay=tbl*Tick
@@ -406,7 +381,7 @@ function onSave()self.script_state=JSON.encode(Back)end
 function onLoad(data)
   Usage=Usage:format(self.getName())
   WebRequest.get(WorkshopID,self,'uVersion')
-  if data~=''then Back=JSON.decode(data)else Back=JSON.decode('{"___":"https://i.stack.imgur.com/787gj.png","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084"}')end
+  if data~=''then Back=JSON.decode(data)else Back=JSON.decode('{"___":"https://i.stack.imgur.com/787gj.png","76561198054033722":"http://cloud-3.steamusercontent.com/ugc/1018319704132991968/291AFAB7B0191D5A78BA13BF34861267F290C449/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084"}')end
   Back=TBL.new(Back)
   self.createButton({label="+",click_function='registerModule',function_owner=self,position={0,0.2,-0.5},height=100,width=100,font_size=100,tooltip="Adds Oracle Look Up"})
   uNotebook('SHelp',Usage)

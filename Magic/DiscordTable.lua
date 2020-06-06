@@ -123,7 +123,7 @@ function cCascade(o,c,a)local x,t=oS(o)
         B.position[3]=0
         o.createButton(B)
       end return true
-    elseif not v.name:find('Land')and v.name:match(' (%d+)CMC')<x then t.flip=not t.flip break
+    elseif not v.name:find('Land')and tonumber(v.name:match(' (%d+)CMC'))<tonumber(x) then t.flip=not t.flip break
     else o.takeObject(t)end end
     cB(o)o.takeObject(t)end
 function cDeckList(o,c,a)
