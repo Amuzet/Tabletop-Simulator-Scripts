@@ -1,5 +1,5 @@
---DominionDefinitiveEditionModifiedByAmuzet2020_05_13_F
-VERSION,GITURL=2.0,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
+--DominionDefinitiveEditionModifiedByAmuzet2020_07_19_H
+VERSION,GITURL=2.1,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
 function onSave()
   saved_data=JSON.encode({
     gs=gameState,
@@ -11,22 +11,19 @@ function onSave()
     ush=useShelters,
     uhl=useHeirlooms,
     obl=obeliskTarget,
-    bmd=bmDeck})
+    bmd=bmDeck,
+    sl=sL.n})
     return saved_data
 end
 --Runs when the map is first loaded
 function onLoad(saved_data)
   WebRequest.get(GITURL,function(wr)
-      vCheck=function()
-        while wr.download_progress<1 do print('Checking Version')wait(3)end
         local v=wr.text:match('VERSION,GITURL=(%d+%p%d+)')
         if v then v=tonumber(v)
           if v<VERSION then     broadcastToAll('Oh look at you with a Testing Version\nPlease Report any bugs to Amuzet.',{0,1,1})
           elseif v>VERSION then broadcastToAll('There is an UPDATE!\nCan be found in TTSClub.',{1,1,0})
           else                  broadcastToAll('Up to Date!\nHave a nice time playing.',{0,1,0})end
-        else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end
-      
-      startLuaCoroutine(self,'vCheck')end)
+        else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
   local Color={Blue={31/255,136/255,255/255},Green={49/255,179/255,43/255},Red={219/255,26/255,24/255},White={0.3,0.3,0.3},Orange={244/255,100/255,29/255},Yellow={231/255,229/255,44/255}}
     if saved_data~=''then
       local loaded_data=JSON.decode(saved_data)
@@ -40,6 +37,7 @@ function onLoad(saved_data)
       useHeirlooms=loaded_data.uhl
       obeliskTarget=loaded_data.obl
       bmDeck=loaded_data.bmd
+      sL.n=loaded_data.sl or 3
     else
       gameState=1
       eventMax=4
@@ -60,7 +58,7 @@ function onLoad(saved_data)
     for k,r in pairs(ref_basicSlots)do local p=getObjectFromGUID(r.guid).getPosition();ref_basicSlots[k].pos={p[1],1.3,p[3]}end
     for k,r in pairs(ref_kingdomSlots)do local p=getObjectFromGUID(r.guid).getPosition();ref_kingdomSlots[k].pos={p[1],1.3,p[3]}end
     setUninteractible(ref)
-    for _,o in pairs(getAllObjects())do if o.getLock()and o.getName()==''then o.interactable=false end end
+    for _,o in pairs(getAllObjects())do if o.getLock()and (o.getName()==''or o.getName()=='Board')then o.interactable=false end end
     math.randomseed(os.time())
     
     for k,p in pairs(ref_players)do
@@ -87,53 +85,47 @@ function onLoad(saved_data)
           if not f then for i,c in pairs(ref_eventSets)do if n==c.name then f,ref_eventSets[i].guid=true,o.getGUID()break end end end
           if not f then for i,c in pairs(ref_cardSets)do if n==c.name then f,ref_cardSets[i].guid=true,o.getGUID()break end end end
           if not f then o.highlightOn({1,0,0.5})print(n)end end end
-        --Added Heirlooms
-        for _,v in ipairs(getPile('Heirlooms').getObjects())do ref_heirlooms[v.name]=v.guid end
-        setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][ffffff]\n\nBefore pressing Start Game, you may place any card from the expansion piles into the empty supply slots. Select any number of expansions to be randomly selected to fill all the remaining slots. You may also remove any undesireable card from its expansion deck to prevent it from being selected. You may save the game now to save your selected kingdom and expansions before pressing start.\n\n[FFFF00][b]Do not delete any decks or place any deck of cards into a supply slot.[/b]')
-        for i in ipairs(ref_cardSets)do
-            local obj=getObjectFromGUID(ref_cardSets[i].guid)
-            if obj then
-                obj.createButton({
-                    label='Select\n'..obj.getName(),click_function='click_selectDeck',
-                    function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
-                    height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
-                for j, guid in ipairs(useSets)do
-                    local obj2=getObjectFromGUID(guid)
-                    if obj==obj2 then
-                        obj.highlightOn({0,1,0})
-                        break
-        end end end end
-        local obj=getObjectFromGUID(ref.startButton)
+      --Added Heirlooms
+      for _,v in ipairs(getPile('Heirlooms').getObjects())do ref_heirlooms[v.name]=v.guid end
+      setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][ffffff]\n\nBefore pressing Start Game, you may place any card from the expansion piles into the empty supply slots. Select any number of expansions to be randomly selected to fill all the remaining slots. You may also remove any undesireable card from its expansion deck to prevent it from being selected. You may save the game now to save your selected kingdom and expansions before pressing start.\n\n[FFFF00][b]Do not delete any decks or place any deck of cards into a supply slot.[/b]')
+      local B={label='',click_function='click_selectDeck',function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}}
+      for i in ipairs(ref_cardSets)do
+        local obj=getObjectFromGUID(ref_cardSets[i].guid)
         if obj then
-            local btn=setmetatable({d=-3,function_owner=Global,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
-              b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end obj.createButton(b)end})
-            btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{8.5,0,8.5})
-            btn('Quick Setup\nTwo Sets','Random Kingdom from any two sets',{0,0,-48})
-            btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
-            btn('Quick Setup\nAll Sets','Random Kingdom from every set')
-            btn('Balanced Setup\nDual Sets','Random Kingdom made with 5 cards of one set and 5 from another')
-            btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{-22.5,0,2},'click_blackMarketLimit')
-            btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
-            btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
-        end
-        obj=getObjectFromGUID(ref_supplyPiles[1].guid)
+          B.label='Select\n'..obj.getName()
+          obj.createButton(B)
+          for j, guid in ipairs(useSets)do
+            local obj2=getObjectFromGUID(guid)
+            if obj==obj2 then
+              obj.highlightOn({0,1,0})
+              break end end end end
+      B.click_function='click_forcePile'
+      for k,v in pairs({1,5})do
+        local obj=getObjectFromGUID(ref_supplyPiles[v].guid)
         if obj then
-            obj.createButton({
-                label='Force\n'..obj.getName(),click_function='click_forcePile',
-                function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
-                height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
-            if usePlatinum==1 then obj.highlightOn({0,1,0})
-            elseif usePlatinum==2 then obj.highlightOn({1,0,0}) end
-        end
-        obj=getObjectFromGUID(ref_supplyPiles[5].guid)
-        if obj then
-            obj.createButton({
-                label='Force\n'..obj.getName(), click_function='click_forcePile',
-                function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},
-                height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}})
-            if useShelters==1 then obj.highlightOn({0,1,0})
-            elseif useShelters==2 then obj.highlightOn({1,0,0}) end
-        end
+          B.label='Force\n'..obj.getName()
+          obj.createButton(B)
+          local bool=0
+          if B.label:find('Platinum')then bool=usePlatinum
+          elseif B.label:find('Shelter')then bool=useShelters
+          elseif B.label:find('Boulder Trap')then bool=useBoulderTrap end
+          if bool==1 then obj.higlightOn({0,1,0})
+          elseif bool==2 then obj.higlightOn({1,0,0})end
+          end end
+      local startB=getObjectFromGUID(ref.startButton)
+      if startB then
+        local btn=setmetatable({d=-3,function_owner=Global,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
+          b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end startB.createButton(b)end})
+        btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{8.5,0,8.5})
+        btn('Quick Setup\nTwo Sets','Random Kingdom from any two sets',{0,0,-48})
+        btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
+        btn('Quick Setup\nAll Sets','Random Kingdom from every set')
+        btn('Balanced Setup\nDual Sets','Random Kingdom made with 5 cards of one set and 5 from another')
+        btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{-22.5,0,2},'click_blackMarketLimit')
+        btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
+        btn('Included Sets:\n'..sL[sL.n-1],'Toggles sets which sets are allowed in Quick Setup.\nCurrently only official sets are allowed.\nThis excludes first printings and promos.',nil,'click_setLimit')
+        btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
+      end
     end
     if gameState==2 then
         bcast('Setup was interrupted, please reset the game.')
@@ -150,150 +142,143 @@ function onLoad(saved_data)
     end
 end
 function createEndButton()
-    local obj=getObjectFromGUID(ref.startButton)
-    if obj then
-        obj.createButton({
-            label='End Game', click_function='click_endGame',
-            function_owner=Global, position={0,0,3}, rotation={0,180,0},
-            height=1500, width=4000, font_size=9000
-        })
-    end
-end
+  local obj=getObjectFromGUID(ref.startButton)
+  if obj then
+    obj.createButton({label='End Game',click_function='click_endGame',function_owner=Global,position={0,0,3},rotation={0,180,0},height=1500,width=4000,font_size=9000})
+end end
 function click_endGame(obj, color)
-    if not Player[color].admin then
-        bcast('Only the host and promoted players can end the game.', {0.75,0.75,0.75}, color)
-        return end
-    setNotes('[40e0d0][b][u]Final Scores:[/b][/u][FFFFFF]\n')
-    dT={Red={},White={},Orange={},Green={},Yellow={},Blue={}}
-    vP={Red={},White={},Orange={},Green={},Yellow={},Blue={}}
-    function scoreCoroutine()
-      wait(2)
-      for i=1, #getSeatedPlayers()do
-        local currentPlayer=getSeatedPlayers()[i]
-        local move=function(zone)
-          for _, obj in ipairs(zone)do
-            if obj.tag=='Card'or obj.tag=='Deck'then
-              local t=getType(obj.getName())
-              if t~='Boon'and t~='Hex'and t~='Artifact'and t~='State'then
-                obj.setRotation({0,180,180})
-                obj.setPosition(ref_players[currentPlayer].deck)
-                coroutine.yield(0) end end end end
-        local gObjs=function(s)return getObjectFromGUID(ref_players[currentPlayer][s]).getObjects() end
-        if Player[currentPlayer].getHandCount() > 0 then
-            vP[currentPlayer],dT[currentPlayer]=0,{}
-            
-            move(gObjs('deckZone'))
-            move(Player[currentPlayer].getHandObjects())
-            move(gObjs('discardZone'))
-            for i, obj in ipairs(gObjs('tavern'))do
-                if obj.tag=='Deck'then
-                    for j, card in ipairs(obj.getObjects())do
-                        if card.nickname=='Distant Lands'then
-                            vP[currentPlayer]=vP[currentPlayer] + 4
-                end end end
-                if obj.tag=='Card'then
-                    if obj.getName()=='Distant Lands'then
-                        vP[currentPlayer]=vP[currentPlayer] + 4
-                end end
-                if obj.tag=='Card'or obj.tag=='Deck'then
-                    local t=obj.getDescription()
-                    if t=='Boon'or t=='Hex'or t=='Artifact'or t=='State'then else
-                        obj.setRotation({0,180,180})
-                        obj.setPosition(ref_players[currentPlayer].deck)
-                        coroutine.yield(0)
-            end end end
-            for i, obj in ipairs(gObjs('zone'))do
-                if obj.tag=='Card'and obj.getName()=='Miserable / Twice Miserable'then
-                    vP[currentPlayer]=vP[currentPlayer] - 2
-                    local rot=obj.getRotation()
-                    if 90 < rot.z and rot.z < 270 then
-                      vP[currentPlayer]=vP[currentPlayer] - 2
-                      bcast(currentPlayer..' is Twice Miserable',{1,0,1})
-                    else
-                      bcast(currentPlayer..' is Miserable',{1,0,1})
-        end end end end end
-        wait(2)
-        for i=1, #getSeatedPlayers()do
-            local cp=getSeatedPlayers()[i]
-            if Player[cp].getHandCount() > 0 then
-                local tracker={
-                  amount =0,
-                  actions=0,
-                  castles=0,
-                  estates=0,
-                  orchard=0,
-                  knights=0,
-                  uniques=0, --WolfDen
-                  victory=0,
-                  deck={}
-                }
-                for _, obj in ipairs(getObjectFromGUID(ref_players[cp].deckZone).getObjects())do
-                    if obj.tag=='Deck'then
-                        for v,card in ipairs(obj.getObjects())do
-                            if dT[cp][card.nickname]==nil then
-                                dT[cp][card.nickname]=1
-                            else
-                                dT[cp][card.nickname]=1+dT[cp][card.nickname]
-                    end end end
-                    if obj.tag=='Card'then
-                        if dT[cp][card.getName()]==nil then
-                            dT[cp][card.getName()]=1
-                        else
-                            dT[cp][card.getName()]=1+dT[cp][card.getName()]
-                end end end
-                tracker.deck=dT[cp]
-                for i, v in pairs(tracker.deck)do
-                    tracker.amount=tracker.amount + v
-                    if getType(i):find('Action')then
-                        tracker.actions=tracker.actions + v
-                        if v > 2 then
-                            tracker.orchard=tracker.orchard + 1
-                        end
-                    end
-                    if getType(i):find('Victory')then
-                        tracker.victory=tracker.victory + v
-                    end
-                    if getType(i):find('Castle')then
-                        tracker.castles=tracker.castles + 1
-                    end
-                    if getType(i):find('Knight')then
-                        tracker.knights=tracker.knights + v
-                    end
-                    if v==1 then
-                        tracker.uniques=tracker.uniques + 1
-                    end
-                end
-                -- Score Gardens
-                for k,v in pairs(tracker.deck)do
-                    local vp=getVP(k)
-                    if type(vp)~='number'then vp=vp(tracker)end
-                    vP[cp]=vP[cp] + vp*v
-                end
-                -- Score VP tokens
-                if getObjectFromGUID(ref_players[cp].vp)then
-                    vP[cp]=vP[cp] + getObjectFromGUID(ref_players[cp].vp).call('getCount')
-                end
-                -- Landmarks
-                for _,es in ipairs(ref_eventSlots)do
-                    for _,obj2 in ipairs(getObjectFromGUID(es.zone).getObjects())do
-                        if obj2.tag=='Card'then
-                            local vp=getVP(obj2.getName())
-                            if type(vp)=='function'then vP[cp]=vP[cp]+vp(tracker,dT,cp)end end end end
-                setNotes(getNotes()..'\n'..cp..' VP: '..vP[cp])
-                
-                printToAll(cp .. '\'s Deck:', Color[cp])
-                
-                for card, count in pairs(dT[cp])do
-                    local s='0'
-                    if count > 9 then s='' end
-                    printToAll(s..count .. ' ' .. card, {1,1,1})
+  if not Player[color].admin then
+    bcast('Only the host and promoted players can end the game.', {0.75,0.75,0.75}, color)
+  return end
+  setNotes('[40e0d0][b][u]Final Scores:[/b][/u][FFFFFF]\n')
+  dT={Red={},White={},Orange={},Green={},Yellow={},Blue={}}
+  vP={Red={},White={},Orange={},Green={},Yellow={},Blue={}}
+  function scoreCoroutine()
+    wait(2,'cegscClean')
+    for i=1,#getSeatedPlayers()do
+      local currentPlayer=getSeatedPlayers()[i]
+      local move=function(zone)
+        for _,obj in ipairs(zone)do
+          if obj.tag=='Card'and obj.getName()=='Miserable / Twice Miserable'then
+            vP[currentPlayer]=vP[currentPlayer]-2
+            local rot=obj.getRotation()
+            if 90<rot.z and rot.z<270 then
+              vP[currentPlayer]=vP[currentPlayer]-2
+              bcast(currentPlayer..' is Twice Miserable',{1,0,1})
+            else bcast(currentPlayer..' is Miserable',{1,0,1})end end
+          if obj.tag=='Card'or obj.tag=='Deck'then
+            local t=getType(obj.getName())
+            if t and t~='Boon'and t~='Hex'and t~='Artifact'and t~='State'then
+              obj.setRotation({0,180,180})
+              obj.setPosition(ref_players[currentPlayer].deck)
+              coroutine.yield(0)end end end end
+      local gObjs=function(s)return getObjectFromGUID(ref_players[currentPlayer][s]).getObjects()end
+      if Player[currentPlayer].getHandCount()>0 then
+        vP[currentPlayer],dT[currentPlayer]=0,{}
+        
+        for i, obj in ipairs(gObjs('tavern'))do
+          if obj.tag=='Deck'then
+            for j, card in ipairs(obj.getObjects())do
+              if card.nickname=='Distant Lands'then
+                vP[currentPlayer]=vP[currentPlayer]+4
+          end end end
+          if obj.tag=='Card'then
+            if obj.getName()=='Distant Lands'then
+              vP[currentPlayer]=vP[currentPlayer]+4
+          end end
+          if obj.tag=='Card'or obj.tag=='Deck'then
+            local t=getType(obj.getName())
+            if t and t=='Boon'or t=='Hex'or t=='Artifact'or t=='State'then else
+              obj.setRotation({0,180,180})
+              obj.setPosition(ref_players[currentPlayer].deck)
+              coroutine.yield(0)
         end end end
-        local obj=getObjectFromGUID(ref.startButton)
-        return 1
-    end
-    if obj then obj.clearButtons()end
-    gameState=4
-    startLuaCoroutine(Global,'scoreCoroutine')
+        move(gObjs('deckZone'))
+        move(Player[currentPlayer].getHandObjects())
+        move(gObjs('discardZone'))
+        move(gObjs('zone'))
+    end end
+    wait(2,'cegscScore')
+    for i=1, #getSeatedPlayers()do
+      local cp=getSeatedPlayers()[i]
+      if Player[cp].getHandCount() > 0 then
+        local tracker={
+          amount =0,
+          actions=0,
+          castles=0,
+          estates=0,
+          orchard=0,
+          knights=0,
+          uniques=0, --WolfDen
+          victory=0,
+          deck={}}
+        for _, obj in ipairs(getObjectFromGUID(ref_players[cp].deckZone).getObjects())do
+          if obj.tag=='Deck'then
+            for v,card in ipairs(obj.getObjects())do
+              if dT[cp][card.nickname]==nil then
+                dT[cp][card.nickname]=1
+              else
+                dT[cp][card.nickname]=1+dT[cp][card.nickname]
+          end end end
+          if obj.tag=='Card'then
+            if dT[cp][card.getName()]==nil then
+              dT[cp][card.getName()]=1
+            else
+              dT[cp][card.getName()]=1+dT[cp][card.getName()]
+        end end end
+        tracker.deck=dT[cp]
+        for i,v in pairs(tracker.deck)do
+          tracker.amount=tracker.amount + v
+          if getType(i):find('Action')then
+            tracker.actions=tracker.actions + v
+            if v>2 then
+              tracker.orchard=tracker.orchard + 1
+          end end
+          if getType(i):find('Victory')then
+            tracker.victory=tracker.victory + v end
+          if getType(i):find('Castle')then
+            tracker.castles=tracker.castles + 1 end
+          if getType(i):find('Knight')then
+            tracker.knights=tracker.knights + v end
+          if v==1 then
+            tracker.uniques=tracker.uniques + 1 end
+        end
+        -- Score Based on thier VP
+        for k,v in pairs(tracker.deck)do
+          local vp=getVP(k)
+          if type(vp)~='number'then vp=vp(tracker)end
+          if vp>0 then
+            if tracker.deck.Pyramid and getType(k):find('Victory')then
+              vp=vp-tracker.deck.Pyramid
+              if vp<0 then vp=0 end
+            end
+            vP[cp]=vP[cp] + vp*v
+        end end
+        -- Score VP tokens
+        if getObjectFromGUID(ref_players[cp].vp)then
+          vP[cp]=vP[cp] + getObjectFromGUID(ref_players[cp].vp).call('getCount')
+        end
+        -- Landmarks
+        for _,es in ipairs(ref_eventSlots)do
+          for _,obj2 in ipairs(getObjectFromGUID(es.zone).getObjects())do
+            if obj2.tag=='Card'then
+              local vp=getVP(obj2.getName())
+              if type(vp)=='function'then vP[cp]=vP[cp]+vp(tracker,dT,cp)end end end end
+        setNotes(getNotes()..'\n'..cp..' VP: '..vP[cp])
+        
+        printToAll(cp .. '\'s Deck:', Color[cp])
+        
+        for card, count in pairs(dT[cp])do
+          local s='0'
+          if count > 9 then s='' end
+          printToAll(s..count .. ' ' .. card, {1,1,1})
+    end end end
+    local obj=getObjectFromGUID(ref.startButton)
+    return 1
+  end
+  if obj then obj.clearButtons()end
+  gameState=4
+  startLuaCoroutine(Global,'scoreCoroutine')
 end
 --Used in Button Callbacks
 newText=setmetatable({type='3DText',position={},rotation={90,0,0}
@@ -303,7 +288,7 @@ newText=setmetatable({type='3DText',position={},rotation={90,0,0}
       o.TextTool.setValue(text)
       o.TextTool.setFontSize(f or 200)
       return o.getGUID()end})
-function rcs(a)return math.random(1,#ref_cardSets-(a or 5))end
+function rcs(a)return math.random(1,#ref_cardSets-(a or sL.n))end
 function timerStart(t)click_StartGame(t[1],t[2])end
 function findCard(trg,r,p)
   log(trg)
@@ -411,22 +396,17 @@ function click_DualSets(obj, color)
   for _,v in pairs(eventPiles)do getObjectFromGUID(v).shuffle()end
   
   function DualSetsCoroutine()
-    wait(2)
+    wait(2,'cdsdsc')
     for i,v in pairs(ref_kingdomSlots)do getObjectFromGUID(useSets[(i%2)+1]).takeObject({position=v.pos,index=6-math.ceil(i/2),smooth=false})end
     for i,v in pairs(eventPiles)do getObjectFromGUID(v).takeObject({position=ref_eventSlots[i].pos,index=2,smooth=false})end
     click_StartGame(obj, color)
   end
   startLuaCoroutine(Global,'DualSetsCoroutine')
 end
-function click_VanillaSets(obj, color)
-  bcast('Setting up Base Game and Intrigue')
-  useSets={ref_cardSets[1].guid,ref_cardSets[2].guid}
-  click_StartGame(obj,color)
-end
 function click_BasicGame(obj, color)
   bcast('Beginner Tutorial')
-  newText({26.00,1,25},'THE GAME ENDS WHEN:\nAny 3 piles are empty or\nThe Province pile is empty.')
-  newText({0.00,1,11},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
+  newText({20,1,50},'THE GAME ENDS WHEN:\nAny 3 piles are empty or\nThe Province pile is empty.')
+  newText({0,1,11},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
   local knd={
 'Cellar,Festival,Mine,Moat,Patrol,Poacher,Smithy,Village,Witch,Workshop',
 'Cellar,Market,Merchant,Militia,Mine,Moat,Remodel,Smithy,Village,Workshop',}
@@ -434,32 +414,58 @@ function click_BasicGame(obj, color)
 end
 
 function click_forcePile(obj, color)
-    local guid,c=obj.getGUID(),{1,1,1}
-    if guid==ref_supplyPiles[1].guid then
-        if usePlatinum < 2 then
-            usePlatinum=1 + usePlatinum
-            if usePlatinum==1 then c={0,1,0}else c={1,0,0}end
-            obj.highlightOn(c)
-        else
-            usePlatinum=0
-            obj.highlightOff()
-        end
-    elseif guid==ref_supplyPiles[5].guid then
-        if useShelters < 2 then
-            useShelters=1 + useShelters
-            if useShelters==1 then c={0,1,0}else c={1,0,0}end
-            obj.highlightOn(c)
-        else
-            useShelters=0
-            obj.highlightOff()
-        end
+  local guid,c=obj.getGUID(),{1,1,1}
+  if guid==ref_supplyPiles[1].guid then
+    if usePlatinum<2 then
+      usePlatinum=1+usePlatinum
+      if usePlatinum==1 then c={0,1,0}else c={1,0,0}end
+      obj.highlightOn(c)
+    else
+      usePlatinum=0
+      obj.highlightOff()
     end
-    obj.editButton({font_color=c})
+  elseif guid==ref_supplyPiles[5].guid then
+    if useShelters<2 then
+      useShelters=1+useShelters
+      if useShelters==1 then c={0,1,0}else c={1,0,0}end
+      obj.highlightOn(c)
+    else
+      useShelters=0
+      obj.highlightOff()
+    end
+  elseif guid==ref_supplyPiles[6].guid then
+    if useBoulderTrap<2 then
+      useBoulderTrap=1+useBoulderTrap
+      if useBoulderTrap==1 then c={0,1,0}else c={1,0,0}end
+      obj.highlightOn(c)
+    else
+      useBoulderTrap=0
+      obj.highlightOff()
+    end
+  end
+  obj.editButton({font_color=c})
 end
-function click_eventLimit(obj,color)
+sL={n=3,
+'Official Sets','Currently only official sets are allowed.\nThis excludes first printings, promos and fan expansions.',12,
+'Printed Cards','Currently only printed cards are allowed.\nThis excludes fan expansions.',13,
+'Expansions','Currently only expansions are allowed.\nThis excludes first printings, promos, Adamabrams and Xtras.',18,
+'Everyting','Currently cards from any set are allowed.\nThis excludes nothing.',0}
+function click_setLimit(obj)
+  if sL.n<#sL then sL.n=sL.n+3 else sL.n=3 end
+  obj.editButton{index=getButton(obj,'Included Sets:'),label='Included Sets:\n'..sL[sL.n-2],tooltip='Toggles which sets are allowed in Quick Setup.\n'..sL[sL.n-1]}
+  if sL.n==3 then
+    
+  elseif sL.n==6 then
+    table.insert(ref_cardSets,15,ref_cardSets[22])
+    table.remove(ref_cardSets,23)
+  elseif sL.n==9 then
+  elseif sL.n==12 then
+  end
+end
+function click_eventLimit(obj)
   if eventMax<4 then eventMax=eventMax+1 else eventMax=0 end
   obj.editButton{index=getButton(obj,'Max Events: '),label='Max Events: '..eventMax}end
-function click_blackMarketLimit(obj,color,a)
+function click_blackMarketLimit(obj,_,a)
   if a and blackMarketMax>19 then blackMarketMax=blackMarketMax-5
   elseif a then blackMarketMax=60
   elseif blackMarketMax<60 then blackMarketMax=blackMarketMax+5
@@ -468,23 +474,16 @@ function click_blackMarketLimit(obj,color,a)
 --function called when you click to start the game
 function click_StartGame(obj, color)
   if not Player[color].admin then
-    bcast('Only the host and promoted players can start the game.', {0.75,0.75,0.75}, color)
-    return
-  end
+    bcast('Only the host and promoted players can start the game.',{0.75,0.75,0.75},color)return end
   Turns.enable=false
-  if getPlayerCount() > 6 then
-    bcast('This game needs 2 to 6 players to start.', {0.75,0.75,0.75}, color)
-    return
-  end
+  if getPlayerCount()>6 then
+    bcast('This game needs 2 to 6 players to start.',{0.75,0.75,0.75},color)return end
   local summonException=false
-  for _,es in ipairs(ref_eventSlots)do
-    for j, v in ipairs(getObjectFromGUID(es.zone).getObjects())do
-        if v.getName()=='Summon'then
-            summonException=true
-            break
-        end
-    end
-  end
+  for _,es in pairs(ref_eventSlots)do
+    for _,v in pairs(getObjectFromGUID(es.zone).getObjects())do
+      if v.getName()=='Summon'then
+        summonException=true
+        break end end end
   local requireBane=false
   local requireBlackMarket=false
   local cardCount=0
@@ -501,13 +500,13 @@ function click_StartGame(obj, color)
             local baneObj=baneZone[k]
             if baneObj.tag=='Card'and baneObj.getName()~='Bane pile'then
               if getCost(baneObj.getName())~='M2D0P0'and getCost(baneObj.getName())~='M3D0P0'then
-                bcast('Bane card needs to cost 2 or 3 with no debt or potions.', {0.75,0.75,0.75}, color)
+                bcast('Bane card needs to cost 2 or 3 with no debt or potions.',{0.75,0.75,0.75},color)
                 return
               else
                 requireBane=false
-                break end end end end 
+                break end end end end
         if zoneObj.getName()=='Black Market'then requireBlackMarket=true end
-        cardCount=cardCount + 1
+        cardCount=cardCount+1
   end end end
   if not requireBane then
     for j,guid in ipairs(useSets)do
@@ -606,15 +605,18 @@ function setupKingdom(summonException)
     if not found and obj then obj.destruct()end
   end
   function setupKingdomCoroutine()
-    wait(2)
+    wait(1,'skskcStart')
+    group(getObjectFromGUID(ref.randomizer.zone).getObjects())
+    wait(1,'skskcGroup')
     local deck=false
     for i, v in ipairs(getObjectFromGUID(ref.randomizer.zone).getObjects())do if v.tag=='Deck'then deck=v end end
     if deck then
-        deck.setRotation({0,180,180})
-        deck.shuffle()
-        deck.highlightOff()
+      deck.setScale({1.88,1,1.88})
+      deck.setRotation({0,180,180})
+      deck.shuffle()
+      deck.highlightOff()
     end
-    wait(1)
+    wait(1,'skskcDeck')
     local events={}
     for _,es in ipairs(ref_eventSlots)do
         for j, v in ipairs(getObjectFromGUID(es.zone).getObjects())do
@@ -640,7 +642,7 @@ function setupKingdom(summonException)
                   card=true
                   deck.takeObject({position=ks.pos, index=v.index, flip=true})
                   break end end end end
-        wait(0.5)
+        wait(0.5,'skskcKingdom')
         local blackMarket, requireBane=false, false
         for _,ks in ipairs(ref_kingdomSlots)do
             for j, v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
@@ -723,7 +725,7 @@ function setupKingdom(summonException)
                     end
                 end
             end
-            wait(2)
+            wait(2,'skskcMarket')
             deck.shuffle()
             while #deck.getObjects() > blackMarketMax + 1 do
                 coroutine.yield(0)
@@ -840,7 +842,7 @@ function setupKingdom(summonException)
                         deck.takeObject({index=v.index}).destruct()
                         cleanDeck=false
                         break end end end
-        wait(2)
+        wait(2,'skskcMarket')
         deck.shuffle()
         while #deck.getObjects()>blackMarketMax do
           coroutine.yield(0)
@@ -854,9 +856,9 @@ function setupKingdom(summonException)
         end
       end
     end
-    wait(1)
+    wait(1,'skskcReorder')
     reorderKingdom()
-    wait(0.5)
+    wait(0.5,'skskcPiles')
     createPile()
     return 1
   end
@@ -975,7 +977,7 @@ function cleanUp()
   
   for i,v in ipairs(sideSlots)do getPile(v..' pile').setPosition(ref_sideSlots[i].pos)end
   for i=#sideSlots+dC,#ref_sideSlots do getObjectFromGUID(ref_sideSlots[i].guid).destruct()end
-  for _,o in ipairs(getObjectFromGUID(ref_storageZone.script).getObjects())do o.shuffle()o.setLock(false)end
+  for _,o in ipairs(getObjectFromGUID(ref_storageZone.script).getObjects())do if o.shuffle()then o.setLock(false)end end
   
   for _,g in pairs(ref_storageZone)do getObjectFromGUID(g).destruct()end
   
@@ -1018,17 +1020,17 @@ function cleanUp()
   if getPlayerCount()~=6 then
     for i in pairs(ref_players)do
       local found=false
-      for j=1, #getSeatedPlayers()do
+      for j=1,#getSeatedPlayers()do
         local currentPlayer=getSeatedPlayers()[j]
-        if currentPlayer==i and Player[currentPlayer].getHandCount() > 0 then
+        if currentPlayer==i and Player[currentPlayer].getHandCount()>0 then
           found=true
       end end
       if not found then
         table.insert(toRemove,i)
   end end end
-  for i,v in pairs(toRemove)do for j,o in ipairs(getObjectFromGUID(ref_players[v].zone).getObjects())do o.destruct()end end
+  for i,v in pairs(toRemove)do for j,o in ipairs(getObjectFromGUID(ref_players[v].zone).getObjects())do if o.getName()~='Board'then o.destruct()end end end
   function tokenCoroutine()
-    wait(4)
+    wait(4,'cutcSetup')
     log(Use[1])
     if Use('Landmark')or Use('Gathering')or Use('TradeRoute')or Use('Tax')or Use('Panda / Gardener')then
       obeliskPiles={}
@@ -1068,7 +1070,7 @@ function cleanUp()
           elseif g==2 then tokenMake(blackMarketDeck,'vp',0,{0.9,1,-1.25},card.nickname)
           else   tokenMake(blackMarketDeck,'vp',0,{-0.9,1,-1.25},card.nickname)
     end end end end
-    wait(1)
+    wait(1,'cutcDelete')
     for _,v in pairs(ref_tokenBag)do getObjectFromGUID(v).destruct()end
     if getPile('Heirlooms')then getPile('Heirlooms').destruct()end
     return 1
@@ -1172,7 +1174,7 @@ function createPile()
       else while k<10 do v.clone({position=ref.baneSlot.pos})k=k+1
   end end end end
   --Coroutine names the piles after they form
-  function createPileCoroutine()wait(2)
+  function createPileCoroutine()wait(2,'cpcNames')
     if getPile('Heirlooms')then getPile('Heirlooms').destruct()end
     for _,ks in pairs(ref_kingdomSlots)do
       for j,v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
@@ -1246,6 +1248,7 @@ function setupStartingDecks(useShelters, useHeirlooms)
   local c,z,h=1,getObjectFromGUID(ref_storageZone.heirloom).getObjects(),false
   for _,obj in pairs(z)do if obj.tag=='Deck'then c,h=1+obj.getQuantity(),obj elseif obj.tag=='Card'then c,h=2,obj end end
   --Creating the starting decks
+  --if Use('Delegate')then getPile('Loyal Subjects pile').takeObject()
   for i=1,#getSeatedPlayers()do
     local p=getSeatedPlayers()[i]
     if 0<Player[p].getHandCount()then
@@ -1261,7 +1264,7 @@ end
 -- Function to deal starting hands
 function dealStartingHands()
   function dealStartingHandsCoroutine()
-    wait(2)
+    wait(2,'dshcShuffle')
     for i, v in pairs(ref_players)do
       for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects())do
         if b.tag=='Deck'then
@@ -1269,7 +1272,7 @@ function dealStartingHands()
         end
       end
     end
-    wait(0.5)
+    wait(0.5,'dshcDeal')
     for i, v in pairs(ref_players)do
       for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects())do
         if b.tag=='Deck'then
@@ -1296,7 +1299,7 @@ end end
 -- Function to get a count of players sitting at the table with hands to be dealt to.
 function getPlayerCount()local c=#getSeatedPlayers()for i=1,#getSeatedPlayers()do if Player[getSeatedPlayers()[i]].getHandCount()<1 then p=p-1 end end if c==1 then return 6 end return c end
 -- Function to wait during coroutines
-function wait(time)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
+function wait(time,key)local start=os.time()print(key or'Unknown')repeat coroutine.yield(0)until os.time()>start+time end
 --Shortcut broadcast function to shorten them when I call them in the code
 function bcast(m,c,p)if c==nil then c={1,1,1}end if p then Player[p].broadcast(m,c)else broadcastToAll(m,c)end end
 function tokenCallback(obj,m)obj.call('setOwner',m)end
@@ -1773,7 +1776,7 @@ ref_master={
 {cost='M2D0P0',name='Encampment / Plunder',type='Action',depend='VP'},
 {cost='M3D0P0',name='Enchantress',type='Action - Attack - Duration'},
 {cost='D4M0P0',name='Engineer',type='Action'},
-{cost='M3D0P0',name='Farmers\' Market',type='Action - Gathering'},
+{cost='M3D0P0',name='Farmers\' Market',type='Action - Gathering',depend='VP'},
 {cost='M5D0P0',name='Forum',type='Action'},
 {cost='M3D0P0',name='Gladiator / Fortune',type='Action'},
 {cost='M5D0P0',name='Groundskeeper',type='Action',depend='VP'},
@@ -1783,9 +1786,9 @@ ref_master={
 {cost='D8M0P0',name='Overlord',type='Action - Command'},
 {cost='M4D0P0',name='Sacrifice',type='Action',depend='VP'},
 {cost='M2D0P0',name='Settlers / Bustling Village',type='Action'},
-{cost='M4D0P0',name='Temple',type='Action - Gathering'},
+{cost='M4D0P0',name='Temple',type='Action - Gathering',depend='VP'},
 {cost='M4D0P0',name='Villa',type='Action'},
-{cost='M5D0P0',name='Wild Hunt',type='Action - Gathering'},
+{cost='M5D0P0',name='Wild Hunt',type='Action - Gathering',depend='VP'},
 {cost='M3D0P0',name='Humble Castle',type='Treasure - Victory - Castle',VP=function(t)return t.castles*1 end},
 {cost='M4D0P0',name='Crumbling Castle',type='Victory - Castle',VP=1,depend='VP'},
 {cost='M5D0P0',name='Small Castle',type='Action - Victory - Castle',VP=2},
@@ -1837,7 +1840,7 @@ ref_master={
 {cost='MXDXP0',type='Landmark',name='Tower',VP=function(t)local vp,ne,zs,f=0,{},{},false;for _,g in ipairs(ref_basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end table.insert(zs,getObjectFromGUID(ref.baneSlot.zone))for _,s in ipairs(ref_kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do if o.tag=='Card'and o.getName()~='Bane Card'then if getType(o.getName()):find('Knight')==nil then table.insert(ne,o.getName())else table.insert(ne,'Knights')end elseif o.tag=='Deck'then table.insert(ne,o.getName():sub(1,-6))end end end for c,n in pairs(t.deck)do for _,p in ipairs(ne)do if p==c then f=true;end end if getType(c):find('Knight')then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Global Blackmarket Var]]if getType(c):find('Victory')==nil and not f then vp=vp+n end end return vp end},
 {cost='MXDXP0',type='Landmark',name='Triumphal Arch',VP=function(t)local h,s=0,0;for c,n in pairs(t.deck)do if getType(c):find('Action')then if n>h then s=h;h=n elseif n>s then s=n end end end return s*3 end},
 {cost='MXDXP0',type='Landmark',name='Wall',VP=function(t)return -(t.amount-15)end},
-{cost='MXDXP0',type='Landmark',name='Wolf Den',VP=function(t)log(t)return -t.wolf*3 end},--Nocturne
+{cost='MXDXP0',type='Landmark',name='Wolf Den',VP=function(t)log(t)return -t.wolf*3 end},
 {cost='M4D0P0',name='Lucky Coin',type='Treasure - Heirloom'},
 {cost='M4D0P0',name='Cursed Gold',type='Treasure - Heirloom'},
 {cost='M2D0P0',name='Pasture',type='Treasure - Victory - Heirloom',VP=function(t)return t.estates*1 end},
@@ -1882,7 +1885,7 @@ ref_master={
 {cost='M2D0P0',name='Faithful Hound',type='Action - Reaction'},
 {cost='M2D0P0',name='Druid',type='Action - Fate'},
 {cost='M2D0P0',name='Tracker',type='Action - Fate',depend='Heirloom'},
-{cost='M2D0P0',name='Pixie',type='Action - Fate',depend='Heirloom'},--Renaissance
+{cost='M2D0P0',name='Pixie',type='Action - Fate',depend='Heirloom'},
 {cost='M8D0P0',name='Citadel',type='Project'},
 {cost='M7D0P0',name='Canal',type='Project'},
 {cost='M6D0P0',name='Innovation',type='Project'},
@@ -2028,31 +2031,84 @@ ref_master={
 {cost='D8M0P0',name='Original Overlord',type='Action'},
 {cost='M6D0P0',name='Original Captain',type='Action - Duration'},
 --X'tra's
-{cost='MXDXP0',type='Landmark',name='El Dorado',depend='Artifact'},
-{cost='M2D0P0',name='Handler',type='Action'},
-{cost='M2D0P0',name='Hops',type='Treasure - Duration'},
-{cost='M2D0P0',name='Smithing Tools',type='Action - Duration'},
-{cost='M2D0P0',name='Stallions',type='Action - Stallion',depend='Horse'},
-{cost='M2D0P1',name='Wat',type='Treasure - Victory',VP=1},
-{cost='M3D0P0',name='Informer',type='Action - Command'},
-{cost='M3D0P0',name='Notary',type='Action',depend='Heir'},
-{cost='M4D0P0',name='Lease',type='Action'},
-{cost='M4D0P0',name='Lessor',type='Action - Attack'},
-{cost='M4D0P0',name='Statue',type='Action - Victory',depend='Aside'},
-{cost='M4D0P0',name='Vigil',type='Action - Attack'},
-{cost='M4D0P0',name='Watchmaker',type='Action - Reserve'},
-{cost='M5D0P0',name='Plague Doctor',type='Action - Attack - Duration'},
-{cost='M5D0P0',name='Savings',type='Treasure'},
-{cost='M5D0P0',name='Tithe',type='Action - Attack - Reserve - Duration',depend='Debt'},
-{cost='M6D0P0',name='Grand Laboratory',type='Action'},
-{cost='M2D0P0',name='Shetland Pony',type='Action - Stallion'},
-{cost='M3D0P0',name='Clydesdale',type='Action - Stallion'},
-{cost='M4D0P0',name='Appaloosa',type='Action - Stallion'},
-{cost='M5D0P0',name='Paint Horse',type='Action - Stallion'},
-{cost='M6D0P0',name='Gypsy Vanner',type='Action - Stallion'},
-{cost='M7D0P0',name='Mustang',type='Action - Victory - Stallion',VP=2},
-{cost='M8D0P0',name='Friesian',type='Action - Victory - Stallion',VP=3},
-{cost='M9D0P0',name='Arabian Horse',type='Victory - Stallion',VP=function(t)if t.deck['Arabian Horse']==1 then return t.deck.Horse or 0 else return 0 end end},
+{cost='MXDXP0',type='Landmark',name='Xv1 El Dorado',depend='Artifact'},
+{cost='M2D0P0',name='X Handler v1',type='Action'},
+{cost='M2D0P0',name='X Hops v1',type='Treasure - Duration'},
+{cost='M2D0P0',name='X Smithing Tools',type='Action - Duration'},
+{cost='M2D0P0',name='X Stallions',type='Action - Stallion',depend='Horse'},
+{cost='M2D0P1',name='X Wat',type='Treasure - Victory',VP=1},
+{cost='M3D0P0',name='X Informer',type='Action - Command'},
+{cost='M3D0P0',name='X Notary',type='Action',depend='Heir'},
+{cost='M4D0P0',name='X Lease',type='Action'},
+{cost='M4D0P0',name='X Lessor',type='Action - Attack'},
+{cost='M4D0P0',name='X Statue v1',type='Action - Victory',depend='Aside'},
+{cost='M4D0P0',name='X Vigil v1',type='Action - Attack'},
+{cost='M4D0P0',name='X Watchmaker',type='Action - Reserve'},
+{cost='M5D0P0',name='X Plague Doctor v1',type='Action - Attack - Duration'},
+{cost='M5D0P0',name='X Savings',type='Treasure'},
+{cost='M5D0P0',name='X Tithe v1',type='Action - Attack - Reserve - Duration',depend='Debt'},
+{cost='M6D0P0',name='X Grand Laboratory',type='Action'},
+{cost='M2D0P0',name='X Shetland Pony',type='Action - Stallion'},
+{cost='M3D0P0',name='X Clydesdale',type='Action - Stallion'},
+{cost='M4D0P0',name='X Appaloosa',type='Action - Stallion'},
+{cost='M5D0P0',name='X Paint Horse',type='Action - Stallion'},
+{cost='M6D0P0',name='X Gypsy Vanner',type='Action - Stallion'},
+{cost='M7D0P0',name='X Mustang',type='Action - Victory - Stallion',VP=2},
+{cost='M8D0P0',name='X Friesian',type='Action - Victory - Stallion',VP=3},
+{cost='M9D0P0',name='X Arabian Horse',type='Victory - Stallion',VP=function(t)if t.deck['Arabian Horse']==1 then return t.deck.Horse or 0 else return 0 end end},
+--X'v2 http://forum.dominionstrategy.com/index.php?topic=20407.0
+{cost='MXDXP0',type='Landmark',name='X Clock Tower',depend='VP'},
+{cost='MXDXP0',type='Landmark',name='X El Dorado',depend='Artifact'},
+{cost='M0D0P2',type='Project',name='X Science Grant'},
+{cost='M0D0P0',type='Event',name='X Debate',depend='Debt VP'},
+{cost='M3D0P0',type='Event',name='X Truce',depend='Artifact'},
+{cost='M0D0P0',type='State',name='X Collecting Artifacts'},
+{cost='M0D0P0',type='Artifact',name='X Pact'},
+{cost='M0D5P0',name='X Dice Games',type='Action'},
+{cost='M0D0P0',name='X Draft',type='Action'},
+{cost='M2D0P0',name='X Handler',type='Action'},
+{cost='M2D0P0',name='X Hops',type='Treasure - Duration'},
+{cost='M3D0P0',name='X Secret Path',type='Action - Duration - Victory',VP=1},
+{cost='M4D0P0',name='X Duality',type='Action'},
+{cost='M4D0P0',name='X Statue',type='Action - Victory'},
+{cost='M4D0P0',name='X Stray Cat',type='Action - Reserve'},
+{cost='M4D0P0',name='X Vigil',type='Action'},
+{cost='M4D0P0',name='X Watchmaker',type='Action - Reserve'},
+{cost='M4D3P0',name='X Mobsters',type='Night - Treasure'},
+{cost='M5D0P0',name='X Custodian',type='Night - Attack - Duration'},
+{cost='M5D0P0',name='X Market Town',type='Action'},
+{cost='M5D0P0',name='X Plague Doctor',type='Action - Attack - Duration'},
+{cost='M5D0P0',name='X Tithe',type='Action - Attack - Reserve - Duration',depend='Debt'},
+{cost='M7D0P0',name='X Ballroom',type='Action'},
+--Antiquities
+{cost='M5D0P0',name='Q Agora',type='Action - Reaction'},
+{cost='M4D0P0',name='Q Aquifer',type='Action'},
+{cost='M7D0P0',name='Q Archaeologist',type='Action'},
+{cost='M4D0P0',name='Q Boulder Trap',type='Trap',VP=-1},
+{cost='M4D0P0',name='Q Collector',type='Action'},
+{cost='M4D0P0',name='Q Curio',type='Treasure'},
+{cost='M8D0P0',name='Q Dig',type='Action',depend='VP'},
+{cost='M2D0P0',name='Q Discovery',type='Treasure'},
+{cost='M6D0P0',name='Q Encroach',type='Action'},
+{cost='M3D0P0',name='Q Gamepiece',type='Treasure - Reaction'},
+{cost='M3D0P0',name='Q Grave Watcher',type='Action - Attack'},
+{cost='M1D0P0',name='Q Graveyard',type='Action'},
+{cost='M3D0P0',name='Q Inscription',type='Action - Reaction'},
+{cost='M3D0P0',name='Q Inspector',type='Action - Attack'},
+{cost='M5D0P0',name='Q Mastermind Antiquities',type='Action'},
+{cost='M6D0P0',name='Q Mausoleum',type='Action',depend='Aside Memory'},
+{cost='M4D0P0',name='Q Mendicant',type='Action',depend='VP'},
+{cost='M3D0P0',name='Q Miner',type='Action'},
+{cost='M5D0P0',name='Q Mission House',type='Action',depend='VP'},
+{cost='M4D0P0',name='Q Moundbuilder Village',type='Action'},
+{cost='M8D0P0',name='Q Pharaoh',type='Action - Attack'},
+{cost='M3D0P0',name='Q Profiteer',type='Action'},
+{cost='M5D0P0',name='Q Pyramid',type='Action'},
+{cost='M3D0P0',name='Q Shipwreck',type='Action'},
+{cost='M4D0P0',name='Q Snake Charmer',type='Action - Attack'},
+{cost='M4D0P0',name='Q Stoneworks',type='Action',depend='VP'},
+{cost='M5D0P0',name='Q Stronghold',type='Action - Reaction'},
+{cost='M3D0P0',name='Q Tomb Raider',type='Action - Attack'},
 --Legacy
 {cost='M0D0P0',type='Edict',name='L Trade Agreement'},
 {cost='M0D0P0',type='Edict',name='L Supervision'},
@@ -2078,85 +2134,66 @@ ref_master={
 {cost='M3D0P0',type='Event',name='L Plundering',depend='Spoils'},
 {cost='M3D0P0',type='Event',name='L Parting',depend='Journey'},
 {cost='M5D0P0',type='Event',name='L Improve'},
-{cost='M1D0P0',name='Alley',type='Action'},
-{cost='M2D0P0',name='Decree',type='Treasure'},
-{cost='M2D0P0',name='Headhunter',type='Action - Fame'},
-{cost='M2D0P0',name='Sunken City',type='Action - Duration'},
-{cost='M3D0P0',name='Nun',type='Action'},
-{cost='M3D0P0',name='Sawmill',type='Action'},
-{cost='M3D0P0',name='Shrine',type='Action'},
-{cost='M3D0P0',name='Well',type='Action'},
-{cost='M4D0P0',name='Curiosity Shop',type='Action - Fame'},
-{cost='M4D0P0',name='Docks',type='Action - Duration'},
-{cost='M4D0P0',name='Farmer',type='Action'},
-{cost='M4D0P0',name='Gallows',type='Action'},
-{cost='M4D0P0',name='Heir Legacy',type='Action'},
-{cost='M4D0P0',name='Imposter',type='Action - Fame'},
-{cost='M4D0P0',name='Landlord',type='Action'},
-{cost='M5D0P0',name='Adventure-Seeker',type='Action - Fame'},
-{cost='M5D0P0',name='Assemble',type='Action'},
-{cost='M5D0P0',name='Cliffside Village',type='Action'},
-{cost='M5D0P0',name='Craftsmen',type='Action'},
-{cost='M5D0P0',name='Inquisitor',type='Action - Attack - Fame'},
-{cost='M5D0P0',name='Lycantrope',type='Action - Attack'},
-{cost='M5D0P0',name='Maze',type='Action - Victory - Attack'},
-{cost='M5D0P0',name='Sultan',type='Action'},
-{cost='M5D0P0',name='Tribunal',type='Action - Attack'},
-{cost='M6D0P0',name='Hall of Fame',type='Victory - Fame'},
-{cost='M6D0P0',name='Meadow',type='Victory',VP=2},
---Antiquities
-{cost='M5D0P0',name='Agora',type='Action - Reaction'},
-{cost='M4D0P0',name='Aquifer',type='Action'},
-{cost='M7D0P0',name='Archaeologist',type='Action'},
-{cost='M4D0P0',name='Boulder Trap',type='Trap',VP=-1},
-{cost='M4D0P0',name='Collector',type='Action'},
-{cost='M4D0P0',name='Curio',type='Treasure'},
-{cost='M8D0P0',name='Dig',type='Action',depend='VP'},
-{cost='M2D0P0',name='Discovery',type='Treasure'},
-{cost='M6D0P0',name='Encroach',type='Action'},
-{cost='M3D0P0',name='Gamepiece',type='Treasure - Reaction'},
-{cost='M3D0P0',name='Grave Watcher',type='Action - Attack'},
-{cost='M1D0P0',name='Graveyard',type='Action'},
-{cost='M3D0P0',name='Inscription',type='Action - Reaction'},
-{cost='M3D0P0',name='Inspector',type='Action - Attack'},
-{cost='M5D0P0',name='Mastermind Antiquities',type='Action'},
-{cost='M6D0P0',name='Mausoleum',type='Action',depend='Aside Memory'},
-{cost='M4D0P0',name='Mendicant',type='Action',depend='VP'},
-{cost='M3D0P0',name='Miner',type='Action'},
-{cost='M5D0P0',name='Mission House',type='Action',depend='VP'},
-{cost='M4D0P0',name='Moundbuilder Village',type='Action'},
-{cost='M8D0P0',name='Pharaoh',type='Action - Attack'},
-{cost='M3D0P0',name='Profiteer',type='Action'},
-{cost='M5D0P0',name='Pyramid',type='Action',VP=function()broadcastToAll('Pyramid Not Implemented Yet',{1,1,0}) end},
-{cost='M3D0P0',name='Shipwreck',type='Action'},
-{cost='M4D0P0',name='Snake Charmer',type='Action - Attack'},
-{cost='M4D0P0',name='Stoneworks',type='Action',depend='VP'},
-{cost='M5D0P0',name='Stronghold',type='Action - Reaction'},
-{cost='M3D0P0',name='Tomb Raider',type='Action - Attack'},
+{cost='M1D0P0',name='L Alley',type='Action'},
+{cost='M2D0P0',name='L Decree',type='Treasure'},
+{cost='M2D0P0',name='L Sunken City',type='Action - Duration'},
+{cost='M3D0P0',name='L Nun',type='Action'},
+{cost='M3D0P0',name='L Sawmill',type='Action'},
+{cost='M3D0P0',name='L Shrine',type='Action'},
+{cost='M3D0P0',name='L Well',type='Action'},
+{cost='M4D0P0',name='L Docks',type='Action - Duration'},
+{cost='M4D0P0',name='L Farmer',type='Action'},
+{cost='M4D0P0',name='L Gallows',type='Action'},
+{cost='M4D0P0',name='L Heir Legacy',type='Action'},
+{cost='M4D0P0',name='L Landlord',type='Action'},
+{cost='M5D0P0',name='L Assemble',type='Action'},
+{cost='M5D0P0',name='L Cliffside Village',type='Action'},
+{cost='M5D0P0',name='L Craftsmen',type='Action'},
+{cost='M5D0P0',name='L Lycantrope',type='Action - Attack'},
+{cost='M5D0P0',name='L Maze',type='Action - Victory - Attack'},
+{cost='M5D0P0',name='L Sultan',type='Action'},
+{cost='M5D0P0',name='L Tribunal',type='Action - Attack'},
+{cost='M6D0P0',name='L Meadow',type='Victory',VP=2},
+--LegacyFeats
+{cost='M2D0P0',name='L Headhunter',type='Action - Fame'},
+{cost='M4D0P0',name='L Curiosity Shop',type='Action - Fame'},
+{cost='M4D0P0',name='L Imposter',type='Action - Fame'},
+{cost='M5D0P0',name='L Adventure-Seeker',type='Action - Fame'},
+{cost='M5D0P0',name='L Inquisitor',type='Action - Attack - Fame'},
+{cost='M6D0P0',name='L Hall of Fame',type='Victory - Fame'},
 --LegacyExpert
-{cost='M0D0P1',name='Homunculus',type='Action'},
-{cost='M0D8P0',name='Promenade',type='Action'},
-{cost='M0D8P0',name='Institute',type='Action'},
-{cost='M2D0P0',name='Sheriff',type='Action - Attack'},
-{cost='M2D0P0',name='Swamp',type='Action',depend='Imp Ghost'},
-{cost='M3D0P0',name='Iron Maiden',type='Action - Attack - Looter'},
-{cost='M3D0P1',name='Incantation',type='Action'},
-{cost='M3D0P0',name='Pilgrim',type='Action',depend='Coffers'},
-{cost='M3D0P0',name='Scientist',type='Action'},
-{cost='M4D0P0',name='Hunter',type='Action - Reserve'},
-{cost='M4D0P0',name='Lady-in-waiting',type='Action - Reserve'},
-{cost='M4D0P0',name='Scribe',type='Action - Attack - Duration',depend='Debt'},
-{cost='M4D0P0',name='Town',type='Action'},
-{cost='M4D0P0',name='Waggon Village',type='Action',depend='Debt'},
-{cost='M5D0P0',name='Delegate',type='Action'},
-{cost='M5D0P0',name='Lich',type='Action',depend='Zombie'},
-{cost='M5D0P0',name='Necromancer Legacy',type='Action'},
-{cost='M5D0P0',name='Sanctuary',type='Action'},
-{cost='M6D0P0',name='Minister',type='Action',depend='VP'},
-{cost='M0D0P0',name='Road',type='Action'},
-{cost='M3D0P0',name='Skeleton',type='Action - Attack'},
-{cost='M3D0P0',name='Zombie Legacy',type='Action - Attack'},
-{cost='M3D0P0',name='Loyal Subjects',type='Action - Attack'},
+{cost='M0D0P1',name='L Homunculus',type='Action'},
+{cost='M0D8P0',name='L Promenade',type='Action'},
+{cost='M0D8P0',name='L Institute',type='Action'},
+{cost='M2D0P0',name='L Sheriff',type='Action - Attack'},
+{cost='M2D0P0',name='L Swamp',type='Action',depend='Imp Ghost'},
+{cost='M3D0P0',name='L Iron Maiden',type='Action - Attack - Looter'},
+{cost='M3D0P1',name='L Incantation',type='Action'},
+{cost='M3D0P0',name='L Pilgrim',type='Action',depend='Coffers'},
+{cost='M3D0P0',name='L Scientist',type='Action'},
+{cost='M4D0P0',name='L Hunter',type='Action - Reserve'},
+{cost='M4D0P0',name='L Lady-in-waiting',type='Action - Reserve'},
+{cost='M4D0P0',name='L Scribe',type='Action - Attack - Duration',depend='Debt'},
+{cost='M4D0P0',name='L Town',type='Action'},
+{cost='M4D0P0',name='L Waggon Village',type='Action',depend='Debt'},
+{cost='M5D0P0',name='L Delegate',type='Action'},
+{cost='M5D0P0',name='L Lich',type='Action',depend='Zombie'},
+{cost='M5D0P0',name='L Necromancer Legacy',type='Action'},
+{cost='M5D0P0',name='L Sanctuary',type='Action'},
+{cost='M6D0P0',name='L Minister',type='Action',depend='VP'},
+{cost='M0D0P0',name='L Road',type='Action'},
+{cost='M3D0P0',name='L Skeleton',type='Action - Attack'},
+{cost='M3D0P0',name='L Zombie Legacy',type='Action - Attack'},
+{cost='M3D0P0',name='L Loyal Subjects',type='Action - Attack'},
+--LegacyTeams
+{cost='M2D0P0',name='L Steeple',type='Action - Team'},
+{cost='M3D0P0',name='L Conman',type='Action - Team'},
+{cost='M3D0P0',name='L Fisher',type='Action - Reaction - Team'},
+{cost='M4D0P0',name='L Merchant Quarter',type='Action - Team'},
+{cost='M4D0P0',name='L Study',type='Action - Team'},
+{cost='M4D0P0',name='L Still Village',type='Action - Duration - Team'},
+{cost='M5D0P0',name='L Salesman',type='Action - Team'},
+{cost='M5D0P0',name='L Sponsor',type='Action - Team'},
 --Spellcasters
 {cost='M2D0P0',type='Spell',name='S Wisdom'},
 {cost='M4D0P0',type='Spell',name='S Wealth'},
@@ -2165,74 +2202,175 @@ ref_master={
 {cost='M8D0P0',type='Spell',name='S Glory'},
 {cost='M1D0P0',type='Spell',name='S Esprit'},
 {cost='M4D0P0',type='Spell',name='S Dexterity'},
-{cost='M2D0P0',name='Trickster',type='Action - Spellcaster'},
-{cost='M3D0P0',name='Stone Circle',type='Victory - Spellcaster',VP=2},
-{cost='M3D0P0',name='Magician',type='Action - Spellcaster'},
-{cost='M3D0P0',name='Shaman',type='Action - Spellcaster'},
-{cost='M4D0P0',name='Summoner',type='Action - Spellcaster'},
-{cost='M4D0P0',name='Grimoire',type='Treasure - Spellcaster'},
-{cost='M5D0P0',name='Sorcerer',type='Action - Spellcaster'},
-{cost='M5D0P0',name='Wizard',type='Action - Spellcaster'},
+{cost='M2D0P0',name='S Trickster',type='Action - Spellcaster'},
+{cost='M3D0P0',name='S Stone Circle',type='Victory - Spellcaster',VP=2},
+{cost='M3D0P0',name='S Magician',type='Action - Spellcaster'},
+{cost='M3D0P0',name='S Shaman',type='Action - Spellcaster'},
+{cost='M4D0P0',name='S Summoner',type='Action - Spellcaster'},
+{cost='M4D0P0',name='S Grimoire',type='Treasure - Spellcaster'},
+{cost='M5D0P0',name='S Sorcerer',type='Action - Spellcaster'},
+{cost='M5D0P0',name='S Wizard',type='Action - Spellcaster'},
 --Seasons
-{cost='M2D0P0',name='Sojourner',type='Action - Season'},
-{cost='M3D0P0',name='Bailiff',type='Action - Season'},
-{cost='M3D0P0',name='Snow Witch',type='Action - Attack - Season'},
-{cost='M3D0P0',name='Student',type='Action - Season',depend='Following'},
-{cost='M4D0P0',name='Barbarian',type='Action - Season'},
-{cost='M4D0P0',name='Lumbermen',type='Action - Season'},
-{cost='M4D0P0',name='Peltmonger',type='Action - Season'},
-{cost='M4D0P0',name='Sanitarium',type='Action - Season'},
-{cost='M4D0P0',name='Timberland',type='Victory - Season',depend='VP',VP=2},
-{cost='M5D0P0',name='Ballroom',type='Action - Season'},
-{cost='M5D0P0',name='Cottage',type='Action - Season'},
-{cost='M5D0P0',name='Fjord Village',type='Action - Season'},
-{cost='M5D0P0',name='Plantation',type='Action - Season'},
-{cost='M5D0P0',name='Restore',type='Action - Season'},
---LegacyTeams
-{cost='M2D0P0',name='Steeple',type='Action - Team'},
-{cost='M3D0P0',name='Conman',type='Action - Team'},
-{cost='M3D0P0',name='Fisher',type='Action - Reaction - Team'},
-{cost='M4D0P0',name='Merchant Quarter',type='Action - Team'},
-{cost='M4D0P0',name='Study',type='Action - Team'},
-{cost='M4D0P0',name='Still Village',type='Action - Duration - Team'},
-{cost='M5D0P0',name='Salesman',type='Action - Team'},
-{cost='M5D0P0',name='Sponsor',type='Action - Team'},
+{cost='M2D0P0',name='S Sojourner',type='Action - Season'},
+{cost='M3D0P0',name='S Bailiff',type='Action - Season'},
+{cost='M3D0P0',name='S Snow Witch',type='Action - Attack - Season'},
+{cost='M3D0P0',name='S Student',type='Action - Season',depend='Following'},
+{cost='M4D0P0',name='S Barbarian',type='Action - Season'},
+{cost='M4D0P0',name='S Lumbermen',type='Action - Season'},
+{cost='M4D0P0',name='S Peltmonger',type='Action - Season'},
+{cost='M4D0P0',name='S Sanitarium',type='Action - Season'},
+{cost='M4D0P0',name='S Timberland',type='Victory - Season',depend='VP',VP=2},
+{cost='M5D0P0',name='S Ballroom',type='Action - Season'},
+{cost='M5D0P0',name='S Cottage',type='Action - Season'},
+{cost='M5D0P0',name='S Fjord Village',type='Action - Season'},
+{cost='M5D0P0',name='S Plantation',type='Action - Season'},
+{cost='M5D0P0',name='S Restore',type='Action - Season'},
+--Tools http://forum.dominionstrategy.com/index.php?topic=20273.0
+{cost='M4D0P0',name='T Armor',type='Tool'},
+{cost='M4D0P0',name='T Axe',type='Tool'},
+{cost='M5D0P0',name='T Bag of Holding',type='Tool'},
+{cost='M4D0P0',name='T Bow and Arrow',type='Tool - Attack'},
+{cost='M2D0P0',name='T Compass',type='Tool'},
+{cost='M5D0P0',name='T Moccasins',type='Tool'},
+{cost='M5D0P0',name='T Rations',type='Tool'},
+{cost='M6D0P0',name='T Spellbook',type='Tool - Command'},
+{cost='M5D0P0',name='T Sword',type='Tool'},
+{cost='M3D0P0',name='T Telescope',type='Tool'},
+{cost='M3D0P0',name='T Wagon',type='Tool'},
+{cost='M5D0P0',name='T Battalion',type='Action'},
+{cost='M0D0P0',name='T Broken Sword',type='Tool'},
+{cost='M5D0P0',name='T Charlatan',type='Action'},
+{cost='M0D0P0',name='T Cursed Antique',type='Tool'},
+--Roots&Renewal http://forum.dominionstrategy.com/index.php?topic=11563.0
+{cost='MXDXP0',type='Landmark',name='R Chancellery'},
+{cost='M0D0P0',name='R Realm Tax',type='Treasure'},
+{cost='M2D0P0',name='R Refugees',type='Action'},
+{cost='M2D0P0',name='R Salesman',type='Action - Reserve'},
+{cost='M2D0P0',name='R Trapper',type='Action'},
+{cost='M3D0P0',name='R Deposit',type='Action'},
+{cost='M3D0P0',name='R Petty Lord',type='Action - Traveller - Looter',depend='Prime'},
+{cost='M3D0P0',name='R Provisioner',type='Action'},
+{cost='M4D0P0',name='R Builder',type='Action - Reaction'},
+{cost='M4D0P0',name='R Mining Camp',type='Action - Looter'},
+{cost='M4D0P0',name='R Orphanage',type='Action',depend='VP'},
+{cost='M4D0P0',name='R Reconvert',type='Action'},
+{cost='M4D0P0',name='R Reeve',type='Action',depend='Estate'},
+{cost='M4D0P0',name='R Shire',type='Victory - Reaction',VP=function(t)local vp,ne,zs,f=0,{},{},false;table.insert(zs,getObjectFromGUID(ref.baneSlot.zone))
+    for _,g in ipairs(ref_basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end
+    for _,s in ipairs(ref_kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end
+    for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do
+      if o.tag=='Card'then if getType(o.getName()):find('Knight')then table.insert(ne,'Knights')else table.insert(ne,o.getName())end
+      elseif o.tag=='Deck'then table.insert(ne,o.getName():sub(1,-6))end end end
+    for c,n in pairs(t.deck)do
+      for _,p in ipairs(ne)do if p==c then f=true end end
+      if getType(c):find('Knight')then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end
+      for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Blackmarket]]
+      if not f then vp=vp+n end end return vp end},
+{cost='M5D0P0',name='R Beachcomb',type='Action'},
+{cost='M5D0P0',name='R Benefit',type='Action - Reaction'},
+{cost='M5D0P0',name='R Building Crane',type='Action'},
+{cost='M5D0P0',name='R Juggler',type='Action'},
+{cost='M5D0P0',name='R Reparations',type='Treasure'},
+{cost='M5D0P0',name='R Revaluate',type='Action',depend='Prime'},
+{cost='M6D0P0',name='R Riverside',type='Victory'},
+{cost='M4D0P0',name='R Lock / Caretaker',type='Treasure'},
+{cost='M4D0P0',name='R Lock',type='Treasure'},
+{cost='M5D0P0',name='R Caretaker',type='Action'},
+{cost='M4D0P0',name='R Key',type='Treasure'},
+{cost='M1D0P0',name='R Forest Hut',type='Action - Shelter'},
+{cost='M5D0P0',name='R Robber Knight',type='Action - Attack - Looter - Traveller'},
+{cost='M5D0P0',name='R Protector',type='Action - Traveller'},
+{cost='M7D0P0',name='R Warlord',type='Action - Attack'},
+{cost='M7D0P0',name='R Savior',type='Action'},
+{cost='M3D0P0',name='R Battlement',type='Action - Reaction'},
+{cost='M0D0P0',name='R Manor',type='Action'},
 --Adamabrams
-{cost='M6D0P0',name='Mortgage',type='Project',depend='Debt'},
-{cost='M0D0P0',name='Lost Battle',type='Landmark',depend='VP'},
-{cost='M4D0P0',name='Cave',type='Night - Victory',VP=2},
-{cost='M4D0P0',name='Chisel',type='Action - Reserve'},
-{cost='M7D0P0',name='Knockout',type='Event',depend='Artifact'},
-{cost='M1D0P1',name='Migrant Village',type='Action',depend='Villager'},
-{cost='M4D0P0',name='Discretion',type='Action - Reserve',depend='VP Coffers Villager'},
-{cost='M4D0P0',name='Plot',type='Night',depend='VP'},
-{cost='M4D0P0',name='Investor',type='Action',depend='Debt'},
-{cost='M6D0P0',name='Contest',type='Action - Looter',depend='Prize'},
-{cost='M6D0P0',name='Uneven Road',type='Action - Victory',depend='Estate',VP=3},
-{cost='M3D0P1',name='Jekyll',type='Action',depend='Hyde'},
-{cost='M4D0P1',name='Hyde',type='Night - Attack'},
-{cost='M5D0P0',name='Stormy Seas',type='Night',depend='Debt'},
-{cost='M0D4P0',name='Liquid Luck',type='Action - Fate',depend='VP Potion'},
-{cost='M6D0P0',name='Cheque',type='Treasure - Command'},
-{cost='M2D0P0',name='Balance',type='Action - Reserve - Fate - Doom'},
---Custom
-{cost='M5D0P0',name='Burned Village',type='Action - Night'},
-{cost='M4D0P0',name='Rescuers',type='Treasure - Heirloom'},
-{cost='M5D0P0',name='Ancient Coin',type='Treasure - Duration'},
-{cost='M5D0P0',name='Witching Hour',type='Night - Duration - Attack'},
-{cost='M4D0P0',name='Panda / Gardener',type='Action',depend='Coffers Villager',setup=function(o)if getType(o.getObjects()[1].name):find('Action')then tokenMake(o,'coin')tokenMake(o,'coin')end end},
-{cost='M4D0P0',name='Panda',type='Action'},
-{cost='M6D0P0',name='Gardener',type='Action'},
-{cost='M0D0P8',name='Bacchanal',type='Night',depend='Villager'},
-{cost='M4D0P0',name='Homestead',type='Action'},
-{cost='M4D0P0',name='Tulip Field',type='Victory',depend='Coffers Villager'},
-{cost='M5D0P0',name='Backstreet',type='Night',depend='Coffers Villager'},
-{cost='M0D0P0',name='Rabbit',type='Action - Treasure'},
-{cost='M5D0P0',name='Magician',type='Action',depend='Rabbit'},
-{cost='M4D0P0',name='Fishing Boat',type='Action - Duration'},
-{cost='M3D0P0',name='Drawbridge',type='Action - Reserve'},
-{cost='M4D0P0',name='Jinxed Jewel v1',type='Treasure - Night - Heirloom'},
-{cost='M4D0P0',name='Jinxed Jewel',type='Treasure - Night - Heirloom',depend='Heirloom'},
+{cost='M6D0P0',name='C Mortgage',type='Project',depend='Debt'},
+{cost='M0D0P0',name='C Lost Battle',type='Landmark',depend='VP'},
+{cost='M4D0P0',name='C Cave',type='Night - Victory',VP=2},
+{cost='M4D0P0',name='C Chisel',type='Action - Reserve'},
+{cost='M7D0P0',name='C Knockout',type='Event',depend='Artifact'},
+{cost='M1D0P1',name='C Migrant Village',type='Action',depend='Villager'},
+{cost='M4D0P0',name='C Discretion',type='Action - Reserve',depend='VP Coffers Villager'},
+{cost='M4D0P0',name='C Plot',type='Night',depend='VP'},
+{cost='M4D0P0',name='C Investor',type='Action',depend='Debt'},
+{cost='M6D0P0',name='C Contest',type='Action - Looter',depend='Prize'},
+{cost='M6D0P0',name='C Uneven Road',type='Action - Victory',depend='Estate',VP=3},
+{cost='M3D0P1',name='C Jekyll',type='Action',depend='Hyde'},
+{cost='M4D0P1',name='C Hyde',type='Night - Attack'},
+{cost='M5D0P0',name='C Stormy Seas',type='Night',depend='Debt'},
+{cost='M0D4P0',name='C Liquid Luck',type='Action - Fate',depend='VP Potion'},
+{cost='M6D0P0',name='C Cheque',type='Treasure - Command'},
+{cost='M2D0P0',name='C Balance',type='Action - Reserve - Fate - Doom'},
+--Co0kieL0rd http://forum.dominionstrategy.com/index.php?topic=13625.0
+--icon https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Emojione_BW_1F36A.svg/768px-Emojione_BW_1F36A.svg.png
+{cost='MXDXP0',type='Landmark',name='C Volcano'},
+{cost='M4D0P0',name='C Bog Village',type='Action'},
+{cost='M5D0P0',name='C Cabal',type='Action - Attack'},
+{cost='M0D0P0',name='C Turncoat',type='Action'},
+{cost='M4D0P0',name='C Guest of Honor',type='Action - Reserve',depend='VP'},
+{cost='M4D0P0',name='C Demagogue',type='Action - Attack'},
+{cost='M3D0P0',name='C Draft Horses',type='Action'},
+{cost='M4D0P0',name='C Dry Dock',type='Action - Duration'},
+{cost='M5D0P0',name='C Mediator',type='Action',depend='VP'},
+{cost='M2D0P0',name='C Money Launderer',type='Action'},
+{cost='M5D0P0',name='C Prefect',type='Action - Reserve',depend='Aside'},
+{cost='M4D0P0',name='C Regal Decree',type='Action'},
+{cost='M5D0P0',name='C Routing',type='Action'},
+{cost='M3D0P0',name='C Secret Society',type='Action'},
+{cost='M0D0P0',name='C ',type='Action'},
+{cost='M3D0P0',name='C Suburb',type='Action - Reaction'},
+{cost='M3D0P0',name='C Tollkeeper',type='Action - Duration'},
+--Witches https://www.reddit.com/r/dominion/comments/hjwi11/witch_variants_for_every_expansion_day_7/
+{cost='M5D0P0',name='W Equestrian Witch',type='Action - Attack',depend='Horse'},
+{cost='M0D0P1',name='W Resourceful Witch',type='Action - Attack'},
+{cost='M5D0P0',name='W Eclectic Witch',type='Action - Attack'},
+{cost='M4D0P0',name='W Slum Witch',type='Action - Attack'},
+{cost='M4D0P0',name='W Hedge Witch',type='Action - Attack - Gathering',depend='VP'},
+{cost='M3D0P0',name='W Invoking Witch',type='Action - Attack'},
+{cost='M5D0P0',name='W Summoned Fiend',type='Action - Attack - Doom'},
+{cost='M4D0P0',name='W Miserly Witch',type='Action - Attack'},
+{cost='M0D0P0',name='W Cursed Copper',type='Treasure - Curse',VP=-1},
+--https://imgur.com/gallery/iaIN7iP
+{cost='M4D0P0',name='W Faustian Witch',type='Action - Attack',depend='CursedBargain'},
+{cost='M0D0P0',name='W Cursed Bargain',type='Treasure - Reserve - Curse',VP=-3},
+{cost='M6D2P0',name='W Devious Witch',type='Action - Attack'},
+--https://imgur.com/gallery/lx1BnPg
+{cost='M3D0P0',name='W Rummaging Witch',type='Action - Attack'},
+{cost='M2D0P0',name='W Retired Witch',type='Action - Attack',depend='Coffers'},
+--https://imgur.com/gallery/18UZBgV
+{cost='M4D0P0',name='W Nosy Witch',type='Action - Attack'},
+{cost='M6D0P0',name='W Wandering Witch',type='Action - Attack - Reaction'},
+--https://imgur.com/gallery/KV0V01h
+{cost='M3D0P1',name='W Poisonous Witch',type='Action - Attack'},
+{cost='M0D0P0',name='W Cursed Beverage',type='Treasure - Curse',VP=-2},
+{cost='M5D0P0',name='W Prideful Witch',type='Action - Attack',depend='VP'},
+--https://imgur.com/gallery/aLFCmWI
+{cost='M4D0P0',name='W Versatile Witch',type='Action - Attack'},
+{cost='M6D0P0',name='W Vengeful Witch',type='Action - Attack - Duration'},
+--https://imgur.com/a/mw9c4N0
+{cost='M5D0P0',name='W Ghostly Witch',type='Night - Attack'},
+{cost='M0D0P0',name='W Ethereal Curse',type='Night - Curse',VP=-1},
+{cost='M4D0P0',name='W Neighborhood Witch',type='Action',depend='Artifact'},
+{cost='MXDXPX',name='W Cauldron',type='Artifact'},
+--Custom https://www.reddit.com/r/dominion/comments/hrx0rb/original_new_cards_i_made_hope_you_enjoy1_lol/
+{cost='M5D0P0',name='C Burned Village',type='Action - Night'},
+{cost='M4D0P0',name='C Rescuers',type='Treasure - Heirloom'},
+{cost='M5D0P0',name='C Ancient Coin',type='Treasure - Duration'},
+{cost='M5D0P0',name='C Witching Hour',type='Night - Duration - Attack'},
+{cost='M4D0P0',name='C Panda / Gardener',type='Action',depend='Coffers Villager',setup=function(o)if getType(o.getObjects()[1].name):find('Action')then tokenMake(o,'coin')tokenMake(o,'coin')end end},
+{cost='M4D0P0',name='C Panda',type='Action'},
+{cost='M6D0P0',name='C Gardener',type='Action'},
+{cost='M0D0P8',name='C Bacchanal',type='Night',depend='Villager'},
+{cost='M4D0P0',name='C Homestead',type='Action'},
+{cost='M4D0P0',name='C Tulip Field',type='Victory',depend='Coffers Villager'},
+{cost='M5D0P0',name='C Backstreet',type='Night',depend='Coffers Villager'},
+{cost='M0D0P0',name='C Rabbit',type='Action - Treasure'},
+{cost='M5D0P0',name='C Magician',type='Action',depend='Rabbit'},
+{cost='M4D0P0',name='C Fishing Boat',type='Action - Duration'},
+{cost='M3D0P0',name='C Drawbridge',type='Action - Reserve'},
+{cost='M4D0P0',name='C Jinxed Jewel v1',type='Treasure - Night - Heirloom'},
+{cost='M4D0P0',name='C Jinxed Jewel',type='Treasure - Night - Heirloom',depend='Heirloom'},
 {cost='M0D0P0',name='',type=''},
 {cost='M0D0P0',name='-1 Card Token',type=''}
 }

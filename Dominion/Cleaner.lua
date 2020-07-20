@@ -1,6 +1,6 @@
 --By Amuzet
 version,mod_name=1,'Dominion Play Area'
-local playArea,currDebt,option=false,false,{Flag=false,Horn=false,autoHorn=false}
+local DISCONNECT,playArea,currDebt,option=false,false,false,{Flag=false,Horn=false,autoHorn=false}
 function onLoad(sData)
   if sData~=''then
     local o=sData:match('(w+)')
@@ -26,10 +26,16 @@ function onObjectEnterScriptingZone(z,o)
       if n>0 then currDebt=n
         broadcastToAll(Player[Turns.turn_color].steam_name..' has [ee1111]'..n..' Debt',stringColorToRGB(Turns.turn_color))
 end end end end
+function onPlayerDisconnect(player)
+  DISCONNECT=player.color
+  delay('dc',player)
+end function dc(player)DISCONNECT=false end
+function wait(time,key)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
 function onPlayerTurn(player)
   if Global.getTable('ref_players')and Global.getVar('gameState')==3 then currDebt=false
+    wait(1)
     if not playArea then setPlayArea()
-    elseif Player[Turns.getPreviousTurnColor()]then
+    elseif Player[Turns.getPreviousTurnColor()]and not DISCONNECT then
       --Find where to put them
       local t=Global.getTable('ref_players')[Turns.getPreviousTurnColor()]
       local zDd,zDk=getObjectFromGUID(t.discardZone),getObjectFromGUID(t.deckZone)
@@ -47,7 +53,7 @@ function onPlayerTurn(player)
         t.discardZone,t.deckZone,t.discard,t.deck=zDk,zDd,pDk,pDd end end
       --FlagHorn check
       t.draw=5
-      for _,v in pairs(getObjectFromGUID(t.deckZone).getObjects())do
+      for _,v in pairs(t.deckZone.getObjects())do
         if v.getName()=='-1 Card Token'then t.draw=t.draw-1
           local p=v.getPosition()
           v.setPosition({p[1],p[2],p[3]+5})end end
@@ -130,6 +136,13 @@ function putDiscard(t,p,hand)
     elseif v.getDescription():find('Hex')then
     elseif v.getDescription():find('State')then
     elseif v.getDescription():find('Artifact')then
+    elseif v.tag=='Deck'and v.name:find(' pile')then
+      broadcastToAll('Pile found in play area!\nAssuming you bought 1 and only discarding 1',{1,0,1})
+      v.setLock(true)
+      local q=v.getPosition()
+      q[2]=q[2]+3
+      v.setPosition(q)
+      v.takeObject({position=p})
     elseif v.tag=='Deck'or v.tag=='Card'then
       v.setScale({1.88,1,1.88})
       v.setRotation({0,180,0})
@@ -139,7 +152,7 @@ function putDiscard(t,p,hand)
       else
         v.setPositionSmooth(p)
 end end end end
-function delay(N,t)local p={function_name=N,identifier=N..t.color..'PA',parameters=t,delay=1}Timer.destroy(p.identifier)Timer.create(p)end
+function delay(N,t)local p={function_name=N,identifier=N..t.color..'PA',parameters=t,delay=2}Timer.destroy(p.identifier)Timer.create(p)end
 function getDeck(z)for _,v in pairs(z)do if v.tag=='Deck'or v.tag=='Card'then return v end end return false end
 function clean(s)return('self.setName(\'%s\')function bye(o) if o.getName():find(\'PLAY AREA\')then self.destruct()end end function onObjectDestroy(o)bye(o)end function onObjectDrop(p,o)bye(o)end'):format(s,s)end
 --EOF
