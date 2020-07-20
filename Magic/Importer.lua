@@ -159,30 +159,35 @@ end
 function spawnCube(wr,qTbl,check)local cube={};wr.text:gsub(check,function(b)table.insert(cube,b)uLog(b)end)qTbl.deck=#cube;for i,v in ipairs(cube)do Wait.time(function()WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..v,function(c)setCard(c,qTbl)end)end,i*Tick)end delay('endLoop',#cube)end
 local DeckSites={
   --domain as key in table set to a function that takes a string and returns a url,and function
-  --[[Key=function(URL) return modifiedURL,function(modifiedURL)end,]]
+  --Key=function(URL) return modifiedURL,function(modifiedURL,qTbl)end,
   --https://deckstats.net/decks/99231/1519126-zombie-deck-beta?include_comments=1&export_dec=1
   deckstats=function(a)return a..'?export_txt=1',spawnDeck end,
-  --[[https://tappedout.net/mtg-decks/the-minewalker/ https://tappedout.net/alter/3057/]]
+  --https://tappedout.net/mtg-decks/the-minewalker/ https://tappedout.net/alter/3057/
   tappedout=function(a)printToAll('Tappedout Alters Unsupported',{0.1,0.5,0.8})return a:gsub('.cb=%d+','')..'?fmt=txt',spawnDeck end,
   pastbin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   deckbox=function(a)return a..'/export',spawnDeck end,
   scryfall=function(a)return a:gsub('com/.*/','com/decks/'):gsub('scryfall','api.scryfall')..'/export/text',spawnDeck end,
+  --https://www.moxfield.com/decks/fiWavmsoZk6ttuu6ngfTZA
+  --https://api.moxfield.com/v1/decks/all/fiWavmsoZk6ttuu6ngfTZA/download
+  moxfield=function(a)return 'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)')..'/download',spawnDeck end,
   --Default Function 'spawnDeck' requires a url that returns a plain text deck list.
   mtggoldfish=function(a)
     if a:find('/archetype/')then
     --https://www.mtggoldfish.com/archetype/standard-jeskai-fires#paper
     --https://www.mtggoldfish.com/deck/download/2560235
-      return a,function(b,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
+      return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
     elseif a:find('/deck/')then
     --https://www.mtggoldfish.com/deck/2572815#paper
     --https://www.mtggoldfish.com/deck/download/2572815
       return a:gsub('/deck/','/deck/download/'):gsub('#%w+',''),spawnDeck
-    else return a,function(b,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
+    else return a,function(wr,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
   archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/',function(wr,qTbl)
     qTbl.deck=0
     --TrimJSON
     local json=wr.text
     for k,s in pairs({'types','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
+    
+    --for k,s in pairs({'"uid":"','"quantity":'})do json:gsub('"'..s..'(.+)["]?,',function(d)return''end)end
     uNotebook('archidekt',json)
     json=JSON.decode(json)
     --json:gsub('uid":"([^"]+)"[^}]+,"quantity":(%d+)',function(b,d)
