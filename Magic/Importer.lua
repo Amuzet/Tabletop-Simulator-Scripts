@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.78
+mod_name,version='Card Importer',1.79
 self.setName(mod_name..' '..version)
 WorkshopID,author='https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','76561198045776458'
 
@@ -68,7 +68,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
         t.position[2]=t.position[2]+Tick
         spawnObjectJSON(t)endLoop()end end})
 
-function INC(obj)obj.hide_when_face_down,Card.hwfd,Card.n=Card.hwfd,true,Card.n+1 end
+function INC(obj)obj.hide_when_face_down,Card.n=Card.hwfd,Card.n+1;Card.hwfd=true end
 function setOracle(c)local n='\n[b]'if c.power then n=n..c.power..'/'..c.toughness elseif c.loyalty then n=n..tostring(c.loyalty)else n='[b]'end return c.oracle_text:gsub('\"',"'")..n..'[/b]'end
 function setCard(wr,qTbl)
   if not qTbl.deck then uLog(wr,wr.url)end
@@ -230,6 +230,7 @@ local Importer=setmetatable({
         local json=JSON.decode(wr.text)
         if json.all_parts then
           qTbl.deck=#json.all_parts-1
+          if qTbl.deck<2 then qTbl.deck=false end
           for _,v in ipairs(json.all_parts) do
             if v.name~=json.name then
               WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end end
