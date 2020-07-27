@@ -1,7 +1,7 @@
 --By Amuzet
-mod_name,version='Card Importer',1.79
-self.setName(mod_name..' '..version)
-WorkshopID,author='https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','76561198045776458'
+mod_name,version='Card Importer',1.8
+self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
+author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
@@ -57,9 +57,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
         Deck[qTbl.color].cd=Deck[qTbl.color].cd..t.json:sub(fistpos,-3)..','
         if n==qTbl.deck then Wait.time(function()Deck(qTbl)end,1)
           Player[qTbl.color].broadcast('All '..n..' Cards loaded!',{0.5,0.5,0.5})
-        elseif 5==qTbl.deck-n then
-          qTbl.text('Spawning here\nAlmost loaded')
-        elseif 5<qTbl.deck-n then
+        elseif n<qTbl.deck then
           qTbl.text('Spawning here\n'..n..' Cards loaded')
         end
       else--Spawn solo card
@@ -71,7 +69,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
 function INC(obj)obj.hide_when_face_down,Card.n=Card.hwfd,Card.n+1;Card.hwfd=true end
 function setOracle(c)local n='\n[b]'if c.power then n=n..c.power..'/'..c.toughness elseif c.loyalty then n=n..tostring(c.loyalty)else n='[b]'end return c.oracle_text:gsub('\"',"'")..n..'[/b]'end
 function setCard(wr,qTbl)
-  if not qTbl.deck then uLog(wr,wr.url)end
+  if qTbl.deck then uLog(wr.url,'setCard')end
   if wr.text then
     local json=JSON.decode(wr.text)
     if json.object=='card'then
@@ -224,7 +222,7 @@ local Importer=setmetatable({
               spawnList(wr,qTbl)end)
           return false
         else setCard(wr,qTbl)end end)end,
-    
+  
   Token=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         local json=JSON.decode(wr.text)
@@ -241,11 +239,31 @@ local Importer=setmetatable({
     local url,n='https://api.scryfall.com/cards/search?unique=prints&q=',qTbl.name:lower():gsub('%s','')
     if n=='plains'or n=='island'or n=='swamp'or n=='mountain'or n=='forest'then
       --url=url:gsub('prints','art')end
-      broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic find its art online\nSpawn it using "Scryfall search t:basic+set:SET"',{0.9,0.9,0.9})
+      broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic specify that in your decklist\nor Spawn it using "Scryfall search t:basic+set:xln" the corresponding setcode',{0.9,0.9,0.9})
       endLoop()
     else
     WebRequest.get(url..qTbl.name,function(wr)
         spawnList(wr,qTbl)end)end end,
+  
+  Legalities=function(qTbl)
+    WebRequest.get('http://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
+        for f,l in pairs(JSON.decode(wr.text:match('"legalities":({[^}]+})')))do printToAll(l..' in '..f) end endLoop()end)end,
+  
+  Legal=function(qTbl)
+    WebRequest.get('http://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
+        local n,s,t='','',JSON.decode(wr.text:match('"legalities":({[^}]+})'))
+        for f,l in pairs(t)do if l=='legal'and s==''then s='[11ff11]'..f:sub(1,1):upper()..f:sub(2)..' Legal'
+          elseif l=='not_legal'and s~=''then if n==''then n='Not Legal in:' end n=n..' '..f end end
+        
+        if s==''then s='[ff1111]Banned' else local b=''
+          for f,l in pairs(t)do if l=='banned'then b=b..' '..f end end
+          if b~=''then s=s..'[-]\n[ff1111]Banned in:'..b end end
+        
+        local r=''
+        for f,l in pairs(t)do if l=='restricted'then r=r..' '..f end end
+        if r~=''then s=s..'[-]\n[ffff11]Restricted in:'..r end
+        printToAll('Legalities:'..qTbl.full:match('%s.*')..'\n'..s,{1,1,1})
+        endLoop()end)end,
   
   Text=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?format=text&fuzzy='..qTbl.name,function(wr)
@@ -270,24 +288,29 @@ local Importer=setmetatable({
   
   Random=function(qTbl)
     local url,q1='https://api.scryfall.com/cards/random','?q='
-    for _,tbl in ipairs({{w='c%3Aw',u='c%3Au',b='c%3Ab',r='c%3Ar',g='c%3Ag'},{i='t%3Ainstant',s='t%3Asorcery',e='t%3Aenchantment',c='t%3Acreature',a='t%3Aartifact',l='t%3Aland',p='t%Aplaneswalker'}})do
-      local t,q2=0,''
-      for k,m in pairs(tbl) do
-        if string.match(qTbl.name:lower(),k)then
-          if t==1 then q2='('..q2 end
-          if t>0 then q2=q2..'or+'end
-          t,q2=t+1,q2..m..'+'end end
-      if t>1 then q2=q2..')+'end
-      q1=q1..q2 end
-    local tst,cmc=qTbl.full:match('([=<>]+)(%d+)')
-    if tst then q1=q1..'cmc'..tst..cmc end
-    if q1~='?q='then url=url..(q1..' '):gsub('%+ ',''):gsub(' ','')end
+    if qTbl.name:find('q=')then url=url..qTbl.full:match('%s(%S+)')else
+      for _,tbl in ipairs({{w='c%3Aw',u='c%3Au',b='c%3Ab',r='c%3Ar',g='c%3Ag'},
+          {i='t%3Ainstant',s='t%3Asorcery',e='t%3Aenchantment',c='t%3Acreature',a='t%3Aartifact',l='t%3Aland',p='t%Aplaneswalker'}})do
+        local t,q2=0,''
+        for k,m in pairs(tbl) do
+          if string.match(qTbl.name:lower(),k)then
+            if t==1 then q2='('..q2 end
+            if t>0 then q2=q2..'or+'end
+            t,q2=t+1,q2..m..'+'end end
+        if t>1 then q2=q2..')+'end
+        q1=q1..q2 end
+      local tst,cmc=qTbl.full:match('([=<>]+)(%d+)')
+      if tst then q1=q1..'cmc'..tst..cmc end
+      if q1~='?q='then url=url..(q1..' '):gsub('%+ ',''):gsub(' ','')end
+    end
     uLog(url,qTbl.color..' Importer '..qTbl.full)
-    if qTbl.full:match('%s%d+')then
-      for i=2,qTbl.full:match('%s(%d+)')do
+    local n=tonumber(qTbl.full:match('%s(%d+)'))
+    if n then
+      qTbl.deck=n
+      for i=1,n do
         Wait.time(function()
-        WebRequest.get(url,function(wr)setCard(wr,qTbl)end)end,i*Tick)end end
-    WebRequest.get(url,function(wr)setCard(wr,qTbl)endLoop()end)end,
+        WebRequest.get(url,function(wr)setCard(wr,qTbl)end)end,i*Tick)end
+    else WebRequest.get(url,function(wr)setCard(wr,qTbl)end)end end,
   
   Quality=function(qTbl)
     for k,v in pairs({s='small',n='normal',l='large',a='art_crop',b='border_crop'}) do
@@ -343,20 +366,22 @@ local Importer=setmetatable({
   end end})
 
 --[[Functions used everywhere else]]
-local Usage=[[    [753FC9][b]%s[-]
-[0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
+local Usage=[[    [b]%s
+[-][-][0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
 [b][0077ff]Scryfall[/b] [i]URL cardname[/i]  [-][Spawns [i]cardname[/i] with [i]URL[/i] as it face]
 [b][0077ff]Scryfall[/b] [i]URL[/i]  [-][Spawn that deck list or Image]
-[i]archidekt cubetutor cubecobra deckstats deckbox mtggoldfish scryfall tappedout pastebin[/i]
+[b]Supported: [/b][i]archidekt cubetutor cubecobra deckstats deckbox mtggoldfish scryfall tappedout pastebin[/i]
+[b][0077ff]Scryfall help[/b] [-][Displays all possible commands]
 
-[b][ff7700]help[/b] [-][Prints this text]
 [b][ff7700]deck[/b] [-][Spawn deck from newest Notebook tab]
 [b][ff7700]back[/b] [i]URL[/i] [-][Makes card back URL]
 [b][ff7700]text[/b] [i]name[/i] [-][Prints Oracle text of name]
 [b][ff7700]print[/b] [i]name[/i] [-][Spawns various printings of name]
 [b][ff7700]legal[/b] [i]name[/i] [-][Prints Legalities of name]
-[b][ff7700]rules[/b] [i]name[/i] [-][Prints Rulings of name]
-[b][ff7700]random[/b] [i]isecalpwubrg<>=# quantity[/i] [-][Fills field with ANY random card]
+[b][ff7700]rules[/b] [i]name[/i] [-][Prints Rulings of name ]
+[b][ff7700]random[/b] [i]isecalpwubrg<>=# quantity[/i] [-]['[i]ri=2[/i]' Spawns a Red Instant of CMC Two]
+[b][ff7700]search[/b] [i]syntax[/i] [-][Spawns all cards matching that search (be careful)]
+[b][ff7700]random[/b] ?q=[i]syntax quantity[/i] [-][Advanced Random using search syntax (go crazy!)]
 [b][ff7700]quality[/b] [i]mode[/i] [-][Changes the quality of the image]
 [i]small,normal,large,art_crop,border_crop[/i] ]]
 function endLoop()if Importer.request[1]then Importer.request[1].text()table.remove(Importer.request,1)end Importer()end
@@ -367,17 +392,18 @@ function delay(fN,tbl)local timerParams={function_name=fN,identifier=fN..'Timer'
   Timer.destroy(timerParams.identifier)
   Timer.create(timerParams)
 end
-function uLog(a,b) if Test then log(a,b)end end
+function uLog(a,b)if Test then log(a,b)end end
 function uNotebook(t,b,c)local p={index=-1,title=t,body=b or'',color=c or'Grey'}
   for i,v in ipairs(getNotebookTabs())do if v.title==p.title then p.index=i end end
   if p.index<0 then addNotebookTab(p)else editNotebookTab(p)end return p.index end
 function uVersion(wr)
   uLog(wr.is_done,'Checking Importer Version')
-  local v=wr.text:match(mod_name..' Version %d+%p%d+')
-  if v then v=v:match('%d+%p%d+') else v=version end
+  local v=wr.text:match('mod_name,version=\'Card Importer\',(%d+%p%d+)')
+  log('GITHUB Version '..v)
+  if v then v=tonumber(v) else v=version end
   local s='\nLatest Version '..self.getName()
-  if version<tonumber(v)then s='\n[77ff00]Update Ready:'..tonumber(v)..' on Workshop[-]\n'..wr.url
-  elseif version>tonumber(v)or Test then Test,s=true,'\n[fff600]Experimental Version of Importer Module'end
+  if version>v or Test then Test,s=true,'\n[fff600]Experimental Version of Importer Module'
+  elseif version<v then s='\n[77ff00]Update Ready:'..v..' on Workshop[-]\n'..wr.url end
   Usage=Usage..s
   broadcastToAll(s,{1,0,1})
 end
@@ -386,16 +412,20 @@ end
 function onSave()self.script_state=JSON.encode(Back)end
 function onLoad(data)
   Usage=Usage:format(self.getName())
-  WebRequest.get(WorkshopID,self,'uVersion')
-  if data~=''then Back=JSON.decode(data)else Back=JSON.decode('{"___":"https://i.stack.imgur.com/787gj.png","76561198054033722":"http://cloud-3.steamusercontent.com/ugc/1018319704132991968/291AFAB7B0191D5A78BA13BF34861267F290C449/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084"}')end
+  WebRequest.get(GITURL,self,'uVersion')
+  if data~=''then Back=JSON.decode(data)else Back=JSON.decode('{"___":"https://i.stack.imgur.com/787gj.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","a":"Dummy"}')end
   Back=TBL.new(Back)
   self.createButton({label="+",click_function='registerModule',function_owner=self,position={0,0.2,-0.5},height=100,width=100,font_size=100,tooltip="Adds Oracle Look Up"})
   uNotebook('SHelp',Usage)
   uNotebook('SData',self.script_state)
-  self.setDescription(Usage:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['):gsub('\n\n','\n'))
-  printToAll(Usage,{0.9,0.9,0.9})
+  local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
+  self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
+  printToAll(u,{0.9,0.9,0.9})
   if self.getLock()then registerModule()end  end
 
+local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
+function onPlayerConnect(player)printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)end
+function onPlayerConnect(player)printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)end
 local chatToggle=false
 function onChat(msg,player)
   if msg:find('[Ss]cryfall ')or msg:find('!S%S* ')then
@@ -403,9 +433,17 @@ function onChat(msg,player)
     if a=='hide'and player.admin then
       chatToggle=not chatToggle
       if chatToggle then msg='supressing' else msg='showing'end
-      broadcastToAll('Importer now '..msg..' Chat messages with Importer in them.\nToggle this with "Importer Hide"',{0.9,0.9,0.9})
+      broadcastToAll('Importer now '..msg..' Chat messages with Importer in them.\nToggle this with "Importer Hide"',{0.9,0.6,0.4})
     elseif a=='help'then
-      player.print(Usage,{0.9,0.9,0.9})
+      player.print(Usage,{0.9,0.9,0.9})return false
+    elseif a=='announce my pressence!'then
+      local s=SMG
+      if player.steam_id==author then
+        s=s..'My creator has requested that I announce their pressence!\n'..SMG..'Behold the titan that is '..player.name..'!'
+      elseif player.host then
+        s=s..'You may be the host,'..player.name..', but your not as special to me as my Amuzet.'
+      else s=s..'Why would I? You are of no significance to me!'end
+      broadcastToAll(s,SMC)
     elseif a=='clear'then
       Back=TBL.new(Back.___,{})
       self.script_state=''
@@ -421,7 +459,7 @@ function onChat(msg,player)
       if tbl.name:len()<1 or tbl.name==' 'then tbl.name='island'else tbl.name=tbl.name:gsub('%s','')end
       
       Importer(tbl)
-      if chatToggle then uLog(msg,player.steam_name) return false end
+      if chatToggle then uLog(msg,player.steam_name)return false end
 end end end
 
 --[[Card Encoder]]
