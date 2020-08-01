@@ -1,5 +1,5 @@
---DominionDefinitiveEditionModifiedByAmuzet2020_07_26_j
-VERSION,GITURL=2.3,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
+--DominionDefinitiveEditionModifiedByAmuzet2020_07_30_k
+VERSION,GITURL=2.4,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
 function onSave()
   saved_data=JSON.encode({
     gs=gameState,
@@ -124,7 +124,7 @@ function onLoad(saved_data)
         btn('Balanced Setup\nDual Sets','Random Kingdom made with 5 cards of one set and 5 from another',{8.5,0,-48})
         btn('Balanced Setup\nTripple Sets','Random Kingdom made with 3 cards each from 3 sets with a forth card from a random one of those sets')
         btn('Balanced Setup\nFive Sets','Random Kingdom made with 2 cards each from 5 sets')
-        btn('Balanced Setup\nEach A Set','Random Kingdom made with a card each from 10 different sets')
+        btn('Balanced Setup\nTen Sets','Random Kingdom made with a card each from 10 different sets')
         btn.color={0,0,0}btn.font_color={1,1,1}
         btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{0,0,-48},'click_blackMarketLimit')
         btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
@@ -293,7 +293,7 @@ newText=setmetatable({type='3DText',position={},rotation={90,0,0}
       o.TextTool.setFontSize(f or 200)
       return o.getGUID()end})
 function cScale(o)o.setScale({1.88,1,1.88})end
-function rcs(a)return math.random(1,#ref_cardSets-(a or sL.n))end
+function rcs(a)return math.random(1,#ref_cardSets-(a or sL[sL.n][3]))end
 function timerStart(t)click_StartGame(t[1],t[2])end
 function findCard(trg,r,p)
   log(trg)
@@ -374,56 +374,46 @@ function click_ThreeSets(obj, color)useSets={}
     table.insert(useSets,ref_cardSets[o].guid)
     click_StartGame(obj, color)
 end
-function click_DualSets(obj, color)balanceSets(2,o,c)end
+function click_DualSets(o,c)balanceSets(2,o,c)end
 function click_TrippleSets(o,c)balanceSets(3,o,c)end
 function click_FiveSets(o,c)balanceSets(5,o,c)end
-function click_EachASet(o,c)balanceSets(10,o,c)end
+function click_TenSets(o,c)balanceSets(10,o,c)end
 function balanceSets(n,o,c)
-  local bCoroutine=function()BalanceCoroutine(3,o,c)end
   if #useSets>n then
     while #useSets>n do table.remove(useSets,math.random(1,#useSets))end
   elseif #useSets<n then
     local t={}
-    for i=1,n do
-      if useSets[i]then
-        for j,v in ipairs(ref_cardSets)do
-          if s==v.guid then t[i]=j break end end
-      else
-        for j,s in ipairs(t)do
-          while s==t[i]do t[i]=rcs() end end end end
-    
-    for _,n in pairs(t)do table.insert(useSets,ref_cardSets[n].guid)end
+    for _,s in pairs(useSets)do for i,v in pairs(ref_cardSets)do
+      if s==v.guid then table.insert(t,i)break end end end
+    for i=#t+1,n do table.insert(t,rcs())
+      for j,s in pairs(t)do if j==i then break end
+        while s==t[i]do t[i]=rcs()
+    end end end
+    log(t)
+    for i,n in pairs(t)do useSets[i]=ref_cardSets[n].guid end
   end
-  startLuaCoroutine(Global,'bCoroutine')
-end
-function eventPiles()
-  local ep={}
+  
+  for _,v in pairs(useSets)do getObjectFromGUID(v).shuffle()end
+  
+  local events={}
   for _,g in pairs(useSets)do for _,s in pairs(ref_cardSets)do if s.guid==g then
       if s.events then for _,v in pairs(s.events)do
-      table.insert(ep,ref_eventSets[v].guid)
-      end end break
-  end end end
-  if #ep==1 then
-    for i=1,math.random(1,3)do
-      table.insert(ep,ep[1])
-    end
-  elseif #ep==2 then
-    for i=1,2 do
-      table.insert(ep,ep[i])
-    end
-  elseif #ep==3 then
-    table.insert(ep,ep[math.random(1,3)])
-  elseif #ep>4 then
-    while #ep>4 do table.remove(ep,math.random(1,#ep))end
+      table.insert(events,ref_eventSets[v].guid)
+      end end break end end end
+  if #events==1 then for i=1,math.random(1,3)do
+      table.insert(events,events[1])end
+  elseif #events==2 then for i=1,2 do
+      table.insert(events,events[i])end
+  elseif #events==3 then
+    table.insert(events,events[math.random(1,3)])
+  elseif #events>4 then
+    while #events>4 do table.remove(events,math.random(1,#events))end
   end
-  return ep
-end
-function BalanceCoroutine(n,o,c)
-  local events=eventPiles()
-  for _,v in pairs(useSets)do getObjectFromGUID(v).shuffle()end
+  
   for _,v in pairs(events)do getObjectFromGUID(v).shuffle()end
-  wait(2,'cdsdsc')
-  for i,v in pairs(ref_kingdomSlots)do getObjectFromGUID(useSets[(i%n)+1]).takeObject({position=v.pos,index=6-math.ceil(i/n),smooth=false,callback_function=cScale})end
+  for i,v in pairs(ref_kingdomSlots)do
+    getObjectFromGUID(useSets[(i%n)+1]).takeObject({
+        position=v.pos,index=6-math.ceil(i/n),smooth=false,callback_function=cScale})end
   for i,v in pairs(events)do getObjectFromGUID(v).takeObject({position=ref_eventSlots[i].pos,index=2,smooth=false,callback_function=cScale})end
   click_StartGame(o,c)
 end
@@ -469,11 +459,6 @@ function click_forcePile(obj, color)
   end
   obj.editButton({font_color=c})
 end
-sL={n=1,
-{'Official Sets','Currently only official sets are allowed.\nThis excludes first printings, promos and fan expansions.'},
-{'Printed Cards','Currently only printed cards are allowed.\nThis excludes fan expansions.'},
-{'Expansions','Currently only expansions are allowed.\nThis excludes promo and cut cards, Adamabrams and Xtras.'},
-{'Everyting','Currently cards from any set are allowed.\nThis excludes nothing.'}}
 function click_setLimit(obj)
   if sL.n<#sL then sL.n=sL.n+1 else sL.n=1 end
   obj.editButton{
@@ -1001,7 +986,7 @@ function cleanUp()
   f(Use('TCharlatan'),'T Cursed Antique')
   f(Use('CCabal'),'Turncoat')
   f(Use('CHyde'),'Hyde')
-  f(Use('Spellcasters'),'Spellcasters Spells')
+  f(Use('Spellcaster'),'Spellcasters Spells')
   
   local dC=1
   if Use('Druid')then dC=4 end
@@ -1497,6 +1482,11 @@ ref_cardSets={
 {name='Promos',events={7}},
 {name='Adamabrams',events={8}},
 {name='Duplicate/Outdated'}}
+sL={n=1,
+{'Official Sets','Currently only official sets are allowed.\nThis excludes first printings, promos and fan expansions.',14},
+{'Printed Cards','Currently only printed cards are allowed.\nThis excludes fan expansions.',14},
+{'Expansions','Currently only expansions are allowed.\nThis excludes promo and cut cards, Adamabrams and Xtras.',22},
+{'Everyting','Currently cards from any set are allowed.\nThis excludes nothing.',#ref_cardSets-1}}
 ref_eventSets={
 {name='Adventures Events'},
 {name='Empires Events'},
