@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.8
+mod_name,version='Card Importer',1.81
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -32,7 +32,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       else c.oracle=setOracle(c)end
       --if Quality[qTbl.player]=='art_crop'then c.oracle..'\nArtist: '..c.artist end
       --Image Handling
-      if t.image and not qTbl.deck then --Custom Image
+      if t.image and qTbl.mode~='Deck'then --Custom Image
         c.face=t.image
         t.image=false
       elseif c.image_uris then
@@ -40,7 +40,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       else --DFC Cards
         c.name=c.name:gsub(' // [^\n]*','')
         c.face=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
-        if qTbl.deck==nil then
+        if qTbl.mode~='Deck'then
           c.back=c.face:gsub('normal',Quality[qTbl.player])
           c.face=c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
           t.hwfd=false
@@ -52,7 +52,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       --What to do with this card
       if qTbl.deck then --Add it to player deck
         Deck[qTbl.color].did=Deck[qTbl.color].did..n..'00,'
-        Deck[qTbl.color].co=Deck[qTbl.color].co..t.json..','
+        Deck[qTbl.color].co=Deck[qTbl.color].co..t.json:gsub(',"CardID":',',"HideWhenFaceDown":true,"CardID":')..','
         local fistpos=t.json:find('"'..n..'"')
         Deck[qTbl.color].cd=Deck[qTbl.color].cd..t.json:sub(fistpos,-3)..','
         if n==qTbl.deck then Wait.time(function()Deck(qTbl)end,1)
@@ -93,22 +93,19 @@ function spawnList(wr,qTbl)
       Player[qTbl.color].broadcast(json.details,{1,0,0})
   end end endLoop()end
 --[[DeckFormatHandle]]
+local sOver={DAR='DOM',MPS_AKH='MP2',MPS_KLD='MPS',FRF_UGIN='UGIN'}
 local dFile={
   dckCheck='%[[%w_]+:%w+%]',dck=function(line)
     local set,num,name=line:match('%[([%w_]+):(%w+)%] (%w.*)')
-    if set=='MPS_AKH'then set='MP2'
-    elseif set=='MPS_KLD'then set='MPS'
-    elseif set=='FRF_UGIN'then set='UGIN'
-    elseif set:find('DD3_')then set=set:gsub('DD3_','')end
+    if set:find('DD3_')then set=set:gsub('DD3_','')
+    elseif sOver[set]then set=sOver[set] end
     set=set:gsub('_.*',''):lower()
     return 'https://api.scryfall.com/cards/'..set..'/'..num end,
   
   decCheck='%[[%w_]+%]',dec=function(line)
     local set,name=line:match('%[([%w_]+)%] (%w.*)')
-    if set=='MPS_AKH'then set='MP2'
-    elseif set=='MPS_KLD'then set='MPS'
-    elseif set=='FRF_UGIN'then set='UGIN'
-    elseif set:find('DD3_')then set=set:gsub('DD3_','')end
+    if set:find('DD3_')then set=set:gsub('DD3_','')
+    elseif sOver[set]then set=sOver[set] end
     set=set:gsub('_.*',''):lower()
     return 'https://api.scryfall.com/cards/named?fuzzy='..name..'&set='..set end,
   
@@ -199,6 +196,31 @@ local DeckSites={
   cubetutor=function(a)return a,function(wr,qTbl)spawnCube(wr,qTbl,'class="cardPreview "[^>]*>([^<]*)<')end end,
   cubecobra=function(a)return a:gsub('list','download/plaintext'),function(wr,qTbl)spawnCube(wr,qTbl,'[^\n]+')end end,
 }
+local apiSet='http://api.scryfall.com/cards/random?q=is:booster+set:'
+local Booster=setmetatable({
+    dom=function(p)local n=math.random(13,#p);p[n]=p[n]..'+t:legendary'return p end,
+    war=function(p)local n=math.random(13,#p);p[n]=p[n]..'+t:planeswalker'return p end,
+    tsp='tsb',mb1='fmb1',bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2'
+  },{__call=function(t,set,n)
+    local pack,u={},apiSet..set..'+'
+    if not n and t[set]and type(t[set])=='function'then
+      return t[set](t(set,true))
+    else
+      if('rav gpt dis rtr gtc dgm grn rna'):find(set)then u=u..'-t:land+'
+      elseif('cns cn2'):find(set)then u=u..'+-wm:conspiracy+'end
+      for _,c in pairs({'w','u','b','r','g'})do
+        table.insert(pack,u..'r:common+c:'..c)end
+      for i=1,6 do table.insert(pack,u..'r:common+-t:basic')end
+      if(t[set]and math.random(1,144)==1)or('tsp mb1'):find(set)then
+        pack[#pack]=apiSet..t[set]end
+      for i=1,3 do table.insert(pack,u..'r:uncommon')end
+      table.insert(pack,u..'(r:rare+or+r:mythic)')
+      return pack end end})
+for _,s in pairs({'isd','dka','soi','emn'})do
+    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-is:transform'else p[i]=apiSet..s..'+is:transform'end end return p end end
+for _,s in pairs({'rav+t:land+-t:basic','gpt+t:land+-t:basic','dis+t:land+-t:basic','rtr+t:land+-t:basic','gtc+t:land+-t:basic','dgm+t:land+-t:basic','grn+t:land+-t:basic','rna+t:land+-t:basic',
+    'ice+t:basic+t:snow','mh1+t:basic+t:snow','cns+wm:conspiracy','cn2+wm:conspiracy'})do
+  local k=s:match('%w+');Booster[k]=function(p)p[math.random(6,11)]=apiSet..s;return p end end
 --[[Importer Data Structure]]
 local Importer=setmetatable({
   --Variables
@@ -227,11 +249,9 @@ local Importer=setmetatable({
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         local json=JSON.decode(wr.text)
         if json.all_parts then
-          qTbl.deck=#json.all_parts-1
-          if qTbl.deck<2 then qTbl.deck=false end
+          qTbl.deck=#json.all_parts
           for _,v in ipairs(json.all_parts) do
-            if v.name~=json.name then
-              WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end end
+              WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end
         --What is this elseif json.oracle
         else Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})endLoop()end end)end,
   
@@ -286,8 +306,50 @@ local Importer=setmetatable({
           else broadcastToAll(text,{0.9,0.9,0.9})
           end endLoop()end)end)end,
   
+  Mystery=function(qTbl)
+    local t,url={},'http://api.scryfall.com/cards/random?q=set:mb1+'
+    for _,r in pairs({'common','uncommon'})do
+      for _,c in pairs({'w','u','b','r','g'})do
+        table.insert(t,url..('r:%s+c:%s+id:%s'):format(r,c,c))
+      end
+    end
+    table.insert(t,url..'c:c+-r:rare+-r:mythic')
+    table.insert(t,url..'c:m+-r:rare+-r:mythic')
+    table.insert(t,url..'(r:rare+or+r:mythic)+frame:2015')
+    table.insert(t,url..'(r:rare+or+r:mythic)+-frame:2015')
+    local fSlot={'http://api.scryfall.com/cards/random?q=set:cmb1','http://api.scryfall.com/cards/random?q=set:fmb1'}
+    
+    qTbl.url='Mystery Booster'
+    if qTbl.name:find('playtest')then
+      qTbl.url='Playtest Booster'
+      table.insert(t,fSlot[1])
+    elseif qTbl.name:find('both')then
+      table.insert(t,fSlot[math.random(1,2)])
+    else table.insert(t,fSlot[2])end
+    
+    qTbl.deck=#t
+    qTbl.mode='Deck'
+    for i,u in pairs(t)do
+      Wait.time(function()WebRequest.get(u,function(wr)
+            setCard(wr,qTbl)end)end,i*Tick)end
+    end,
+  
+  Booster=function(qTbl)
+    if qTbl.name==''then qTbl.name='ori'end
+    WebRequest.get('https://api.scryfall.com/sets/'..qTbl.name,function(w)
+        local j=JSON.decode(w.text)
+        if j.object=='set'then
+          local pack=Booster(qTbl.name)
+          qTbl.url='Booster '..j.name
+          qTbl.deck=#pack
+          qTbl.mode='Deck'
+          for i,u in pairs(pack)do
+            Wait.time(function()WebRequest.get(u,function(wr)
+                  setCard(wr,qTbl)end)end,i*Tick)end
+    end end)end,
+  
   Random=function(qTbl)
-    local url,q1='https://api.scryfall.com/cards/random','?q='
+    local url,q1='https://api.scryfall.com/cards/random','?q=is:hires'
     if qTbl.name:find('q=')then url=url..qTbl.full:match('%s(%S+)')else
       for _,tbl in ipairs({{w='c%3Aw',u='c%3Au',b='c%3Ab',r='c%3Ar',g='c%3Ag'},
           {i='t%3Ainstant',s='t%3Asorcery',e='t%3Aenchantment',c='t%3Acreature',a='t%3Aartifact',l='t%3Aland',p='t%Aplaneswalker'}})do
@@ -321,6 +383,7 @@ local Importer=setmetatable({
     if qTbl.url then
       for k,v in pairs(DeckSites) do
         if qTbl.url:find(k)then
+          qTbl.mode='Deck'
           local url,deckFunction=v(qTbl.url)
           WebRequest.get(url,function(wr) deckFunction(wr,qTbl)end)
           return true end end
@@ -413,7 +476,7 @@ function onSave()self.script_state=JSON.encode(Back)end
 function onLoad(data)
   Usage=Usage:format(self.getName())
   WebRequest.get(GITURL,self,'uVersion')
-  if data~=''then Back=JSON.decode(data)else Back=JSON.decode('{"___":"https://i.stack.imgur.com/787gj.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","a":"Dummy"}')end
+  if data~=''then Back=JSON.decode(data)end
   Back=TBL.new(Back)
   self.createButton({label="+",click_function='registerModule',function_owner=self,position={0,0.2,-0.5},height=100,width=100,font_size=100,tooltip="Adds Oracle Look Up"})
   uNotebook('SHelp',Usage)
@@ -421,11 +484,11 @@ function onLoad(data)
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
   printToAll(u,{0.9,0.9,0.9})
-  if self.getLock()then registerModule()end  end
+  if self.getLock()then registerModule()end end
 
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
-function onPlayerConnect(player)printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)end
-function onPlayerConnect(player)printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)end
+function onPlayerConnect(player)if player.steam_id==author then printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)end end
+function onPlayerDisconnect(player)if player.steam_id==author then printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)end end
 local chatToggle=false
 function onChat(msg,player)
   if msg:find('[Ss]cryfall ')or msg:find('!S%S* ')then
@@ -441,12 +504,12 @@ function onChat(msg,player)
       if player.steam_id==author then
         s=s..'My creator has requested that I announce their pressence!\n'..SMG..'Behold the titan that is '..player.name..'!'
       elseif player.host then
-        s=s..'You may be the host,'..player.name..', but your not as special to me as my Amuzet.'
+        s=s..'You may be the host,'..player.steam_name..', but your not as special to me as my Amuzet.'
       else s=s..'Why would I? You are of no significance to me!'end
       broadcastToAll(s,SMC)
     elseif a=='clear'then
-      Back=TBL.new(Back.___,{})
-      self.script_state=''
+      self.script_state='{"76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
+      Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
       local tbl={position=player.getPointerPosition(),player=player.steam_id,color=player.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
       if tbl.color=='Grey'then tbl.position={0,2,0}end
