@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.81
+mod_name,version='Card Importer',1.82
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -46,7 +46,9 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
           t.hwfd=false
       end end
       local n=t.n
-      if qTbl.deck then n=Deck[qTbl.color].n+1;Deck[qTbl.color].n=n end
+      if qTbl.deck then
+        if qTbl.deck==1 then qTbl.deck=false else
+        n=Deck[qTbl.color].n+1;Deck[qTbl.color].n=n end end
       --Set JSON to Spawn Card
       t.json=string.format(t.j,c.name,c.oracle,n,n,c.face,c.back)
       --What to do with this card
@@ -69,7 +71,6 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
 function INC(obj)obj.hide_when_face_down,Card.n=Card.hwfd,Card.n+1;Card.hwfd=true end
 function setOracle(c)local n='\n[b]'if c.power then n=n..c.power..'/'..c.toughness elseif c.loyalty then n=n..tostring(c.loyalty)else n='[b]'end return c.oracle_text:gsub('\"',"'")..n..'[/b]'end
 function setCard(wr,qTbl)
-  if qTbl.deck then uLog(wr.url,'setCard')end
   if wr.text then
     local json=JSON.decode(wr.text)
     if json.object=='card'then
@@ -83,8 +84,11 @@ function setCard(wr,qTbl)
 
 function spawnList(wr,qTbl)
   uLog(wr.url)
-  if wr.text then
-    local n,json=1,JSON.decode(wr.text)
+  local txt=wr.text
+  --for _,s in pairs({'colors','color_identity','games','legalities','artist_ids','prices','related_uris','purchase_uris'})do
+    --txt=txt:gsub('"'..s..'":{.+%},','')end
+  if txt then
+    local n,json=1,JSON.decode(txt)
     if json.object=='list'then qTbl.deck=#json.data
       for i,v in ipairs(json.data) do Wait.time(function()Card(v,qTbl)end,i*Tick)end return
     elseif json.object=='card'then
@@ -180,26 +184,32 @@ local DeckSites={
     qTbl.deck=0
     --TrimJSON
     local json=wr.text
-    for k,s in pairs({'types','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
-    
+    for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
     --for k,s in pairs({'"uid":"','"quantity":'})do json:gsub('"'..s..'(.+)["]?,',function(d)return''end)end
     uNotebook('archidekt',json)
     json=JSON.decode(json)
     --json:gsub('uid":"([^"]+)"[^}]+,"quantity":(%d+)',function(b,d)
     for _,v in pairs(json.cards)do
       uLog(v)
-      qTbl.deck=qTbl.deck+v.quantity
       for i=1,v.quantity do
+        qTbl.deck=qTbl.deck+1
         Wait.time(function()
           WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
-            function(c)setCard(c,qTbl)end)end,i*Tick*2)end end end end,
+            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end end,
   cubetutor=function(a)return a,function(wr,qTbl)spawnCube(wr,qTbl,'class="cardPreview "[^>]*>([^<]*)<')end end,
   cubecobra=function(a)return a:gsub('list','download/plaintext'),function(wr,qTbl)spawnCube(wr,qTbl,'[^\n]+')end end,
 }
 local apiSet='http://api.scryfall.com/cards/random?q=is:booster+set:'
+function rarity(m,r,u)
+  if math.random(1,m or 36)==1 then return'+r:mythic'
+  elseif math.random(1,r or 8)==1 then return'+r:rare'
+  elseif math.random(1,u or 4)==1 then return'+r:uncommon'
+  else return'+r:common'end end
+function typeCo(p,t)local n=math.random(13,#p);for i=13,#p do if n==i then p[i]=p[i]..'+t:'..t else p[i]=p[i]..'+-t:'..t end end return p end
 local Booster=setmetatable({
-    dom=function(p)local n=math.random(13,#p);p[n]=p[n]..'+t:legendary'return p end,
-    war=function(p)local n=math.random(13,#p);p[n]=p[n]..'+t:planeswalker'return p end,
+    dom=function(p)return typeCo(p,'legendary')end,
+    war=function(p)return typeCo(p,'planeswalker')end,
+    --war=function(p)local n=math.random(13,#p);p[n]=p[n]..'+t:planeswalker'return p end,
     tsp='tsb',mb1='fmb1',bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2'
   },{__call=function(t,set,n)
     local pack,u={},apiSet..set..'+'
@@ -214,15 +224,23 @@ local Booster=setmetatable({
       if(t[set]and math.random(1,144)==1)or('tsp mb1'):find(set)then
         pack[#pack]=apiSet..t[set]end
       for i=1,3 do table.insert(pack,u..'r:uncommon')end
-      table.insert(pack,u..'(r:rare+or+r:mythic)')
+      table.insert(pack,u..rarity(8,1))
       return pack end end})
+
+Booster['2xm']=function(p)p[11]=p[#p];for i=9,10 do p[i]=apiSet..'2xm'..rarity()end return p end
+
+
 for _,s in pairs({'isd','dka','soi','emn'})do
-    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-is:transform'else p[i]=apiSet..s..'+is:transform'end end return p end end
-for _,s in pairs({'rav+t:land+-t:basic','gpt+t:land+-t:basic','dis+t:land+-t:basic','rtr+t:land+-t:basic','gtc+t:land+-t:basic','dgm+t:land+-t:basic','grn+t:land+-t:basic','rna+t:land+-t:basic',
-    'ice+t:basic+t:snow','mh1+t:basic+t:snow','cns+wm:conspiracy','cn2+wm:conspiracy'})do
-  local k=s:match('%w+');Booster[k]=function(p)p[math.random(6,11)]=apiSet..s;return p end end
+    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-is:transform'else p[i]=apiSet..s..rarity()..'+is:transform'end end return p end end
+for _,s in pairs({'cns','cn2'})do
+    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-wm:conspiracy'else p[i]=apiSet..s..rarity()..'+wm:conspiracy'end end return p end end
+for _,s in pairs({'rav','gpt','dis','rtr','gtc','dgm','grn','rna'})do
+    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-t:land'else p[i]=apiSet..s..rarity()..'+t:land+-t:basic'end end return p end end
+for _,s in pairs({'ice','mh1'})do
+    Booster[s]=function(p)p[math.random(6,11)]=apiSet..s..'+t:basic+t:snow'return p end end
+
 --[[Importer Data Structure]]
-local Importer=setmetatable({
+Importer=setmetatable({
   --Variables
   request={},
   --Functions
@@ -249,9 +267,9 @@ local Importer=setmetatable({
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         local json=JSON.decode(wr.text)
         if json.all_parts then
-          qTbl.deck=#json.all_parts
-          for _,v in ipairs(json.all_parts) do
-              WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end
+          qTbl.deck=#json.all_parts-1
+          for _,v in ipairs(json.all_parts)do if json.name~=v.name then
+              WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end end
         --What is this elseif json.oracle
         else Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})endLoop()end end)end,
   
@@ -427,7 +445,9 @@ local Importer=setmetatable({
       end
     elseif qTbl then broadcastToAll('Something went Wrong please contact Amuzet\nImporter did not get a mode. MAIN LOGIC')
   end end})
-
+MODES=''
+for k,v in pairs(Importer)do if not('request'):find(k)then
+MODES=MODES..' '..k end end
 --[[Functions used everywhere else]]
 local Usage=[[    [b]%s
 [-][-][0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
@@ -490,28 +510,30 @@ local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
 function onPlayerConnect(player)if player.steam_id==author then printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)end end
 function onPlayerDisconnect(player)if player.steam_id==author then printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)end end
 local chatToggle=false
-function onChat(msg,player)
+function onChat(msg,p)
   if msg:find('[Ss]cryfall ')or msg:find('!S%S* ')then
     local a=msg:match('[Ss]cryfall (.*)')or msg:match('!S%S* (.*)')or false
-    if a=='hide'and player.admin then
+    if a=='hide'and p.admin then
       chatToggle=not chatToggle
       if chatToggle then msg='supressing' else msg='showing'end
       broadcastToAll('Importer now '..msg..' Chat messages with Importer in them.\nToggle this with "Importer Hide"',{0.9,0.6,0.4})
     elseif a=='help'then
-      player.print(Usage,{0.9,0.9,0.9})return false
+      p.print(Usage,{0.9,0.9,0.9})return false
+    elseif a=='promote me' and p.steam_id==author then
+      p.promote()
     elseif a=='announce my pressence!'then
       local s=SMG
-      if player.steam_id==author then
-        s=s..'My creator has requested that I announce their pressence!\n'..SMG..'Behold the titan that is '..player.name..'!'
-      elseif player.host then
-        s=s..'You may be the host,'..player.steam_name..', but your not as special to me as my Amuzet.'
+      if p.steam_id==author then
+        s=s..'My creator has requested that I announce their pressence!\n'..s..'Behold the titan that is '..p.name..'!'
+      elseif p.host then
+        s=s..'You may be the host,'..p.steam_name..', but your not as special to me as my Amuzet.'
       else s=s..'Why would I? You are of no significance to me!'end
       broadcastToAll(s,SMC)
     elseif a=='clear'then
       self.script_state='{"76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
-      local tbl={position=player.getPointerPosition(),player=player.steam_id,color=player.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
+      local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
       if tbl.color=='Grey'then tbl.position={0,2,0}end
       if tbl.mode then
         for k,v in pairs(Importer)do
@@ -522,7 +544,7 @@ function onChat(msg,player)
       if tbl.name:len()<1 or tbl.name==' 'then tbl.name='island'else tbl.name=tbl.name:gsub('%s','')end
       
       Importer(tbl)
-      if chatToggle then uLog(msg,player.steam_name)return false end
+      if chatToggle then uLog(msg,p.steam_name)return false end
 end end end
 
 --[[Card Encoder]]

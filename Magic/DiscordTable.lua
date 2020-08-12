@@ -1,4 +1,4 @@
-function none()end local T,B={Red={z='409503',c='DA1917'},Yellow={z='2365d0',c='E6E42B'},White={z='166036',c='FFFFFF'},Green={z='60bfe2',c='30B22A'},Purple={z='033b34',c='9F1FEF'},Blue={z='c04462',c='1E87FF'}},
+function none()end local T,B={Red={z='409503',u='7cffe1',c='DA1917'},Yellow={z='2365d0',u='c20e3f',c='E6E42B'},White={z='166036',u='8b3401',c='FFFFFF'},Green={z='60bfe2',u='b63e9c',c='30B22A'},Purple={z='033b34',u='129eaa',c='9F1FEF'},Blue={z='c04462',u='56cd9d',c='1E87FF'}},
   setmetatable({function_owner=Global,position={0,-0.1,0},width=600,height=600,font_size=300,alignment=3,validation=2,value=0},
     {__call=function(b,o,l,t,p,f)b.position,b.label,b.tooltip,b.click_function=p or b.position,l,t or'',f or'none'o.createButton(b)end})
 --Discord Table Rewrite
@@ -18,46 +18,89 @@ function onload()
         s=s..g:format(T[p.color].c,n)end
       Player[c].broadcast(s..'[-]',{0.7,0.7,0.7})end)
   
+  addContextMenuItem('Have A Response',function(c)
+      broadcastToAll(Player[c].steam_name..' Has A Response!',stringColorToRGB(c))end)
+  
+  addContextMenuItem('Could you not',function(c)
+      broadcastToAll(Player[c].steam_name..' asks "Could you not"',stringColorToRGB(c))end)
+  
   for c,g in pairs(T)do
     self.setVar('Draw'..c,function(_,p)if T[p].d then T[p].d.deal(1,c)end end)
     self.setVar('Scry'..c,function(_,p)if T[p].d then T[p].d.takeObject({index=0}).setPosition(Player[p].getHandTransform(2))end end)end
   B.font_size,B.scale=1200,{0.5,1,0.5}
   for i,o in pairs(getAllObjects())do
     if o.getName()=='UNINTERACTABLE'then o.interactable=false
-    elseif o.getName():find('%w+ Draw')then a(o,'Draw')
-    elseif o.getName():find('%w+ Scry')then a(o,'Scry')
+    elseif o.getName():find('%w+ Draw')then enc(o,'Draw')
+    elseif o.getName():find('%w+ Scry')then enc(o,'Scry')
     elseif o.getName()=='Commander Zone'then
       B.color,B.font_color,B.width,B.height=o.getColorTint(),o.getColorTint(),1200,300
       B(o,'0\n\n','Times Cast\nRight Click to set to Zero',{0,0.21,0.8},'edh')
     elseif o.getName():find('%d+ %w')then
-      local n=o.getName():match('%d+')
-      B.color,B.font_color,B.scale,B.width,B.height={0,0,0},o.getColorTint(),{0.9,1,0.9},0,0
-      B(o,n,nil,{0,0.1,0})
-      B.scale,B.width,B.height={0.5,1,0.5},900,400
-      B(o,'+','Right-click to Increase by 5',{0,0.1,-0.7},'inc')
-      B(o,'-','Right-click to Decrease by 5',{0,0.1,0.7},'dec')
+      cnt(o)
   end end
-  B.position={0,-0.35,-0.7}
-  B.rotation={0,0,180}
-  B.scale={1,1,1}
-  B.font_size=120
-  B.height=250
-  B.width=900
 end
+function onObjectDrop(c,o)
+  if o.tag~='Card'and o.getName():find('%d+ %w+ Mana')then
+    cnt(o)end end
+function onObjectEnterScriptingZone(z,o)
+  if o.tag=='Deck'then
+    for k,c in pairs(T)do if z.getGUID()==c.z then
+    mtgContext(o,k)T[k].d=o end end
+end end
+function cnt(o)
+  o.clearButtons()
+  local n=o.getName():match('%d+')
+  B.color,B.font_color,B.scale,B.width,B.height={0,0,0},o.getColorTint(),{0.9,1,0.9},0,0
+  B(o,n,nil,{0,0.1,0})
+  B.scale,B.width,B.height={0.5,1,0.5},900,400
+  B(o,'+','Right-click to Increase by 5',{0,0.1,-0.7},'inc')
+  B(o,'-','Right-click to Decrease by 5',{0,0.1,0.7},'dec')end
 function edh(o,c,a)local n=tonumber(o.getButtons()[1].label)+1 if a then n=0 end o.editButton({index=0,label=n..'\n\n'})end
 function dec(o,c,a)cng(o,a,-1,-5)end function inc(o,c,a)cng(o,a,1,5)end function cdi(o,c,a)cng(o,a,1,-1)end
-function cng(o,a,x,y)local b=x if a then b=y end o.editButton({index=0,label=tonumber(o.getButtons()[1].label)+b})end
-function a(o,s)
+function cng(o,a,x,y)local b=x if a then b=y end b=tonumber(o.getButtons()[1].label)+b;o.editButton({index=0,label=b})o.setName(o.getName():gsub('%d+',b))end
+function enc(o,s)
   local k=o.getName():match('%w+')
   o.setColorTint(stringColorToRGB(k))
   B.font_color,B.width,B.height=o.getColorTint(),600,600
   B(o,'@',s,{0,-0.1,0},s..k)end
-function onObjectEnterScriptingZone(z,o)
-  if o.tag=='Deck'and o.is_face_down then
-    for k,c in pairs(T)do if z.getGUID()==c.z then
-    mtgContext(o,k)T[k].d=o end end
+function onPlayerTurn(ply)if ply then
+  local t={U='[b]Upkeep Triggers[/b]',
+    d=0,D='[b]Damage During Upkeep[/b]',
+    c=1,C='[b]Draw Step: %d [/b]'}
+  
+  for p,z in pairs(T)do
+    for _,o in pairs(getObjectFromGUID(z.u).getObjects())do
+      if o.tag=='Card'and not o.is_face_down then
+        local m,d=o.getName():gsub('\n.*',''),o.getDescription()
+        local n=m:lower():gsub('%A','')
+        if d~=''then
+          if d:find('Players can\'t draw cards')then
+            t.C=t.C:gsub('].+:',']Players cannot draw cards!')end
+          if d:find('At the beginning of your[^u\n]+upkeep,')and p==ply.color then
+            t.U=t.U..'; '..m end
+          if d:find('At the beginning of each[^u\n]+upkeep,')then
+            local check=d:match('At the beginning of each[^u\n]+upkeep, ([^\n]+)')
+            if check:find('%d+ damage to that player')then
+              if check:find('opponent')and p~=ply.color then
+              t.d=t.d+tonumber(check:match('%d+  damage to that player'))end
+            else t.U=t.U..'; '..m end end
+          if d:find('At the beginning of each[^u\n]+draw step, ([^\n]+)')then
+            local check=d:match('At the beginning of each[^u\n]+draw step, ([^\n]+)')
+            if n=='wellofideas'and p==ply.color then t.c=t.c+2
+            elseif check:find('an additional card')then t.c=t.c+1
+            elseif check:find('two additional cards')then t.c=t.c+2
+            else t.C=t.C..m end end
+  end end end end
+  
+  t.C=t.C:format(t.c)
+  local c=stringColorToRGB(ply.color)
+  for k,v in pairs(t)do if type(v)=='string'and(v:find(';')or(k=='C'and not v:find(' 1 ')))then
+    ply.broadcast(v,c)
+  end end
 end end
 --Context Object
+local M=setmetatable({function_owner=Global,position={0,-0.35,-0.7},color={0,0,0},rotation={0,0,180},width=900,height=250,font_size=120,alignment=3,validation=2,value=0},
+    {__call=function(b,o,l,t,p,f)b.position,b.label,b.tooltip,b.click_function=p or b.position,l,t or'',f or'none'o.createButton(b)end})
 function mtgContext(o,p)
   o.setName(Player[p].steam_name)
   o.hide_when_face_down=false
@@ -65,27 +108,27 @@ function mtgContext(o,p)
   o.highlightOn(stringColorToRGB(p))
   for s,v in pairs({Lands='Click to cycle modes.\nRight click to .',Scry='Takes the top X cards and places them in a pile.',Cascade='Will search this deck for the first nonland card with CMC less than X.'})do
     o.addContextMenuItem(s..' X',function(p)
-        B.font_color=stringColorToRGB(p)
-        B.tooltip=v
+        M.font_color=stringColorToRGB(p)
+        M.tooltip=v
         
-        B.label='Cancel '..s
-        B.click_function='cB'
-        B.position[3]=-0.7
-        o.createButton(B)
+        M.label='Cancel '..s
+        M.click_function='cB'
+        M.position[3]=-0.7
+        o.createButton(M)
         
-        B.label=s..' for 0'
-        B.click_function='c'..s
-        B.position[3]=0.7
-        o.createButton(B)
+        M.label=s..' for 0'
+        M.click_function='c'..s
+        M.position[3]=0.7
+        o.createButton(M)
         
-        B.label='0'
-        B.input_function='i'..s
-        B.position[3]=0
-        B.font_size=200
-        B.width=B.height
-        o.createInput(B)
-        B.width=900
-        B.font_size=120 end)end end
+        M.label='0'
+        M.input_function='i'..s
+        M.position[3]=0
+        M.font_size=200
+        M.width=M.height
+        o.createInput(M)
+        M.width=900
+        M.font_size=120 end)end end
 function cB(o,p,a)o.setLock(false)o.clearButtons()if o.getInputs()then o.clearInputs()end end
 function oS(o)o.setLock(true)
   local p,b,r,f,t=o.getPosition(),o.getBounds().size,o.getTransformRight(),o.getTransformForward(),{flip=true}
@@ -117,11 +160,11 @@ function cCascade(o,c,a)local x,t=oS(o)
         Player[c].broadcast('Auto Cascade Stopped: Card not named!')
       else
         Player[c].broadcast('Auto Cascade Stopped: Spell not Costed!\nClick Button to make a decklist of your deck in a new notebook tab.\nRight click to dismiss.')
-        B.label='Add CMC to Deck'
-        B.click_function='cDeckList'
-        B.tooltip='Click to make a decklist of your deck in a new notebook tab.\nRight click to dismiss.'
-        B.position[3]=0
-        o.createButton(B)
+        M.label='Add CMC to Deck'
+        M.click_function='cDeckList'
+        M.tooltip='Click to make a decklist of your deck in a new notebook tab.\nRight click to dismiss.'
+        M.position[3]=0
+        o.createButton(M)
       end return true
     elseif not v.name:find('Land')and tonumber(v.name:match(' (%d+)CMC'))<tonumber(x) then t.flip=not t.flip break
     else o.takeObject(t)end end
