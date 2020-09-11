@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.83
+mod_name,version='Card Importer',1.84
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -101,27 +101,33 @@ function spawnList(wr,qTbl)
 --[[DeckFormatHandle]]
 local sOver={DAR='DOM',MPS_AKH='MP2',MPS_KLD='MPS',FRF_UGIN='UGIN'}
 local dFile={
-  uidCheck='%w+-%w+-%w+-%w+-%w+',uid=function(line)
-    local num,uid=string.match('__'..line..'__','__%a+,(%d+).+([%w%-]+)__')
+  uidCheck=',%w+-%w+-%w+-%w+-%w+',uid=function(line)
+    local num,uid=string.match('__'..line..'__','__%a+,(%d+).+,([%w%-]+)__')
     return num,'https://api.scryfall.com/cards/'..uid end,
   
   dckCheck='%[[%w_]+:%w+%]',dck=function(line)
     local num,set,col,name=line:match('(%d+).%W+([%w_]+):(%w+)%W+(%w.*)')
+    local alter=name:match(' #(http%S+)')or false
+    name=name:gsub(' #.+','')
     if set:find('DD3_')then set=set:gsub('DD3_','')
     elseif sOver[set]then set=sOver[set]end
     set=set:gsub('_.*',''):lower()
-    return num,'https://api.scryfall.com/cards/'..set..'/'..col end,
+    return num,'https://api.scryfall.com/cards/'..set..'/'..col,alter end,
   
   decCheck='%[[%w_]+%]',dec=function(line)
     local num,set,name=line:match('(%d+).%W+([%w_]+)%W+(%w.*)')
+    local alter=name:match(' #(http%S+)')or false
+    name=name:gsub(' #.+','')
     if set:find('DD3_')then set=set:gsub('DD3_','')
     elseif sOver[set]then set=sOver[set]end
     set=set:gsub('_.*',''):lower()
-    return num,'https://api.scryfall.com/cards/named?fuzzy='..name..'&set='..set end,
+    return num,'https://api.scryfall.com/cards/named?fuzzy='..name..'&set='..set,alter end,
   
-  defCheck='%w+',def=function(line)
+  defCheck='%d+.%w+',def=function(line)
     local num,name=line:match('(%d+).(.*)')
-    return num,'https://api.scryfall.com/cards/named?fuzzy='..name end}
+    local alter=name:match(' #(http%S+)')or false
+    name=name:gsub(' #.+','')
+    return num,'https://api.scryfall.com/cards/named?fuzzy='..name,alter end}
 --[[Deck spawning]]
 function spawnDeck(wr,qTbl)
   if wr.text:find('!DOCTYPE')then
@@ -131,17 +137,17 @@ function spawnDeck(wr,qTbl)
   else
     uLog(wr.url,'Deck Spawned by '..qTbl.color)
     local sideboard=''
-    local deck,alter,list={},{},wr.text:gsub('\n%S*Sideboard(.*)',function(a)sideboard=a return ''end)
+    qTbl.image={}
+    local deck,list={},wr.text:gsub('\n%S*Sideboard(.*)',function(a)sideboard=a return ''end)
     if sideboard~=''then uNotebook('Sideboard',sideboard:gsub('\n%S*Maybeboar.*\n','\n'))end
     
     for b in list:gmatch('([^\r\n]+)')do
       for k,v in pairs(dFile)do
         if type(v)=='string'and b:find(v)then
-          local n,a=dFile[k:sub(1,3)](b)
-          if n and a then
-            for i=1,n do table.insert(deck,a)end
-            break end end end end
-    
+          local n,a,r=dFile[k:sub(1,3)](b)
+          for i=1,n do table.insert(deck,a)
+            --table.insert(qTbl.image,r)
+          end break end end end
     qTbl.deck=#deck
     
     for i,url in ipairs(deck) do
@@ -452,7 +458,7 @@ Importer=setmetatable({
     elseif qTbl and t.request[2]then
       local msg='Queueing request '..#t.request
       if t.request[4]then msg=msg..'. Queue auto clears after the 13th request!'
-      elseif t.request[3]then msg=msg..'. Type `Scryfall clear` to clear the queue!'end
+      elseif t.request[3]then msg=msg..'. Type `Scryfall queue` to Force quit the queue!'end
       Player[qTbl.color].broadcast(msg)
     elseif t.request[1]then
       local tbl=t.request[1]
@@ -550,6 +556,8 @@ function onChat(msg,p)
         s=s..'You may be the host,'..p.steam_name..', but your not as special to me as my Amuzet.'
       else s=s..'Why would I? You are of no significance to me!'end
       broadcastToAll(s,SMC)
+    elseif a=='queue'then
+      endLoop()
     elseif a=='clear'then
       --https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4
       self.script_state='{"76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
