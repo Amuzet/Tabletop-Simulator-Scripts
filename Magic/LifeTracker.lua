@@ -10,7 +10,7 @@ function option(o,c,a)
 function click_changeValue(obj, color, val)
   if color==owner or Player[color].admin then
   local C3=count
-  if count+val>=0 then count=count+val else count=0 end
+  count=count+val
   local C1=count
   function clickCoroutine()
     if C2==nil then C2=C3 end
@@ -35,31 +35,38 @@ function onPlayerTurn()
   sL(count)
 end
 function onChat(m,player)
-  --I drain everyone for %d+ life.
-  if Player[owner].seated and m:find('%d+')then
+  if Player[owner].seated and m:find(' %d+')then
     local t,n='',tonumber(m:match('%d+'))
     if m:find('Everyone loses %d+')then
-      count,t=count-n,' [888888]made everyone gain[-] '
-      sl(count,count-JSON.decode(self.script_state).c)
-    elseif m:find('Drain%W+%d+')then
+      count,t=count-n,'[999999]made everyone lose[-] '
+    elseif m:find('Opponents lose %d+')then
+      if player.color~=owner then count=count-n
+      else t='[999999]opponents lost[-] 'end
+    elseif m:find('Reset Life %d+')then
+      count,t=n,'Reset Life totals to '
+    elseif m:find('Set Life %d+')and player.color==owner then
+      local change=math.abs(n-count)
+      count,t=n,' Life total changed by '..change..'. Set to '
+    elseif m:find('Drain %d+')then
+      if player.color==owner then
+        count=count+n
+        t='[999999]Drained everyone for[-] '
+      else count=count-n
+        sL(count,n)end
+    elseif m:find('Extort %d+')then
       if player.color==owner then
         for i,p in pairs(Player.getPlayers())do
-          if p.seated then count=count+n end end
-        t=' [888888]Drained everyone for[-] '
-      else count=count-n end
-    elseif m:find('Reset%W+$d+')then
-      count,t=n,' Reset Life totals to '
-      updateSave()
-    elseif m:find('Set Life %d+')and player.color==owner then
-      count,t=n,' Set their life to '
+          if p.seated and p.color~=player.color then count=count+n end end
+        t='[999999]Extorted everyone for[-] '
+      else count=count-n
+        sL(count,n)end
     end
+    updateSave()
     if t~=''then
       printToAll(player.color..t..n,self.getColorTint())
       sL(count,count-JSON.decode(self.script_state).c)
-      return false
-    end
-  end
-end
+      return false end
+end end
 function onload(s)
   self.interactable=false
   --Loads the tracking for if the game has started yet
@@ -73,7 +80,7 @@ function onload(s)
     self.setVar(fn,function(o,c,a)local b=1 if a then b=5 end click_changeValue(o,c,v.val*b)end)
     self.createButton({tooltip='Right-click for '..v.label..'5',click_function=fn,function_owner=self,position=v.pos,height=500,width=500,label=v.label,font_size=1000,rotation={0,90,0},color={0,0,0,1},font_color=clr})
   end
-  for i,v in pairs({{'Exile',9.9},{'Deck',14.3},{'Graveyard',18.7,300}})do
+  for i,v in pairs({{'Exile',13.6},{'Deck',17.7},{'Graveyard',22.0,300}})do
     self.createButton({label=v[1],position={-v[2],0,0},rotation={0,90,0},font_size=v[3]or 500,width=0,height=0,font_color=self.getColorTint(),click_function='none',function_owner=self})
 end end
 ref_type,owner,display,C2='Life','White',true,nil

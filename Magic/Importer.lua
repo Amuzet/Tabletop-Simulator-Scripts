@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.82
+mod_name,version='Card Importer',1.83
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -30,9 +30,15 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       if c.card_faces then
         for _,f in ipairs(c.card_faces)do c.oracle=c.oracle..c.name:gsub('"','\'')..'\n'..setOracle(f)end
       else c.oracle=setOracle(c)end
-      --if Quality[qTbl.player]=='art_crop'then c.oracle..'\nArtist: '..c.artist end
+      
+      local n=t.n
+      if qTbl.deck then
+        if qTbl.deck==1 then qTbl.deck=false else
+        n=Deck[qTbl.color].n+1;Deck[qTbl.color].n=n end end
       --Image Handling
-      if t.image and qTbl.mode~='Deck'then --Custom Image
+      if qTbl.deck and qTbl.image and qTbl.image[n] then
+        c.face=qTbl.image[n]
+      elseif t.image then --Custom Image
         c.face=t.image
         t.image=false
       elseif c.image_uris then
@@ -45,10 +51,6 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
           c.face=c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
           t.hwfd=false
       end end
-      local n=t.n
-      if qTbl.deck then
-        if qTbl.deck==1 then qTbl.deck=false else
-        n=Deck[qTbl.color].n+1;Deck[qTbl.color].n=n end end
       --Set JSON to Spawn Card
       t.json=string.format(t.j,c.name,c.oracle,n,n,c.face,c.back)
       --What to do with this card
@@ -99,23 +101,27 @@ function spawnList(wr,qTbl)
 --[[DeckFormatHandle]]
 local sOver={DAR='DOM',MPS_AKH='MP2',MPS_KLD='MPS',FRF_UGIN='UGIN'}
 local dFile={
+  uidCheck='%w+-%w+-%w+-%w+-%w+',uid=function(line)
+    local num,uid=string.match('__'..line..'__','__%a+,(%d+).+([%w%-]+)__')
+    return num,'https://api.scryfall.com/cards/'..uid end,
+  
   dckCheck='%[[%w_]+:%w+%]',dck=function(line)
-    local set,num,name=line:match('%[([%w_]+):(%w+)%] (%w.*)')
+    local num,set,col,name=line:match('(%d+).%W+([%w_]+):(%w+)%W+(%w.*)')
     if set:find('DD3_')then set=set:gsub('DD3_','')
-    elseif sOver[set]then set=sOver[set] end
+    elseif sOver[set]then set=sOver[set]end
     set=set:gsub('_.*',''):lower()
-    return 'https://api.scryfall.com/cards/'..set..'/'..num end,
+    return num,'https://api.scryfall.com/cards/'..set..'/'..col end,
   
   decCheck='%[[%w_]+%]',dec=function(line)
-    local set,name=line:match('%[([%w_]+)%] (%w.*)')
+    local num,set,name=line:match('(%d+).%W+([%w_]+)%W+(%w.*)')
     if set:find('DD3_')then set=set:gsub('DD3_','')
-    elseif sOver[set]then set=sOver[set] end
+    elseif sOver[set]then set=sOver[set]end
     set=set:gsub('_.*',''):lower()
-    return 'https://api.scryfall.com/cards/named?fuzzy='..name..'&set='..set end,
+    return num,'https://api.scryfall.com/cards/named?fuzzy='..name..'&set='..set end,
   
   defCheck='%w+',def=function(line)
-    local name=line:gsub('%[%S%]',''):match('(%w.*)')
-    return 'https://api.scryfall.com/cards/named?fuzzy='..name end}
+    local num,name=line:match('(%d+).(.*)')
+    return num,'https://api.scryfall.com/cards/named?fuzzy='..name end}
 --[[Deck spawning]]
 function spawnDeck(wr,qTbl)
   if wr.text:find('!DOCTYPE')then
@@ -125,16 +131,16 @@ function spawnDeck(wr,qTbl)
   else
     uLog(wr.url,'Deck Spawned by '..qTbl.color)
     local sideboard=''
-    local deck,list={},wr.text:gsub('\n%S*Sideboard(.*)',function(a)sideboard=a return ''end)
-    local maybeboard=sideboard:match('\n%S*Maybeboard(.*)')
---[[if qTbl.mode=='Sideboard'then list=wr.text:match('Sideboard(.*)')end
-    list=list:gsub('Maybeboard.*','')]]
+    local deck,alter,list={},{},wr.text:gsub('\n%S*Sideboard(.*)',function(a)sideboard=a return ''end)
+    if sideboard~=''then uNotebook('Sideboard',sideboard:gsub('\n%S*Maybeboar.*\n','\n'))end
     
-    list:gsub('(%d+)[ xX]([^\r\n]+)',function(a,b)
-        for k,v in pairs(dFile)do
-          if type(v)=='string'and b:find(v)then
-            for i=1,a do table.insert(deck,dFile[k:sub(1,3)](b))end
-            break end end end)
+    for b in list:gmatch('([^\r\n]+)')do
+      for k,v in pairs(dFile)do
+        if type(v)=='string'and b:find(v)then
+          local n,a=dFile[k:sub(1,3)](b)
+          if n and a then
+            for i=1,n do table.insert(deck,a)end
+            break end end end end
     
     qTbl.deck=#deck
     
@@ -142,63 +148,82 @@ function spawnDeck(wr,qTbl)
       Wait.time(function()
           WebRequest.get(url,function(c)
               setCard(c,qTbl)end)end,i*Tick)end
-    delay('endLoop',#deck*2)
 end end
 
-function spawnParse(wr,qTbl,g,url)
-  uLog(wr.text,wr.url)
-  qTbl.deck=0
-  wr.text:gsub(g,function(uid)
-      qTbl.deck=qTbl.deck+1
-      Wait.time(function()
-          WebRequest.get(url..uid,
-            function(c) setCard(c,qTbl)end)end,i*Tick)end)
-  delay('endLoop',i)
-end
-function spawnCube(wr,qTbl,check)local cube={};wr.text:gsub(check,function(b)table.insert(cube,b)uLog(b)end)qTbl.deck=#cube;for i,v in ipairs(cube)do Wait.time(function()WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..v,function(c)setCard(c,qTbl)end)end,i*Tick)end delay('endLoop',#cube)end
+function spawnCube(wr,qTbl,check)local cube={};wr.text:gsub(check,function(b)table.insert(cube,b)uLog(b)end)qTbl.deck=#cube;for i,v in ipairs(cube)do Wait.time(function()WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..v,function(c)setCard(c,qTbl)end)end,i*Tick)end end
 local DeckSites={
-  --domain as key in table set to a function that takes a string and returns a url,and function
-  --Key=function(URL) return modifiedURL,function(modifiedURL,qTbl)end,
-  --https://deckstats.net/decks/99231/1519126-zombie-deck-beta?include_comments=1&export_dec=1
-  deckstats=function(a)return a..'?export_txt=1',spawnDeck end,
-  --https://tappedout.net/mtg-decks/the-minewalker/ https://tappedout.net/alter/3057/
-  tappedout=function(a)printToAll('Tappedout Alters Unsupported',{0.1,0.5,0.8})return a:gsub('.cb=%d+','')..'?fmt=txt',spawnDeck end,
+  deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastbin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   deckbox=function(a)return a..'/export',spawnDeck end,
-  scryfall=function(a)return a:gsub('com/.*/','com/decks/'):gsub('scryfall','api.scryfall')..'/export/text',spawnDeck end,
-  --https://www.moxfield.com/decks/fiWavmsoZk6ttuu6ngfTZA
-  --https://api.moxfield.com/v1/decks/all/fiWavmsoZk6ttuu6ngfTZA/download
-  moxfield=function(a)return 'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)')..'/download',spawnDeck end,
-  --Default Function 'spawnDeck' requires a url that returns a plain text deck list.
+  scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
+  moxfield=function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)')..'/download',spawnDeck end,
   mtggoldfish=function(a)
-    if a:find('/archetype/')then
-    --https://www.mtggoldfish.com/archetype/standard-jeskai-fires#paper
-    --https://www.mtggoldfish.com/deck/download/2560235
-      return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
-    elseif a:find('/deck/')then
-    --https://www.mtggoldfish.com/deck/2572815#paper
-    --https://www.mtggoldfish.com/deck/download/2572815
-      return a:gsub('/deck/','/deck/download/'):gsub('#%w+',''),spawnDeck
+    if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
+    elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
     else return a,function(wr,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
-  archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/',function(wr,qTbl)
+  tappedout=function(a)return a:gsub('.cb=%d+','')..'?fmt=csv',function(wr,qTbl)
+    printToAll('Tappedout Alters Unsupported',{0.1,0.5,0.8})
+    local deck,list={},wr.text
+    for line in list:gmatch('([^\r\n]+)')do
+      local tbl,l={},','..line:gsub(',("[^"]+"),',function(g)return','..g:gsub(',','')..','end)
+      l=l:gsub(',',', ')
+      for csv in l:gmatch(',([^,]+)')do if csv:len()==1 then break
+      else table.insert(tbl,csv:sub(2))end end
+      if #tbl>10 then uLog(tbl)
+      elseif tbl[1]=='main'then
+        local b='https://api.scryfall.com/cards/named?fuzzy='..tbl[3]
+        if tbl[4]and tbl[4]~='000'then b=b..'&set='..tbl[4]end
+        for i=1,tbl[2]do table.insert(deck,b)end
+    end end
+    qTbl.deck=#deck
+    for i,url in ipairs(deck)do
+      Wait.time(function()
+          WebRequest.get(url,function(c)
+              setCard(c,qTbl)end)end,i*Tick)end
+    end end,
+  archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/?format=json',function(wr,qTbl)
     qTbl.deck=0
-    --TrimJSON
     local json=wr.text
     for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
-    --for k,s in pairs({'"uid":"','"quantity":'})do json:gsub('"'..s..'(.+)["]?,',function(d)return''end)end
+    json=json:gsub(',"ckNormalId[^}]+},','},')
+    json=json:gsub(',"viewCount":.+]}','}')
     uNotebook('archidekt',json)
     json=JSON.decode(json)
-    --json:gsub('uid":"([^"]+)"[^}]+,"quantity":(%d+)',function(b,d)
+    local board=''
     for _,v in pairs(json.cards)do
-      uLog(v)
-      for i=1,v.quantity do
+      if('SideboardMaybeboard'):find(v.categories[1])then
+        board=board..v.quantity..' '..v.card.uid
+      else for i=1,v.quantity do
         qTbl.deck=qTbl.deck+1
         Wait.time(function()
           WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
-            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end end,
+            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end
+    if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
+    uNotebook(json.name,board)end end end,
   cubetutor=function(a)return a,function(wr,qTbl)spawnCube(wr,qTbl,'class="cardPreview "[^>]*>([^<]*)<')end end,
-  cubecobra=function(a)return a:gsub('list','download/plaintext'),function(wr,qTbl)spawnCube(wr,qTbl,'[^\n]+')end end,
-}
+  cubecobra=function(a)return a:gsub('/list/','/download/csv/')..'?primary=Color%20Category&secondary=Types-Multicolor&tertiary=CMC2',function(wr,qTbl)
+    local deck,n,list={},0,wr.text
+    if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
+    for line in list:gmatch('([^\r\n]+)')do
+      local tbl,l={},line:gsub(',',', ')
+      table.insert(tbl,line:match('"([^"]+)"'))
+      l=l:gsub('"([^"]+)"','',1)
+      for csv in l:gmatch(',([^,]+)')do
+        local s=csv:sub(2):gsub('"','')
+        table.insert(tbl,s)end
+      if #tbl>16 then uLog(tbl)
+      else n=n+1
+        if n<4 then uLog(tbl)end
+        if tbl[12]:find('http')then qTbl.image[n]=tbl[12]:match('"([^"]+)')end
+        local b='https://api.scryfall.com/cards/'..tbl[5]..'/'..tbl[6]
+        table.insert(deck,b)
+    end end
+    qTbl.deck=#deck
+    for i,url in ipairs(deck)do
+      Wait.time(function()
+          WebRequest.get(url,function(c)
+              setCard(c,qTbl)end)end,i*Tick)end
+    end end}
 local apiSet='http://api.scryfall.com/cards/random?q=is:booster+set:'
 function rarity(m,r,u)
   if math.random(1,m or 36)==1 then return'+r:mythic'
@@ -228,8 +253,6 @@ local Booster=setmetatable({
       return pack end end})
 
 Booster['2xm']=function(p)p[11]=p[#p];for i=9,10 do p[i]=apiSet..'2xm'..rarity()end return p end
-
-
 for _,s in pairs({'isd','dka','soi','emn'})do
     Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-is:transform'else p[i]=apiSet..s..rarity()..'+is:transform'end end return p end end
 for _,s in pairs({'cns','cn2'})do
@@ -361,9 +384,15 @@ Importer=setmetatable({
           qTbl.url='Booster '..j.name
           qTbl.deck=#pack
           qTbl.mode='Deck'
+          
+          for i,u in pairs(pack)do
+            
+          end
+          
           for i,u in pairs(pack)do
             Wait.time(function()WebRequest.get(u,function(wr)
                   setCard(wr,qTbl)end)end,i*Tick)end
+        else Player[qTbl.color].broadcast(j.details,{1,0,0})endLoop()
     end end)end,
   
   Random=function(qTbl)
@@ -393,9 +422,8 @@ Importer=setmetatable({
     else WebRequest.get(url,function(wr)setCard(wr,qTbl)end)end end,
   
   Quality=function(qTbl)
-    for k,v in pairs({s='small',n='normal',l='large',a='art_crop',b='border_crop'}) do
-      if qTbl.name:find(v)then Quality[qTbl.player]=v end end
-    endLoop()end,
+    if('small normal large art_crop border_crop'):find(qTbl.name)then
+      Quality[qTbl.player]=qTbl.name end endLoop()end,
   
   Deck=function(qTbl)
     if qTbl.url then
@@ -406,11 +434,8 @@ Importer=setmetatable({
           WebRequest.get(url,function(wr) deckFunction(wr,qTbl)end)
           return true end end
     elseif qTbl.mode=='Deck'then
-      local d=getNotebookTabs()
-      d=d[#d]
-      spawnDeck({
-          text=d.body,
-          url='Notebook '..d.title..d.color},qTbl)
+      local d=getNotebookTabs();d=d[#d]
+      spawnDeck({text=d.body,url='Notebook '..d.title..d.color},qTbl)
     end return false end,
   
     },{
@@ -421,28 +446,24 @@ Importer=setmetatable({
       table.insert(t.request,qTbl)
     end
     --Main Logic
-    if t.request[4] and qTbl then
+    if t.request[13] and qTbl then
       Player[qTbl.color].broadcast('Clearing Previous requests yours added and being processed.')
       endLoop()
     elseif qTbl and t.request[2]then
-      Player[qTbl.color].broadcast('Queueing request.')
+      local msg='Queueing request '..#t.request
+      if t.request[4]then msg=msg..'. Queue auto clears after the 13th request!'
+      elseif t.request[3]then msg=msg..'. Type `Scryfall clear` to clear the queue!'end
+      Player[qTbl.color].broadcast(msg)
     elseif t.request[1]then
       local tbl=t.request[1]
-      --Logic Branch
+      --If URL is not Deck list then
+      --Custom Image Replace
       if tbl.url and tbl.mode~='Back'then
         if not t.Deck(tbl)then
-        --If URL is not Deck list then
-        --Custom Image Replace
         Card.image=tbl.url
-        t.Spawn(tbl)
-        end
-      elseif t[tbl.mode]then
-        --Execute that Mode
-        t[tbl.mode](tbl)
-      else
-        --Attempt to Spawn
-        t.Spawn(tbl)
-      end
+        t.Spawn(tbl)end
+      elseif t[tbl.mode]then t[tbl.mode](tbl)
+      else t.Spawn(tbl)end--Attempt to Spawn
     elseif qTbl then broadcastToAll('Something went Wrong please contact Amuzet\nImporter did not get a mode. MAIN LOGIC')
   end end})
 MODES=''
@@ -453,7 +474,7 @@ local Usage=[[    [b]%s
 [-][-][0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
 [b][0077ff]Scryfall[/b] [i]URL cardname[/i]  [-][Spawns [i]cardname[/i] with [i]URL[/i] as it face]
 [b][0077ff]Scryfall[/b] [i]URL[/i]  [-][Spawn that deck list or Image]
-[b]Supported: [/b][i]archidekt cubetutor cubecobra deckstats deckbox mtggoldfish scryfall tappedout pastebin[/i]
+[b]Supported:[/b] [i]archidekt cubetutor cubecobra deckstats deckbox mtggoldfish scryfall tappedout pastebin[/i]
 [b][0077ff]Scryfall help[/b] [-][Displays all possible commands]
 
 [b][ff7700]deck[/b] [-][Spawn deck from newest Notebook tab]
@@ -530,7 +551,8 @@ function onChat(msg,p)
       else s=s..'Why would I? You are of no significance to me!'end
       broadcastToAll(s,SMC)
     elseif a=='clear'then
-      self.script_state='{"76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media.wizards.com/2019/images/daily/oCa6ZZvWzu.png","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
+      --https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4
+      self.script_state='{"76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
       local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
