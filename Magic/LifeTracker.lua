@@ -34,43 +34,41 @@ function onPlayerTurn()
   updateSave()
   sL(count)
 end
-function onChat(m,player)
-  if Player[owner].seated and m:find(' %d+')then
-    local t,n='',tonumber(m:match('%d+'))
-    if m:find('Everyone loses %d+')then
-      count,t=count-n,'[999999]made everyone lose[-] '
-    elseif m:find('Opponents lose %d+')then
-      if player.color~=owner then count=count-n
-      else t='[999999]opponents lost[-] 'end
-    elseif m:find('Reset Life %d+')then
-      count,t=n,'Reset Life totals to '
-    elseif m:find('Set Life %d+')and player.color==owner then
-      local change=math.abs(n-count)
-      count,t=n,' Life total changed by '..change..'. Set to '
-    elseif m:find('Drain %d+')then
-      if player.color==owner then
-        count=count+n
-        t='[999999]Drained everyone for[-] '
-      else count=count-n
-        sL(count,n)end
-    elseif m:find('Extort %d+')then
-      if player.color==owner then
-        for i,p in pairs(Player.getPlayers())do
-          if p.seated and p.color~=player.color then count=count+n end end
-        t='[999999]Extorted everyone for[-] '
-      else count=count-n
-        sL(count,n)end
-    end
+
+local lCheck={
+  ['_everyoneloses']=function(n,p)return count-n,'made everyone lose'end,
+  ['_opponentslose']=function(n,p)if p.color~=owner then return count-n else return count,'opponents lost'end end,
+  ['_resetlife']=function(n,p)return n,'reset Life totals to'end,
+  ['_doublemylife']=function(n,p)if p.color==owner then return n*2,'doubled their life to'end end,
+  ['_setlife']=function(n,p)if p.color==owner then return n,'Life total changed by '..math.abs(n-count)..'. Setting it to'end end,
+  ['_drain']=function(n,p)if p.color==owner then return count+n,'drained everyone for'else return count-n,false,true end end,
+  ['_extort']=function(n,y)if y.color==owner then for _,p in pairs(Player.getPlayers())do if p.seated and p.color~=owner then count=count+n end end return count,'extorted everyone for'else return count-n,false,true end end,
+  ['_test']=function(n,p)return count end,
+  ['_testg']=function(n,p)end,
+
+}
+
+function onChat(msg,player)
+  if msg:find(' %d+')then
+    local m=msg:lower():gsub(' ','')
+    local sl,t,n=false,'',tonumber(m:match('%d+'))
+    m='_'..m
+    for k,f in pairs(lCheck)do
+      if m:find(k..'%d+')then
+        count,t,sl=f(n,player)
+        if sl then sL(count,n)end
+        break end end
+    
     updateSave()
-    if t~=''then
-      printToAll(player.color..t..n,self.getColorTint())
+    if t and t~=''then
+      printToAll(player.color..'[999999] '..t..' [-]'..n,self.getColorTint())
       sL(count,count-JSON.decode(self.script_state).c)
       return false end
 end end
 function onload(s)
-  self.interactable=false
   --Loads the tracking for if the game has started yet
-  ref_type,owner=self.getName(),self.getDescription()
+  owner=self.getDescription()
+  ref_type=self.getName():gsub('%s?UNINTERACTABLE','')
   txt=owner..' [888888]%s %s '..ref_type..'.[-]'
   local clr=stringColorToRGB(owner)
   self.setColorTint(clr)
@@ -80,7 +78,7 @@ function onload(s)
     self.setVar(fn,function(o,c,a)local b=1 if a then b=5 end click_changeValue(o,c,v.val*b)end)
     self.createButton({tooltip='Right-click for '..v.label..'5',click_function=fn,function_owner=self,position=v.pos,height=500,width=500,label=v.label,font_size=1000,rotation={0,90,0},color={0,0,0,1},font_color=clr})
   end
-  for i,v in pairs({{'Exile',13.6},{'Deck',17.7},{'Graveyard',22.0,300}})do
-    self.createButton({label=v[1],position={-v[2],0,0},rotation={0,90,0},font_size=v[3]or 500,width=0,height=0,font_color=self.getColorTint(),click_function='none',function_owner=self})
+  for i,v in pairs({{'^Exile^',0},{'^Deck^',4.1},{'^Graveyard^',8.4,300}})do
+    self.createButton({label=v[1],position={-(17.3+v[2]),0,0},rotation={0,90,0},font_size=v[3]or 500,width=0,height=0,font_color=self.getColorTint(),click_function='none',function_owner=self})
 end end
 ref_type,owner,display,C2='Life','White',true,nil

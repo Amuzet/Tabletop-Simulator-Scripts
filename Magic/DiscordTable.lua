@@ -1,13 +1,47 @@
-function none()end local T,B={
+function none()end local T,B,HelpText={
+    --The color name must be exactly the same as the player hands
     --z=deck,u=untaparea,c=hexcolor,g=graveyard,d=instancedDeck
     White ={z='166036',u='8b3401',c='FFFFFF',g='4afe33',d=false},
     Yellow={z='2365d0',u='c20e3f',c='E6E42B',g='fd747d',d=false},
     Red   ={z='409503',u='7cffe1',c='DA1917',g='572da6',d=false},
-    Green ={z='60bfe2',u='b63e9c',c='30B22A',g='bc9f0b',d=false},
-    Purple={z='033b34',u='129eaa',c='9F1FEF',g='f2d8a4',d=false},
-    Blue  ={z='c04462',u='56cd9d',c='1E87FF',g='51a780',d=false}},
+    Purple={z='60bfe2',u='b63e9c',c='30B22A',g='bc9f0b',d=false},
+    Blue  ={z='033b34',u='129eaa',c='9F1FEF',g='f2d8a4',d=false},
+    Green ={z='c04462',u='56cd9d',c='1E87FF',g='51a780',d=false}},
   setmetatable({function_owner=Global,position={0,-0.1,0},width=600,height=600,font_size=300,alignment=3,validation=2,value=0},
-    {__call=function(b,o,l,t,p,f)b.position,b.label,b.tooltip,b.click_function=p or b.position,l,t or'',f or'none'o.createButton(b)end})
+    {__call=function(b,o,l,t,p,f)b.position,b.label,b.tooltip,b.click_function=p or b.position,l,t or'',f or'none'o.createButton(b)end}),
+[[ [b]These commands can be input into chat.
+[i](10 can be any number)[/i][/b]
+
+[854FD9][b]Scryfall help[/b][-]
+Displays all commands for "Card Importer", extra detail in "SHelp" Tab.
+
+[55af00][b]Everyone loses 10[/b][-]
+Makes everyone lose that much life.                                                      
+
+[55af00][b]Opponents lose 10[/b][-]
+Makes everyone else lose that much life. [i]Even teammates[/i]                   
+
+[55af00][b]Drain 10[/b][-]
+You gain # life, everyone else loses that much life.                                              
+
+[55af00][b]Extort 10[/b][-]
+Everyone else loses that much life, you gain the life lost that way.                    
+
+[55af00][b]Set Life 10[/b][-]
+Sets your life total, and outputs the difference.                                                 
+
+[55af00][b]Reset Life 10[/b][-]
+SETS ALL PLAYERS LIFE TOTAL, used to restart the game without reloading.
+
+[55af00][b]Double My Life 1[/b][-]
+Doubles your life total.                                                                            ]]
+
+Txt=setmetatable({type='3DText',position={0,2,0},rotation={90,0,0},previous=false},
+  {__call=function(t,text,f)
+      local o=spawnObject(t)
+      o.TextTool.setValue(text)
+      o.TextTool.setFontSize(f or 80)
+      return function(s)if o then if s then o.TextTool.setValue(s)else o.destruct()t.previous=false end end end end})
 --[[Discord Table Rewrite]]
 function onload()
   local d,i='[%s]%s %s %s[-]',0
@@ -16,6 +50,7 @@ function onload()
     if zone then if zone.tag~='Scripting'then
       print(d:format(v.c,v.z,k,zone.tag))
       else i=i+1 end end end
+  Notes.editNotebookTab({index=0,title='Table Commands',body=HelpText:gsub('%s%s+\n','\n')})
   
   addContextMenuItem('Hand Counts',function(c)
       local s,g='Cards in Hands:',' [%s]%s[-]'
@@ -32,34 +67,39 @@ function onload()
       broadcastToAll(Player[c].steam_name..' asks [999999]"Could you not"[-]',stringColorToRGB(c))end)
   
   addContextMenuItem('Table Commands',function(c)
-      Player[c].broadcast('These commands can be input into chat.\nScryfall help\nEveryone loses #\nDrain #\nSet Life #\nReset Life #')end)
+      if Txt.previous then Txt.previous()end
+      Txt.position=getObjectFromGUID(T[c].u).getPosition()
+      Txt.position[3]=Txt.position[3]-(getObjectFromGUID(T[c].g).getPosition()[3]-Txt.position[3])
+      Txt.rotation[2]=Player[c].getHandTransform().rotation[2]
+      Txt.previous=Txt(HelpText:gsub('-]\n','-] '))end)
   
-  B.font_size,B.scale=1200,{0.5,1,0.5}
+  B.font_size,B.scale=500,{0.5,1,0.5}
   for i,o in pairs(getAllObjects())do
-    if o.getName()=='UNINTERACTABLE'then o.interactable=false
+    if o.getName():find('UNINTERACTABLE')then o.interactable=false end
+    if o.getName():find('%d+ Commander Zone')then
+      B.color,B.font_color,B.width,B.height={0,0,0},o.getColorTint(),700,400
+      B(o,o.getName():match('%d+'),'Times Cast\nRight Click to set to Zero',{0,0.21,0.8},'edh')
+    elseif o.getName():find('%d+ %w')then cnt(o)
     elseif o.getName():find('%w+ Draw')then enc(o,'Draw')
     elseif o.getName():find('%w+ Scry')then enc(o,'Scry')
-    elseif o.getName()=='Commander Zone'then
-      B.color,B.font_color,B.width,B.height=o.getColorTint(),o.getColorTint(),1200,300
-      B(o,'0\n\n','Times Cast\nRight Click to set to Zero',{0,0.21,0.8},'edh')
-    elseif o.getName():find('%d+ %w')then
-      cnt(o)
-  end end
-end
+end end end
 function onObjectSpawn(o)
-  if o.tag~='Card'and o.getName():find('%d+ %w+ Mana')then
+  if o.tag~='Card'and(o.getName():find('%d+ %w+ Mana')or o.getName():find('%d+ Damage'))then
     cnt(o)end end
 function cnt(o)
   o.clearButtons()
-  local n=o.getName():match('%d+')
+  local n,t=o.getName():match('(%d+)(.*)')
   B.color,B.font_color,B.scale,B.width,B.height={0,0,0},o.getColorTint(),{0.9,1,0.9},0,0
   B(o,n,nil,{0,0.1,0})
+  B.width,B.height=500,500
+  B(o,'@','[b]'..t..'[/b]\nLeft CLick Increase\nRight Click Decrease',{0,0,0},'cdi')
+end--[[cnt Increment by 5
   B.scale,B.width,B.height={0.5,1,0.5},900,400
   B(o,'+','Right-click to Increase by 5',{0,0.1,-0.7},'inc')
-  B(o,'-','Right-click to Decrease by 5',{0,0.1,0.7},'dec')end
+  B(o,'-','Right-click to Decrease by 5',{0,0.1,0.7},'dec')end]]
 function edh(o,c,a)local n=tonumber(o.getButtons()[1].label)+1 if a then n=0 end o.editButton({index=0,label=n})end
 function dec(o,c,a)cng(o,a,-1,-5)end function inc(o,c,a)cng(o,a,1,5)end function cdi(o,c,a)cng(o,a,1,-1)end
-function cng(o,a,x,y)local b=x if a then b=y end b=tonumber(o.getButtons()[1].label)+b;o.editButton({index=0,label=b})o.setName(o.getName():gsub('%d+',b))end
+function cng(o,a,x,y)local b=x if a then b=y end b=tonumber(o.getButtons()[1].label)+b;o.editButton({index=0,label=b})o.setName(o.getName():gsub('%-?%d+',b))end
 function enc(o,s)
   local k=o.getName():match('%w+')
   o.setColorTint(stringColorToRGB(k))
