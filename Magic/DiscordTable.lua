@@ -1,4 +1,4 @@
-function none()end local T,B,HelpText={
+function none()end local Tables,T,B,HelpText={},{
     --The color name must be exactly the same as the player hands
     --z=deck,u=untaparea,c=hexcolor,g=graveyard,d=instancedDeck
     White ={z='166036',u='8b3401',c='FFFFFF',g='4afe33',d=false},
@@ -6,7 +6,13 @@ function none()end local T,B,HelpText={
     Red   ={z='409503',u='7cffe1',c='DA1917',g='572da6',d=false},
     Purple={z='60bfe2',u='b63e9c',c='30B22A',g='bc9f0b',d=false},
     Blue  ={z='033b34',u='129eaa',c='9F1FEF',g='f2d8a4',d=false},
-    Green ={z='c04462',u='56cd9d',c='1E87FF',g='51a780',d=false}},
+    Green ={z='c04462',u='56cd9d',c='1E87FF',g='51a780',d=false},
+    --[[10 Player Table]]
+    Brown ={z='c73837',u='e251e4',c='DA1917',g='9fbce4',d=false},
+    Orange={z='59683d',u='981f1c',c='30B22A',g='3be8c4',d=false},
+    Pink  ={z='4f664b',u='5d441f',c='9F1FEF',g='013729',d=false},
+    Teal  ={z='1177d3',u='fc6e17',c='1E87FF',g='08704e',d=false},
+    },
   setmetatable({function_owner=Global,position={0,-0.1,0},width=600,height=600,font_size=300,alignment=3,validation=2,value=0},
     {__call=function(b,o,l,t,p,f)b.position,b.label,b.tooltip,b.click_function=p or b.position,l,t or'',f or'none'o.createButton(b)end}),
 [[ [b]These commands can be input into chat.
@@ -73,11 +79,15 @@ function onload()
       Txt.rotation[2]=Player[c].getHandTransform().rotation[2]
       Txt.previous=Txt(HelpText:gsub('-]\n','-] '))end)
   
-  B.font_size,B.scale=500,{0.5,1,0.5}
+  Timer.create({function_name='surfaceSetup',identifier='surfaceLoad',delay=2})
+  B.font_size=500
   for i,o in pairs(getAllObjects())do
-    if o.getName():find('UNINTERACTABLE')then o.interactable=false end
+    if o.getName():find('UNINTERACTABLE')then
+      o.interactable=false
+      if o.getName():find('Table%w+')then
+        table.insert(Tables,o.getGUID())end end
     if o.getName():find('%d+ Commander Zone')then
-      B.color,B.font_color,B.width,B.height={0,0,0},o.getColorTint(),700,400
+      B.scale,B.color,B.font_color,B.width,B.height={0.5,1,0.5},{0,0,0},o.getColorTint(),700,400
       B(o,o.getName():match('%d+'),'Times Cast\nRight Click to set to Zero',{0,0.21,0.8},'edh')
     elseif o.getName():find('%d+ %w')then cnt(o)
     elseif o.getName():find('%w+ Draw')then enc(o,'Draw')
@@ -86,6 +96,39 @@ end end end
 function onObjectSpawn(o)
   if o.tag~='Card'and(o.getName():find('%d+ %w+ Mana')or o.getName():find('%d+ Damage'))then
     cnt(o)end end
+function surfaceSetup()
+  for i,g in pairs(Tables)do
+    if i~=2 then
+      surfaceMini(getObjectFromGUID(g))
+end end end
+function surfaceMini(o)
+  local n,p=o.getName():gsub(' U.*',''),{95,-5,0}
+  B.scale,B.width={10,1,10},2400
+  o.setScale(o.getScale()*0.1)
+  for i,g in pairs(Tables)do
+    if g==o.getGUID()then
+      p[3]=(i-2)*8
+      o.setPosition(p)
+      break end end
+  B(o,n,n..'\nSwap to this table',{0,6,0},'surfaceSwap')
+end
+function surfaceSwap(o,c,a)
+  for _,g in pairs(Tables)do
+    local j=getObjectFromGUID(g)
+    if j.getPosition()[1]<1 then
+      surfaceMini(j)break end end
+  --[[{0.00, -1.30, 0.00}
+{0.00, 0.00, 0.00}
+{1.47, 1.00, 1.17}]]
+  local i=0
+  o.clearButtons()
+  for line in o.getDescription():gmatch('{[^}]+}')do i=i+1
+    local x,y,z=string.match(line,'([^,{]+), ([^,]+), ([^}]+)')
+    local t={tonumber(x),tonumber(y),tonumber(z)}
+    log(t)
+    if i==1 then o.setPositionSmooth(t)
+    elseif i==3 then o.setScale(t)
+end end end
 function cnt(o)
   o.clearButtons()
   local n,t=o.getName():match('(%d+)(.*)')
@@ -122,6 +165,10 @@ function cf_Scry(o,p)
   Player[c].broadcast('Quickly click and drag off the top of your deck cards to scry\nThen holding SHIFT+ALT you may look at the other side without revealing it.')
   if T[p].d and false then T[p].d.takeObject({index=0}).setPosition(Player[p].getHandTransform(2))end end
 function onPlayerTurn(ply)if ply then
+  for _,g in pairs(Tables)do
+    if getObjectFromGUID(g)then
+      getObjectFromGUID(g).setColorTint(stringColorToRGB(ply.color))
+  end end
   local t={U='[b]Upkeep Triggers[/b]',
     d=0,D='[b]Damage During Upkeep[/b]',
     c=1,C='[b]Draw Step: %d [/b]',

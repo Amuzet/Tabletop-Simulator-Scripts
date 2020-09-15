@@ -68,7 +68,7 @@ end end
 function onload(s)
   --Loads the tracking for if the game has started yet
   owner=self.getDescription()
-  ref_type=self.getName():gsub('%s?UNINTERACTABLE','')
+  ref_type=self.getName():gsub('%s.+','')
   txt=owner..' [888888]%s %s '..ref_type..'.[-]'
   local clr=stringColorToRGB(owner)
   self.setColorTint(clr)
@@ -78,7 +78,7 @@ function onload(s)
     self.setVar(fn,function(o,c,a)local b=1 if a then b=5 end click_changeValue(o,c,v.val*b)end)
     self.createButton({tooltip='Right-click for '..v.label..'5',click_function=fn,function_owner=self,position=v.pos,height=500,width=500,label=v.label,font_size=1000,rotation={0,90,0},color={0,0,0,1},font_color=clr})
   end
-  for i,v in pairs({{'^Exile^',0},{'^Deck^',4.1},{'^Graveyard^',8.4,300}})do
-    self.createButton({label=v[1],position={-(17.3+v[2]),0,0},rotation={0,90,0},font_size=v[3]or 500,width=0,height=0,font_color=self.getColorTint(),click_function='none',function_owner=self})
+  for i,v in pairs({{'^Exile^',0},{'^Deck^',4.2},{'^Graveyard^',8.3,250}})do
+    self.createButton({label=v[1],position={-(16.4+v[2]),0,0},rotation={0,90,0},font_size=v[3]or 500,width=0,height=0,font_color=self.getColorTint(),click_function='none',function_owner=self})
 end end
 ref_type,owner,display,C2='Life','White',true,nil

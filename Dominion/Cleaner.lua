@@ -30,9 +30,11 @@ function onPlayerDisconnect(player)
   DISCONNECT=player.color
   delay('dc',player)
 end function dc(player)DISCONNECT=false end
-function wait(time,key)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
+function wait(time)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
 function onPlayerTurn(player)
-  if Global.getTable('ref_players')and Global.getVar('gameState')==3 then currDebt=false
+  if Global.getTable('ref_players')and Global.getVar('gameState')==3 then
+    local function oPT()
+    currDebt=false
     wait(1)
     if not playArea then setPlayArea()
     elseif Player[Turns.getPreviousTurnColor()]and not DISCONNECT then
@@ -81,6 +83,8 @@ function onPlayerTurn(player)
     local c=stringColorToRGB(Turns.turn_color)
     for k,v in pairs(c)do c[k]=(v*0.6)+0.1 end c[4]=1
     self.setColorTint(c)
+  end
+  startLuaCoroutine(self,'oPT')
   end
 end
 

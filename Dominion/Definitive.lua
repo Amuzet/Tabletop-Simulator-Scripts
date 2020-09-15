@@ -1,5 +1,23 @@
 --DominionDefinitiveEditionModifiedByAmuzet2020_07_30_k
-VERSION,GITURL=2.4,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
+VERSION,GITURL=2.5,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
+--[[Bugs:
+Some card backs are miscolored so you can tell which is which in hands. ex shelters
+Heirlooms spawn an extra card next to yellow if there are 5+ players
+The number of events setting doesn't affect the balanced setup options.
+The Fair Grounds card from cornicopia isn't scored.
+Setup for the black market deck takes forever if there are more than a couple of decks selected
+TO DO:
+Create Input that can take kingdom as CSV
+Create Input that shows kingdom as CSV
+Prevent Card Shaped objects from being scored
+Make Included sets Work
+Find the Artifact named: "X Pact"
+Invoking witch is dealt sideways like an event card.
+Faustian Witch doesn't cause a cursed bargain deck to spawn
+Cleaner:
+If a player leaves the game during their turn, it will give their cards to the pervious player
+]]
+
 function onSave()
   saved_data=JSON.encode({
     gs=gameState,
@@ -122,13 +140,13 @@ function onLoad(saved_data)
         btn('Quick Setup\nAll Sets','Random Kingdom from every set')
         btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
         btn('Balanced Setup\nDual Sets','Random Kingdom made with 5 cards of one set and 5 from another',{8.5,0,-48})
-        btn('Balanced Setup\nTripple Sets','Random Kingdom made with 3 cards each from 3 sets with a forth card from a random one of those sets')
+        btn('Balanced Setup\nTriple Sets','Random Kingdom made with 3 cards each from 3 sets with a forth card from a random one of those sets')
         btn('Balanced Setup\nFive Sets','Random Kingdom made with 2 cards each from 5 sets')
         btn('Balanced Setup\nTen Sets','Random Kingdom made with a card each from 10 different sets')
         btn.color={0,0,0}btn.font_color={1,1,1}
         btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{0,0,-48},'click_blackMarketLimit')
         btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
-        btn('Included Sets:\n'..sL[sL.n][1],'Toggles sets which sets are allowed in Quick Setup.\nCurrently only official sets are allowed.\nThis excludes Custom and Promo cards.',nil,'click_setLimit')
+        --btn('Included Sets:\n'..sL[sL.n][1],'Toggles sets which sets are allowed in Quick Setup.\nCurrently only official sets are allowed.\nThis excludes Custom and Promo cards.',nil,'click_setLimit')
       end
     end
     if gameState==2 then
@@ -172,7 +190,7 @@ function click_endGame(obj, color)
             else bcast(currentPlayer..' is Miserable',{1,0,1})end end
           if obj.tag=='Card'or obj.tag=='Deck'then
             local t=getType(obj.getName())
-            if t and t~='Boon'and t~='Hex'and t~='Artifact'and t~='State'then
+            if t and t~='Boon'and t~='Hex'and t~='Artifact'and t~='State'and t~='Project'then
               obj.setRotation({0,180,180})
               obj.setPosition(ref_players[currentPlayer].deck)
               coroutine.yield(0)end end end end
@@ -250,14 +268,15 @@ function click_endGame(obj, color)
         -- Score Based on thier VP
         for k,v in pairs(tracker.deck)do
           local vp=getVP(k)
-          if type(vp)~='number'then vp=vp(tracker,dT,cp)end
-          if vp>0 then
-            if tracker.deck.Pyramid and getType(k):find('Victory')then
-              vp=vp-tracker.deck.Pyramid
-              if vp<0 then vp=0 end
-            end
-            vP[cp]=vP[cp] + vp*v
-        end end
+          if type(vp)=='function'then vp=vp(tracker,dT,cp)
+          elseif k=='Curse'then log(vp)end
+          
+          if tracker.deck.Pyramid and getType(k):find('Victory')then
+            vp=vp-tracker.deck.Pyramid
+            if vp<0 then vp=0 end
+          end
+          vP[cp]=vP[cp] + vp*v
+        end
         -- Score VP tokens
         if getObjectFromGUID(ref_players[cp].vp)then
           vP[cp]=vP[cp] + getObjectFromGUID(ref_players[cp].vp).call('getCount')
@@ -375,7 +394,7 @@ function click_ThreeSets(obj, color)useSets={}
     click_StartGame(obj, color)
 end
 function click_DualSets(o,c)balanceSets(2,o,c)end
-function click_TrippleSets(o,c)balanceSets(3,o,c)end
+function click_TripleSets(o,c)balanceSets(3,o,c)end
 function click_FiveSets(o,c)balanceSets(5,o,c)end
 function click_TenSets(o,c)balanceSets(10,o,c)end
 function balanceSets(n,o,c)
@@ -403,7 +422,10 @@ function balanceSets(n,o,c)
   if #events==1 then for i=1,math.random(1,3)do
       table.insert(events,events[1])end
   elseif #events==2 then for i=1,2 do
-      table.insert(events,events[i])end
+      local j=i
+      if getObjectFromGUID(events[i]).getName():find(' Ways')then j=(i%2)+1 end
+      if getObjectFromGUID(events[j]).getName():find(' Ways')then break end
+      table.insert(events,events[j])end
   elseif #events==3 then
     table.insert(events,events[math.random(1,3)])
   elseif #events>4 then
@@ -638,7 +660,8 @@ function setupKingdom(summonException)
             for j, v in ipairs(getObjectFromGUID(ks.zone).getObjects())do if v.tag=='Card'then card=true end end
             while not card do
               for j, v in pairs(deck.getObjects())do
-                local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
+                local tp=getType(v.name)
+                if('EventLandmarkProjectWayEdictSpell'):find(tp)then
                   if eventCount < eventMax then
                     --local tp=getType(v.name) if tp=='Way'then if w==1 then break end w=w+1 end
                     eventCount=eventCount + 1
@@ -665,72 +688,22 @@ function setupKingdom(summonException)
             local cleanDeck=false
             local deckAddPos={deck.getPosition()[1],deck.getPosition()[2] + 2,deck.getPosition()[3]}
             while not cleanDeck do
-                cleanDeck=true
-                for i, v in ipairs(deck.getObjects())do
-                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
-                        coroutine.yield(0)
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Knights'then
-                        coroutine.yield(0)
-                        getPile('Knights pile').shuffle()
-                        getPile('Knights pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Castles'then
-                        coroutine.yield(0)
-                        getPile('Castles pile').shuffle()
-                        getPile('Castles pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Catapult / Rocks'then
-                        coroutine.yield(0)
-                        getPile('Catapult / Rocks pile').shuffle()
-                        getPile('Catapult / Rocks pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Encampment / Plunder'then
-                        coroutine.yield(0)
-                        getPile('Encampment / Plunder pile').shuffle()
-                        getPile('Encampment / Plunder pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Gladiator / Fortune'then
-                        coroutine.yield(0)
-                        getPile('Gladiator / Fortune pile').shuffle()
-                        getPile('Gladiator / Fortune pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Patrician / Emporium'then
-                        coroutine.yield(0)
-                        getPile('Patrician / Emporium pile').shuffle()
-                        getPile('Patrician / Emporium pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Settlers / Bustling Village'then
-                        coroutine.yield(0)
-                        getPile('Settlers / Bustling Village pile').shuffle()
-                        getPile('Settlers / Bustling Village pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Sauna / Avanto'then
-                        coroutine.yield(0)
-                        getPile('Sauna / Avanto pile').shuffle()
-                        getPile('Sauna / Avanto pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    end
-                end
-            end
+              cleanDeck=true
+              for i, v in ipairs(deck.getObjects())do
+                local tp=getType(v.name)
+                if('EventLandmarkProjectWayEdictSpell'):find(tp)then
+                  coroutine.yield(0)
+                  deck.takeObject({index=v.index}).destruct()
+                  cleanDeck=false
+                  break
+                elseif('Knights,Castles,Catapult / Rocks,Encampment / Plunder,Gladiator / Fortune,Patrician / Emporium,Settlers / Bustling Village,Sauna / Avanto,Stallions,Panda / Gardener'):find(v.nickname)
+                  coroutine.yield(0)
+                  local p=getPile(v.nickname..' pile')
+                  p.shuffle()
+                  p.takeObject({index=1,position=deckAddPos,flip=true})
+                  deck.takeObject({index=v.index}).destruct()
+                  cleanDeck=false
+                  break end end end
             wait(2,'skskcMarket')
             deck.shuffle()
             while #deck.getObjects() > blackMarketMax + 1 do
@@ -773,81 +746,20 @@ function setupKingdom(summonException)
             while not cleanDeck do
                 cleanDeck=true
                 for i, v in ipairs(deck.getObjects())do
-                    local tp=getType(v.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
-                        coroutine.yield(0)
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Knights'then
-                        coroutine.yield(0)
-                        getPile('Knights pile').shuffle()
-                        getPile('Knights pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Castles'then
-                        coroutine.yield(0)
-                        getPile('Castles pile').shuffle()
-                        getPile('Castles pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Catapult / Rocks'then
-                        coroutine.yield(0)
-                        getPile('Catapult / Rocks pile').shuffle()
-                        getPile('Catapult / Rocks pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Encampment / Plunder'then
-                        coroutine.yield(0)
-                        getPile('Encampment / Plunder pile').shuffle()
-                        getPile('Encampment / Plunder pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Gladiator / Fortune'then
-                        coroutine.yield(0)
-                        getPile('Gladiator / Fortune pile').shuffle()
-                        getPile('Gladiator / Fortune pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Patrician / Emporium'then
-                        coroutine.yield(0)
-                        getPile('Patrician / Emporium pile').shuffle()
-                        getPile('Patrician / Emporium pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Settlers / Bustling Village'then
-                        coroutine.yield(0)
-                        getPile('Settlers / Bustling Village pile').shuffle()
-                        getPile('Settlers / Bustling Village pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Sauna / Avanto'then
-                        coroutine.yield(0)
-                        getPile('Sauna / Avanto pile').shuffle()
-                        getPile('Sauna / Avanto pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Stallions'then
-                        coroutine.yield(0)
-                        getPile('Stallions pile').shuffle()
-                        getPile('Stallions pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break
-                    elseif v.nickname=='Panda / Gardener'then
-                        coroutine.yield(0)
-                        getPile('Panda / Gardener pile').shuffle()
-                        getPile('Panda / Gardener pile').takeObject({index=1, position=deckAddPos, flip=true})
-                        deck.takeObject({index=v.index}).destruct()
-                        cleanDeck=false
-                        break end end end
+                  local tp=getType(v.name)
+                  if('EventLandmarkProjectWayEdictSpell'):find(tp)then
+                    coroutine.yield(0)
+                    deck.takeObject({index=v.index}).destruct()
+                    cleanDeck=false
+                    break
+                  elseif('Knights,Castles,Catapult / Rocks,Encampment / Plunder,Gladiator / Fortune,Patrician / Emporium,Settlers / Bustling Village,Sauna / Avanto,Stallions,Panda / Gardener'):find(v.nickname)
+                    coroutine.yield(0)
+                    local p=getPile(v.nickname..' pile')
+                    p.shuffle()
+                    p.takeObject({index=1,position=deckAddPos,flip=true})
+                    deck.takeObject({index=v.index}).destruct()
+                    cleanDeck=false
+                    break end end end
         wait(2,'skskcMarket')
         deck.shuffle()
         while #deck.getObjects()>blackMarketMax do
@@ -985,7 +897,7 @@ function cleanUp()
   f(Use('TBattalion'),'T Broken Sword')
   f(Use('TCharlatan'),'T Cursed Antique')
   f(Use('CCabal'),'Turncoat')
-  f(Use('CHyde'),'Hyde')
+  f(Use('CJekyll'),'Hyde')
   f(Use('Spellcaster'),'Spellcasters Spells')
   
   local dC=1
@@ -1100,7 +1012,7 @@ function cleanUp()
   end
 end
 function createHeirlooms(c)
-  for n,h in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['Magician']='Rabbit',['Jinxed Jewel']='Jinxed Jewel',['Burned Village']='Rescuers'})do
+  for n,h in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['C Magician']='Rabbit',['C Jinxed Jewel']='Jinxed Jewel',['C Burned Village']='Rescuers'})do
     if c==n then getPile('Heirlooms').takeObject({position=getObjectFromGUID(ref_storageZone.heirloom).getPosition(),guid=ref_heirlooms[h],flip=true})break end end end
 function createPile()
   for _,ks in pairs(ref_kingdomSlots)do
@@ -2324,7 +2236,7 @@ ref_master={
 {cost='M6D0P0',name='C Mortgage',type='Project',depend='Debt'},
 {cost='M0D0P0',name='C Lost Battle',type='Landmark',depend='VP'},
 {cost='M4D0P0',name='C Cave',type='Night - Victory',VP=2,depend='Artifact'},
-{cost='M4D0P0',name='C Chisel',type='Action - Reserve'},
+{cost='M4D0P0',name='C Chisel',type='Action - Reserve',depend='Artifact'},
 {cost='M7D0P0',name='C Knockout',type='Event',depend='Artifact'},
 {cost='M1D0P1',name='C Migrant Village',type='Action',depend='Villager'},
 {cost='M4D0P0',name='C Discretion',type='Action - Reserve',depend='VP Coffers Villager'},
@@ -2332,7 +2244,7 @@ ref_master={
 {cost='M4D0P0',name='C Investor',type='Action',depend='Debt'},
 {cost='M6D0P0',name='C Contest',type='Action - Looter',depend='Prize'},
 {cost='M6D0P0',name='C Uneven Road',type='Action - Victory',depend='Estate',VP=3},
-{cost='M3D0P1',name='C Jekyll',type='Action',depend='Hyde'},
+{cost='M3D0P1',name='C Jekyll',type='Action'},
 {cost='M4D0P1',name='C Hyde',type='Night - Attack'},
 {cost='M5D0P0',name='C Stormy Seas',type='Night',depend='Debt'},
 {cost='M0D4P0',name='C Liquid Luck',type='Action - Fate',depend='VP Potion'},
@@ -2392,8 +2304,12 @@ ref_master={
 {cost='M5D0P0',name='W Ghostly Witch',type='Night - Attack'},
 {cost='M0D0P0',name='W Ethereal Curse',type='Night - Curse',VP=-1},
 {cost='M4D0P0',name='W Neighborhood Witch',type='Action',depend='Artifact'},
-{cost='MXDXPX',name='W Cauldron',type='Artifact'},
+{cost='MXDXPX',type='Artifact',name='W Cauldron'},
 --Custom https://www.reddit.com/r/dominion/comments/hrx0rb/original_new_cards_i_made_hope_you_enjoy1_lol/
+{cost='MXDXPX',type='Artifact',name='Letter'},
+{cost='MXDXPX',type='Artifact',name='Statue'},
+{cost='MXDXPX',type='Artifact',name='Torch'},
+{cost='MXDXPX',type='Artifact',name='Champion\'s Belt'},
 {cost='M5D0P0',name='C Burned Village',type='Action - Night'},
 {cost='M4D0P0',name='C Rescuers',type='Treasure - Heirloom'},
 {cost='M5D0P0',name='C Ancient Coin',type='Treasure - Duration'},
