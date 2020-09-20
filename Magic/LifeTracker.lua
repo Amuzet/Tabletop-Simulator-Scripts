@@ -44,7 +44,6 @@ local lCheck={
   ['_drain']=function(n,p)if p.color==owner then return count+n,'drained everyone for'else return count-n,false,true end end,
   ['_extort']=function(n,y)if y.color==owner then for _,p in pairs(Player.getPlayers())do if p.seated and p.color~=owner then count=count+n end end return count,'extorted everyone for'else return count-n,false,true end end,
   ['_test']=function(n,p)return count end,
-  ['_testg']=function(n,p)end,
 
 }
 

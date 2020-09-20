@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.84
+mod_name,version='Card Importer',1.85
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -156,7 +156,6 @@ function spawnDeck(wr,qTbl)
               setCard(c,qTbl)end)end,i*Tick)end
 end end
 
-function spawnCube(wr,qTbl,check)local cube={};wr.text:gsub(check,function(b)table.insert(cube,b)uLog(b)end)qTbl.deck=#cube;for i,v in ipairs(cube)do Wait.time(function()WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..v,function(c)setCard(c,qTbl)end)end,i*Tick)end end
 local DeckSites={
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastbin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
@@ -206,9 +205,26 @@ local DeckSites={
             function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end
     if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
     uNotebook(json.name,board)end end end,
-  cubetutor=function(a)return a,function(wr,qTbl)spawnCube(wr,qTbl,'class="cardPreview "[^>]*>([^<]*)<')end end,
+  cubetutor=function(a)return a,function(wr,qTbl)
+    local cube={}
+    wr.text:gsub('class="cardPreview ([^>]*>[^<]*)<',function(b)
+        local s,c=b:match('cloudfront.net/([^/]+)/[^>]+>(.+)')
+        s=s:gsub('_.+','')
+        if s:len()>3 then
+          if s:find('DDA...')then s=s:sub(4)
+        end end
+        table.insert(cube,'https://api.scryfall.com/cards/named?fuzzy='..c..'&set='..s)end)
+    qTbl.deck=#cube
+    for i,v in ipairs(cube)do
+      Wait.time(function()
+          WebRequest.get(v,function(c)
+              local t=JSON.decode(c.text)
+              if t.object~='card'then log(v)
+                WebRequest.get(v:gsub('&.+',''),function(c)setCard(c,qTbl)end)
+              else setCard(c,qTbl)end end)end,i*Tick*2)
+    end end end,
   cubecobra=function(a)return a:gsub('/list/','/download/csv/')..'?primary=Color%20Category&secondary=Types-Multicolor&tertiary=CMC2',function(wr,qTbl)
-    local deck,n,list={},0,wr.text
+    local cube,n,list={},0,wr.text
     if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
     for line in list:gmatch('([^\r\n]+)')do
       local tbl,l={},line:gsub(',',', ')
@@ -222,13 +238,13 @@ local DeckSites={
         if n<4 then uLog(tbl)end
         if tbl[12]:find('http')then qTbl.image[n]=tbl[12]:match('"([^"]+)')end
         local b='https://api.scryfall.com/cards/'..tbl[5]..'/'..tbl[6]
-        table.insert(deck,b)
+        table.insert(cube,b)
     end end
-    qTbl.deck=#deck
-    for i,url in ipairs(deck)do
+    qTbl.deck=#cube
+    for i,url in ipairs(cube)do
       Wait.time(function()
           WebRequest.get(url,function(c)
-              setCard(c,qTbl)end)end,i*Tick)end
+              setCard(c,qTbl)end)end,i*Tick*2)end
     end end}
 local apiSet='http://api.scryfall.com/cards/random?q=is:booster+set:'
 function rarity(m,r,u)
@@ -236,11 +252,11 @@ function rarity(m,r,u)
   elseif math.random(1,r or 8)==1 then return'+r:rare'
   elseif math.random(1,u or 4)==1 then return'+r:uncommon'
   else return'+r:common'end end
-function typeCo(p,t)local n=math.random(13,#p);for i=13,#p do if n==i then p[i]=p[i]..'+t:'..t else p[i]=p[i]..'+-t:'..t end end return p end
+function typeCo(p,t)local n=math.random(13,#p);for i=13,#p do if n==i then p[i]=p[i]..'+'..t else p[i]=p[i]..'+-('..t..')'end end return p end
 local Booster=setmetatable({
-    dom=function(p)return typeCo(p,'legendary')end,
-    war=function(p)return typeCo(p,'planeswalker')end,
-    --war=function(p)local n=math.random(13,#p);p[n]=p[n]..'+t:planeswalker'return p end,
+    dom=function(p)return typeCo(p,'t:legendary')end,
+    war=function(p)return typeCo(p,'t:planeswalker')end,
+    znr=function(p)return typeCo(p,'t:land+(is:spell+or+pathway)')end,
     tsp='tsb',mb1='fmb1',bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2'
   },{__call=function(t,set,n)
     local pack,u={},apiSet..set..'+'
@@ -521,6 +537,14 @@ end
 --[[Tabletop Callbacks]]
 function onSave()self.script_state=JSON.encode(Back)end
 function onLoad(data)
+  for _,o in pairs(getAllObjects())do
+    if o.getName():find(mod_name)and o~=self then
+      if version<o.getVar('version')then
+        self.destruct()
+      else o.destruct()end
+      break end end
+  
+  
   Usage=Usage:format(self.getName())
   WebRequest.get(GITURL,self,'uVersion')
   if data~=''then Back=JSON.decode(data)end
