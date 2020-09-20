@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.85
+mod_name,version='Card Importer',1.86
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -206,14 +206,14 @@ local DeckSites={
     if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
     uNotebook(json.name,board)end end end,
   cubetutor=function(a)return a,function(wr,qTbl)
-    local cube={}
-    wr.text:gsub('class="cardPreview ([^>]*>[^<]*)<',function(b)
+    local cube,html={},wr.text:sub(100000)
+    html:gsub('class="cardPreview ([^>]*>[^<]*)<',function(b)
         local s,c=b:match('cloudfront.net/([^/]+)/[^>]+>(.+)')
-        s=s:gsub('_.+','')
-        if s:len()>3 then
-          if s:find('DDA...')then s=s:sub(4)
-        end end
-        table.insert(cube,'https://api.scryfall.com/cards/named?fuzzy='..c..'&set='..s)end)
+        if s then s=s:gsub('_.+','')
+          if s:len()>3 and s:find('DDA...')then s=s:sub(4)end
+        else c=b:match('>(.+)');s='pgru' end
+        table.insert(cube,'https://api.scryfall.com/cards/named?fuzzy='..c..'&set='..s)
+        return''end)
     qTbl.deck=#cube
     for i,v in ipairs(cube)do
       Wait.time(function()
@@ -529,9 +529,13 @@ function uVersion(wr)
   if v then v=tonumber(v) else v=version end
   local s='\nLatest Version '..self.getName()
   if version>v or Test then Test,s=true,'\n[fff600]Experimental Version of Importer Module'
-  elseif version<v then s='\n[77ff00]Update Ready:'..v..' on Workshop[-]\n'..wr.url end
+  elseif version<v then s='\n[77ff00]Update Ready:'..v..' Attempting Update[-]\n'..wr.url end
   Usage=Usage..s
   broadcastToAll(s,{1,0,1})
+  if s:find(' Attempting Update')then
+    self.setLuaScript(wr.text)
+    self.reload()
+  end
 end
 
 --[[Tabletop Callbacks]]
