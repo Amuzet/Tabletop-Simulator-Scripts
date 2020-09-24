@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.86
+mod_name,version='Card Importer',1.861
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -181,11 +181,15 @@ local DeckSites={
         for i=1,tbl[2]do table.insert(deck,b)end
     end end
     qTbl.deck=#deck
-    for i,url in ipairs(deck)do
+    for i,u in ipairs(deck)do
       Wait.time(function()
-          WebRequest.get(url,function(c)
-              setCard(c,qTbl)end)end,i*Tick)end
-    end end,
+          WebRequest.get(u,function(c)
+              local t=JSON.decode(c.text)
+              if t.object~='card'then if u:find('&')then
+                WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
+                else WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard',function(c)setCard(c,qTbl)end)end
+              else setCard(c,qTbl)end end)end,i*Tick*2)
+    end end end,
   archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/?format=json',function(wr,qTbl)
     qTbl.deck=0
     local json=wr.text
@@ -215,12 +219,12 @@ local DeckSites={
         table.insert(cube,'https://api.scryfall.com/cards/named?fuzzy='..c..'&set='..s)
         return''end)
     qTbl.deck=#cube
-    for i,v in ipairs(cube)do
+    for i,u in ipairs(cube)do
       Wait.time(function()
-          WebRequest.get(v,function(c)
+          WebRequest.get(u,function(c)
               local t=JSON.decode(c.text)
-              if t.object~='card'then log(v)
-                WebRequest.get(v:gsub('&.+',''),function(c)setCard(c,qTbl)end)
+              if t.object~='card'then
+                WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
               else setCard(c,qTbl)end end)end,i*Tick*2)
     end end end,
   cubecobra=function(a)return a:gsub('/list/','/download/csv/')..'?primary=Color%20Category&secondary=Types-Multicolor&tertiary=CMC2',function(wr,qTbl)
