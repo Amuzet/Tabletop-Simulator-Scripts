@@ -167,28 +167,28 @@ local DeckSites={
         WebRequest.get(wr.url..'/download?exportId='..b,function(w)
         spawnDeck(w,qTbl)end)end)
   end end,
-  --[[function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)'),function(wr,qTbl)
-    qTbl.deck=0
-    local json=wr.text
-    for _,s in pairs({'legalities','prices','related_uris'})do
-      json=json:gsub('"'..s..'"[^}]+},','')end
-    for _,s in pairs({'colors','color_indicator','color_identity','all_parts','tags','author_tags','hubs'})do
-      json=json:gsub('"'..s..'"[^%] ]+%],?','')end
-    local boards={'mainboard','sideboard','maybeboard','commanders','signatureSpells','exportId'}
-    for j=1,#boards-1 do
-      if json:match(boards[j]..'Count":(%d+)')~='0'and j~=2 and j~=3 then
-        local _,s1=json:find(boards[j]..'":{')
-        local _,s2=json:find('},"'..boards[j+1])
-        local s=json:sub(s1,s2)
-        uNotebook(boards[j],s)
-        for k,v in pairs(JSON.decode(s))do
-          for i=1,v.quantity do
-            qTbl.deck=qTbl.deck+1
-            Wait.time(function()Card(v.card,qTbl)end,1+qTbl.deck*Tick)
-    end end end end
-    if board~=''then uNotebook(json.name,board)
-      Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
-  end end end,]]
+--  function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)'),function(wr,qTbl)
+--    qTbl.deck=0
+--    local json=wr.text
+--    for _,s in pairs({'legalities','prices','related_uris'})do
+--      json=json:gsub('"'..s..'"[^}]+},','')end
+--    for _,s in pairs({'colors','color_indicator','color_identity','all_parts','tags','author_tags','hubs'})do
+--      json=json:gsub('"'..s..'"[^%] ]+%],?','')end
+--    local boards={'mainboard','sideboard','maybeboard','commanders','signatureSpells','exportId'}
+--    for j=1,#boards-1 do
+--      if json:match(boards[j]..'Count":(%d+)')~='0'and j~=2 and j~=3 then
+--        local _,s1=json:find(boards[j]..'":{')
+--        local _,s2=json:find('},"'..boards[j+1])
+--        local s=json:sub(s1,s2)
+--        uNotebook(boards[j],s)
+--        for k,v in pairs(JSON.decode(s))do
+--          for i=1,v.quantity do
+--            qTbl.deck=qTbl.deck+1
+--            Wait.time(function()Card(v.card,qTbl)end,1+qTbl.deck*Tick)
+--    end end end end
+--    if board~=''then uNotebook(json.name,board)
+--      Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
+--  end end end,
   mtggoldfish=function(a)
     if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
     elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
@@ -566,6 +566,8 @@ function uVersion(wr)
   if s:find(' Attempting Update')then
     self.setLuaScript(wr.text)
     self.reload()
+  else
+    registerModule()
   end
 end
 
@@ -589,8 +591,7 @@ function onLoad(data)
   uNotebook('SData',self.script_state)
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
-  printToAll(u,{0.9,0.9,0.9})
-  if self.getLock()then registerModule()end end
+  printToAll(u,{0.9,0.9,0.9})end
 
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
 function onPlayerConnect(player)if player.steam_id==author then printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)end end
