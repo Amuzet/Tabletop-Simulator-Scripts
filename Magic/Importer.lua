@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.861
+mod_name,version='Card Importer',1.87
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -161,7 +161,34 @@ local DeckSites={
   pastbin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   deckbox=function(a)return a..'/export',spawnDeck end,
   scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
-  moxfield=function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)')..'/download',spawnDeck end,
+  moxfield=function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)'),function(wr,qTbl)
+    --https://api.moxfield.com/v1/decks/all/XTfoOo_HeUeD7kR-zJDKJA/download?exportId=3e64dd58-3e24-4793-9eac-11ea49b60453
+    wr.text:gsub('exportId":"([^"]+)',function(b)log(b)
+        WebRequest.get(wr.url..'/download?exportId='..b,function(w)
+        spawnDeck(w,qTbl)end)end)
+  end end,
+  --[[function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)'),function(wr,qTbl)
+    qTbl.deck=0
+    local json=wr.text
+    for _,s in pairs({'legalities','prices','related_uris'})do
+      json=json:gsub('"'..s..'"[^}]+},','')end
+    for _,s in pairs({'colors','color_indicator','color_identity','all_parts','tags','author_tags','hubs'})do
+      json=json:gsub('"'..s..'"[^%] ]+%],?','')end
+    local boards={'mainboard','sideboard','maybeboard','commanders','signatureSpells','exportId'}
+    for j=1,#boards-1 do
+      if json:match(boards[j]..'Count":(%d+)')~='0'and j~=2 and j~=3 then
+        local _,s1=json:find(boards[j]..'":{')
+        local _,s2=json:find('},"'..boards[j+1])
+        local s=json:sub(s1,s2)
+        uNotebook(boards[j],s)
+        for k,v in pairs(JSON.decode(s))do
+          for i=1,v.quantity do
+            qTbl.deck=qTbl.deck+1
+            Wait.time(function()Card(v.card,qTbl)end,1+qTbl.deck*Tick)
+    end end end end
+    if board~=''then uNotebook(json.name,board)
+      Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
+  end end end,]]
   mtggoldfish=function(a)
     if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
     elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
