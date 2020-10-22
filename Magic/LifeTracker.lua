@@ -1,62 +1,54 @@
+--By Amuzet
+mod_name,version='LifeTracker',1
+author='76561198045776458'
 function updateSave()self.script_state=JSON.encode({['c']=count})end
 function wait(t)local s=os.time()repeat coroutine.yield(0)until os.time()>s+t end
 function sL(l,n)self.editButton({index=0,label='\n'..l..'\n'..(n or'')})end
 function option(o,c,a)
-  if c==owner or Player[c].host then
-    if not display then display='On Turn'
-    elseif display=='On Turn'then display='On Change'
-    else display=false end
-    Player[c].broadcast('Output: '..tostring(display))end end
+  local n=1
+  if a then n=-n end
+  click_changeValue(o,c,n)
+end
 function click_changeValue(obj, color, val)
   if color==owner or Player[color].admin then
   local C3=count
   count=count+val
   local C1=count
   function clickCoroutine()
-    if C2==nil then C2=C3 end
+    if not C2 then C2=C3 end
     sL(count,(count-C2))
     wait(3)
-    if C1==count and C2~=nil then
+    if C2 and C1==count then
       local gl='lost'
       if C1>C2 then gl='gained'end
-      if C1~=C2 then sL(count)local t=txt:format(gl,math.abs(count-C2))
-        if display then printToAll(t,self.getColorTint())end log(t)end
+      if C1~=C2 then sL(count)local t=txt:format(gl,math.abs(count-C2),count)
+        printToAll(t,self.getColorTint())log(t)end
       C2=nil end return 1 end
-  if display~='On Turn'then startLuaCoroutine(self,'clickCoroutine')updateSave()
-  else sL(count,count-JSON.decode(self.script_state).c)end
-  end end
-function onPlayerTurn()
-  if display=='On Turn'then
-    local gl,n='lost',count-JSON.decode(self.script_state).c
-    if n>0 then gl='gained'end
-    if n~=0 then printToAll('Last Turn, '..txt:format(gl,math.abs(n)))end
-  end
+  startLuaCoroutine(self,'clickCoroutine')
   updateSave()
-  sL(count)
-end
+end end
 
 local lCheck={
-  ['_everyoneloses']=function(n,p)return count-n,'made everyone lose'end,
-  ['_opponentslose']=function(n,p)if p.color~=owner then return count-n else return count,'opponents lost'end end,
-  ['_resetlife']=function(n,p)return n,'reset Life totals to'end,
-  ['_doublemylife']=function(n,p)if p.color==owner then return n*2,'doubled their life to'end end,
-  ['_setlife']=function(n,p)if p.color==owner then return n,'Life total changed by '..math.abs(n-count)..'. Setting it to'end end,
-  ['_drain']=function(n,p)if p.color==owner then return count+n,'drained everyone for'else return count-n,false,true end end,
-  ['_extort']=function(n,y)if y.color==owner then for _,p in pairs(Player.getPlayers())do if p.seated and p.color~=owner then count=count+n end end return count,'extorted everyone for'else return count-n,false,true end end,
-  ['_test']=function(n,p)return count end,
-
+  ['everyone_loses_']=function(n,c)return count-n,'made everyone lose'end,
+  ['opponents_lose_']=function(n,c)if c~=owner then return count-n else return count,'opponents lost'end end,
+  ['reset_life_']=function(n,c)return n,'reset Life totals to'end,
+  ['double_my_life_']=function(n,c)if c==owner then return count*2^n,'doubled their life this many times'end end,
+  ['set_life_']=function(n,c)if c==owner then return n,'Life total changed by '..math.abs(n-count)..'. Setting it to'end end,
+  ['drain_']=function(n,c)if c==owner then return count+n,'drained everyone for'else return count-n,false,true end end,
+  ['extort_']=function(n,c)if c==owner then for _,p in pairs(Player.getPlayers())do if p.seated and p.color~=owner then count=count+n end end return count,'extorted everyone for'else return count-n,false,true end end,
+  -- ['test_']=function(n,c)return count end,
 }
 
 function onChat(msg,player)
-  if msg:find(' %d+')then
-    local m=msg:lower():gsub(' ','')
-    local sl,t,n=false,'',tonumber(m:match('%d+'))
-    m='_'..m
+  if msg:find('[ _]%d+')then
+    local m=msg:lower():gsub(' ','_')
+    local a,sl,t,n=false,false,'',tonumber(m:match('%d+'))
+    
     for k,f in pairs(lCheck)do
       if m:find(k..'%d+')then
-        count,t,sl=f(n,player)
-        if sl then sL(count,n)end
-        break end end
+        a,t,sl=f(n,player.color)
+        if a then if sl then sL(count,n)end count=a break
+        else return msg end end end
     
     updateSave()
     if t and t~=''then
@@ -68,16 +60,29 @@ function onload(s)
   --Loads the tracking for if the game has started yet
   owner=self.getDescription()
   ref_type=self.getName():gsub('%s.+','')
-  txt=owner..' [888888]%s %s '..ref_type..'.[-]'
+  txt=owner..' [888888]%s %s '..ref_type..'.[-] |%s|'
   local clr=stringColorToRGB(owner)
   self.setColorTint(clr)
   if s~=''then local ld=JSON.decode(s);count=ld.c else count=0 end
-  self.createButton({click_function='option',function_owner=self,rotation={0,90,0},position={-1.1,0,0},scale={0.75,1,0.75},height=800,width=2200,font_size=2000,label='\n'..count..'\n',color={0.1,0.1,0.1},font_color=clr})
-  for i,v in ipairs({{val=1,label='+',pos={0,0.2,0.7}},{val=-1,label='-',pos={0,0.2,-0.7}}})do local fn='valueChange'..i
-    self.setVar(fn,function(o,c,a)local b=1 if a then b=5 end click_changeValue(o,c,v.val*b)end)
-    self.createButton({tooltip='Right-click for '..v.label..'5',click_function=fn,function_owner=self,position=v.pos,height=500,width=500,label=v.label,font_size=1000,rotation={0,90,0},color={0,0,0,1},font_color=clr})
+  self.createButton({tooltip='Click to increase\nRight click to decrease',click_function='option',function_owner=self,label='\n'..count..'\n',
+      position={-x,0,0},scale={0.60,1,0.60},height=800,width=2100,font_size=2000,rotation={0,90,0},color=g,font_color=clr})
+  for i,v in ipairs({{n=1,l='+',p={0,y,z}},{n=-1,l='-',p={0,y,-z}}})do
+    local fn='valueChange'..i
+    self.setVar(fn,function(o,c,a)local b=1 if a then b=5 end click_changeValue(o,c,v.n*b)end)
+    self.createButton({tooltip='Right-click for '..v.n*5,label=v.l,position=v.p,click_function=fn,function_owner=self,height=500,width=500,font_size=700,rotation={0,90,0},color=g,font_color=clr})
   end
   for i,v in pairs({{'^Exile^',0},{'^Deck^',4.2},{'^Graveyard^',8.3,250}})do
-    self.createButton({label=v[1],position={-(16.4+v[2]),0,0},rotation={0,90,0},font_size=v[3]or 500,width=0,height=0,font_color=self.getColorTint(),click_function='none',function_owner=self})
-end end
-ref_type,owner,display,C2='Life','White',true,nil
+    self.createButton({label=v[1],position={-(16.4+v[2]),0,0},rotation={0,90,0},font_size=v[3]or 500,width=0,height=0,font_color=self.getColorTint(),click_function='none',function_owner=self})end
+  for k,_ in pairs(lCheck)do
+    local m=k:gsub('_',' ')..'X'
+    self.addContextMenuItem(m,function(p)if p~=owner then return end mode=k
+        self.createInput({position={-x*2,y,0},input_function='ipt',function_owner=self,tooltip=m..' Input\nOwner`s final edit will be used.',alignment=3,validation=2,width=500,height=323,font_size=300,rotation={0,90,0},color=g,font_color=clr})
+      end)end
+end
+function ipt(o,p,v,s)
+  if not s and p==owner then
+    onChat(mode..v,{color=p})
+    self.clearInputs()
+  end
+end
+mode,ref_type,owner,x,y,z,g,C2='','','',1.1,0.2,0.7,{0.1,0.1,0.1},nil

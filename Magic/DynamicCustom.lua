@@ -3,7 +3,7 @@ local d={nm='Custom Card',ty='Creature',tx='Draw two cards.'}
 local I=setmetatable({input_function='input_func',function_owner=self,alignment=1,scale={0.5,0.5,0.5},label='Gold',validation=1,
   position={0,0.25,-1.3},width=1710,height=125,font_size=90},{__call=function(i,p,w,h,l,x)
       i.position[3]=p or i.position[3]
-      i.width,i.height,i.label,i.value=w,23+(100*h),'i_'..l,d[l]or'0'
+      i.width,i.height,i.label,i.value=w,23+(100*h),'i_'..l,d[l]or nil
       i.input_function=i.label
       self.setVar(i.label,function(o,c,v,s)onSave(l,v,s)end)
       if x then i.position[1],i.alignment=x,3 end
@@ -35,10 +35,10 @@ end
 function setStatic()
   local s=[[--StaticCustomCard
 local B=setmetatable({click_function='N',function_owner=self,width=0,height=0,position={0,0.25,-1.3},scale={0.3,1,0.3},font_size=150},{__call=function(b,p,l)b.label,b.position[3]=l,p;self.createButton(b)end})
-function onLoad(D)if D~=''then d=JSON.decode(D)B(-1.29,d.nm)B(0.28,d.ty)B(0.82,d.tx)%send end]]
+function onLoad(D)if D~=''then d=JSON.decode(D)B(-1.27,d.nm)B(0.28,d.ty)B(0.82,d.tx)%send end function onDrop()end]]
   local m=''
   if d.pt then m=m..'B.position[1]=0.75;B(1.3,d.pt)'end
-  if d.lt then m=m..'B.position[1],B.width,B.height=-0.75,100,100;B(1.3,d.lt)'end
+  if d.lt then m=m..'B.position[1],B.width,B.height=-0.75,200,200;B(1.3,d.lt)'end
   local sT={json=self.getJSON(),position=self.getPosition()}
   for k,v in pairs(sT.position)do sT.position[k]=v+1 end
   if d.img then for _,s in pairs({'.jpg','.png','.webm','.mp4'})do

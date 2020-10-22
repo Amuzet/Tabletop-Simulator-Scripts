@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.87
+mod_name,version='Card Importer',1.88
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -161,39 +161,13 @@ local DeckSites={
   pastbin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   deckbox=function(a)return a..'/export',spawnDeck end,
   scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
-  moxfield=function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)'),function(wr,qTbl)
-    --https://api.moxfield.com/v1/decks/all/XTfoOo_HeUeD7kR-zJDKJA/download?exportId=3e64dd58-3e24-4793-9eac-11ea49b60453
-    wr.text:gsub('exportId":"([^"]+)',function(b)log(b)
-        WebRequest.get(wr.url..'/download?exportId='..b,function(w)
-        spawnDeck(w,qTbl)end)end)
-  end end,
---  function(a)return'https://api.moxfield.com/v1/decks/all/'..a:match('/decks/(.*)'),function(wr,qTbl)
---    qTbl.deck=0
---    local json=wr.text
---    for _,s in pairs({'legalities','prices','related_uris'})do
---      json=json:gsub('"'..s..'"[^}]+},','')end
---    for _,s in pairs({'colors','color_indicator','color_identity','all_parts','tags','author_tags','hubs'})do
---      json=json:gsub('"'..s..'"[^%] ]+%],?','')end
---    local boards={'mainboard','sideboard','maybeboard','commanders','signatureSpells','exportId'}
---    for j=1,#boards-1 do
---      if json:match(boards[j]..'Count":(%d+)')~='0'and j~=2 and j~=3 then
---        local _,s1=json:find(boards[j]..'":{')
---        local _,s2=json:find('},"'..boards[j+1])
---        local s=json:sub(s1,s2)
---        uNotebook(boards[j],s)
---        for k,v in pairs(JSON.decode(s))do
---          for i=1,v.quantity do
---            qTbl.deck=qTbl.deck+1
---            Wait.time(function()Card(v.card,qTbl)end,1+qTbl.deck*Tick)
---    end end end end
---    if board~=''then uNotebook(json.name,board)
---      Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
---  end end end,
+--A function which returns a url and function which handels that url's output
   mtggoldfish=function(a)
     if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
     elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
     else return a,function(wr,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
   tappedout=function(a)return a:gsub('.cb=%d+','')..'?fmt=csv',function(wr,qTbl)
+    --atogatog-1/?cb=1602825445
     printToAll('Tappedout Alters Unsupported',{0.1,0.5,0.8})
     local deck,list={},wr.text
     for line in list:gmatch('([^\r\n]+)')do
@@ -255,15 +229,14 @@ local DeckSites={
               else setCard(c,qTbl)end end)end,i*Tick*2)
     end end end,
   cubecobra=function(a)return a:gsub('/list/','/download/csv/')..'?primary=Color%20Category&secondary=Types-Multicolor&tertiary=CMC2',function(wr,qTbl)
-    local cube,n,list={},0,wr.text
+    local cube,n,list={},0,wr.text:gsub('[^\r\n]+','',1)
     if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
     for line in list:gmatch('([^\r\n]+)')do
       local tbl,l={},line:gsub(',',', ')
       table.insert(tbl,line:match('"([^"]+)"'))
       l=l:gsub('"([^"]+)"','',1)
-      for csv in l:gmatch(',([^,]+)')do
-        local s=csv:sub(2):gsub('"','')
-        table.insert(tbl,s)end
+      for csv in l:gmatch(',"?([^,"]+)')do
+        table.insert(tbl,csv)end
       if #tbl>16 then uLog(tbl)
       else n=n+1
         if n<4 then uLog(tbl)end
@@ -351,9 +324,9 @@ Importer=setmetatable({
   
   Print=function(qTbl)
     local url,n='https://api.scryfall.com/cards/search?unique=prints&q=',qTbl.name:lower():gsub('%s','')
-    if n=='plains'or n=='island'or n=='swamp'or n=='mountain'or n=='forest'then
+    if('plains island swamp mountain forest'):find(n)then
       --url=url:gsub('prints','art')end
-      broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic specify that in your decklist\nor Spawn it using "Scryfall search t:basic+set:xln" the corresponding setcode',{0.9,0.9,0.9})
+      broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic specify that in your decklist\nor Spawn it using "Scryfall island&set=kld" the corresponding setcode',{0.9,0.9,0.9})
       endLoop()
     else
     WebRequest.get(url..qTbl.name,function(wr)
@@ -437,10 +410,6 @@ Importer=setmetatable({
           qTbl.url='Booster '..j.name
           qTbl.deck=#pack
           qTbl.mode='Deck'
-          
-          for i,u in pairs(pack)do
-            
-          end
           
           for i,u in pairs(pack)do
             Wait.time(function()WebRequest.get(u,function(wr)
@@ -554,7 +523,6 @@ function uNotebook(t,b,c)local p={index=-1,title=t,body=b or'',color=c or'Grey'}
   for i,v in ipairs(getNotebookTabs())do if v.title==p.title then p.index=i end end
   if p.index<0 then addNotebookTab(p)else editNotebookTab(p)end return p.index end
 function uVersion(wr)
-  uLog(wr.is_done,'Checking Importer Version')
   local v=wr.text:match('mod_name,version=\'Card Importer\',(%d+%p%d+)')
   log('GITHUB Version '..v)
   if v then v=tonumber(v) else v=version end
@@ -581,12 +549,11 @@ function onLoad(data)
       else o.destruct()end
       break end end
   
-  
-  Usage=Usage:format(self.getName())
   WebRequest.get(GITURL,self,'uVersion')
   if data~=''then Back=JSON.decode(data)end
   Back=TBL.new(Back)
   self.createButton({label="+",click_function='registerModule',function_owner=self,position={0,0.2,-0.5},height=100,width=100,font_size=100,tooltip="Adds Oracle Look Up"})
+  Usage=Usage:format(self.getName())
   uNotebook('SHelp',Usage)
   uNotebook('SData',self.script_state)
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
@@ -594,32 +561,30 @@ function onLoad(data)
   printToAll(u,{0.9,0.9,0.9})end
 
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
-function onPlayerConnect(player)if player.steam_id==author then printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)end end
-function onPlayerDisconnect(player)if player.steam_id==author then printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)end end
+function onPlayerConnect(player)
+  if player.steam_id==author then
+    printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)
+end end
+function onPlayerDisconnect(player)
+  if player.steam_id==author then
+    printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)
+end end
 local chatToggle=false
 function onChat(msg,p)
-  if msg:find('[Ss]cryfall ')or msg:find('!S%S* ')then
-    local a=msg:match('[Ss]cryfall (.*)')or msg:match('!S%S* (.*)')or false
+  if msg:find('!?[Ss][cryfal]* ')then
+    local a=msg:match('!?[Ss][cryfal]* (.*)')or false
     if a=='hide'and p.admin then
       chatToggle=not chatToggle
       if chatToggle then msg='supressing' else msg='showing'end
-      broadcastToAll('Importer now '..msg..' Chat messages with Importer in them.\nToggle this with "Importer Hide"',{0.9,0.6,0.4})
+      broadcastToAll('Importer now '..msg..' Chat messages with Importer in them.\nToggle this with "Importer Hide"',SMC)
     elseif a=='help'then
       p.print(Usage,{0.9,0.9,0.9})return false
     elseif a=='promote me' and p.steam_id==author then
       p.promote()
-    elseif a=='announce my pressence!'then
-      local s=SMG
-      if p.steam_id==author then
-        s=s..'My creator has requested that I announce their pressence!\n'..s..'Behold the titan that is '..p.name..'!'
-      elseif p.host then
-        s=s..'You may be the host,'..p.steam_name..', but your not as special to me as my Amuzet.'
-      else s=s..'Why would I? You are of no significance to me!'end
-      broadcastToAll(s,SMC)
     elseif a=='queue'then
+      printToAll(SMG..'Removing the first request. Attempting to move onto next request.',SMC)
       endLoop()
     elseif a=='clear'then
-      --https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4
       self.script_state='{"76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
@@ -631,7 +596,8 @@ function onChat(msg,p)
             tbl.mode,tbl.name=k,tbl.name:lower():gsub(k:lower(),'',1)
             break end end end
       
-      if tbl.name:len()<1 or tbl.name==' 'then tbl.name='island'else tbl.name=tbl.name:gsub('%s','')end
+      if tbl.name:len()<1 then tbl.name='blank card'
+      else tbl.name=tbl.name:gsub('%s','')end
       
       Importer(tbl)
       if chatToggle then uLog(msg,p.steam_name)return false end
@@ -656,5 +622,5 @@ Button=setmetatable({label='UNDEFINED',click_function='eOracle',function_owner=s
       t.label,t.click_function,t.position,t.rotation[3]=l,'e'..l:gsub('%s',''),{0,0.28*f,t.position[3]+inc},90-90*f
       o.createButton(t)
       t.height=400
-      if i % 2==1 then t.position[3]=t.position[3]+0.1625 end end})
+      if i%2==1 then t.position[3]=t.position[3]+0.1625 end end})
 --EOF

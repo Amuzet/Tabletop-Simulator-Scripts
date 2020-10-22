@@ -7,11 +7,11 @@ function none()end local Tables,T,B,HelpText={},{
     Purple={z='60bfe2',u='b63e9c',c='30B22A',g='bc9f0b',d=false},
     Blue  ={z='033b34',u='129eaa',c='9F1FEF',g='f2d8a4',d=false},
     Green ={z='c04462',u='56cd9d',c='1E87FF',g='51a780',d=false},
-    --[[10 Player Table]]
+    --[[10 Player Table
     Brown ={z='c73837',u='e251e4',c='DA1917',g='9fbce4',d=false},
     Orange={z='59683d',u='981f1c',c='30B22A',g='3be8c4',d=false},
     Pink  ={z='4f664b',u='5d441f',c='9F1FEF',g='013729',d=false},
-    Teal  ={z='1177d3',u='fc6e17',c='1E87FF',g='08704e',d=false},
+    Teal  ={z='1177d3',u='fc6e17',c='1E87FF',g='08704e',d=false},]]
     },
   setmetatable({function_owner=Global,position={0,-0.1,0},width=600,height=600,font_size=300,alignment=3,validation=2,value=0},
     {__call=function(b,o,l,t,p,f)b.position,b.label,b.tooltip,b.click_function=p or b.position,l,t or'',f or'none'o.createButton(b)end}),
@@ -96,36 +96,37 @@ end end end
 function onObjectSpawn(o)
   if o.tag~='Card'and(o.getName():find('%d+ %w+ Mana')or o.getName():find('%d+ Damage'))then
     cnt(o)end end
-function surfaceSetup()
-  for i,g in pairs(Tables)do
-    if i~=2 then
-      surfaceMini(getObjectFromGUID(g))
-end end end
+function surfaceSetup()for i,g in pairs(Tables)do if i~=2 then surfaceMini(getObjectFromGUID(g))end end end
 function surfaceMini(o)
-  local n,p=o.getName():gsub(' U.*',''),{95,-5,0}
-  B.scale,B.width={10,1,10},2400
+  local n,p,q,f=o.getName():gsub(' U.*',''),{60,-5,0},{0,6,0},{0,0,0}
+  if T.Pink then p[1]=95 end
+  local i=0
+  for line in o.getDescription():gmatch('{[^}]+}')do i=i+1
+    if i==3 then local x,y,z=string.match(line,'([^,{]+), ([^,]+), ([^}]+)')
+    o.setScale({tonumber(x),tonumber(y),tonumber(z)})
+  end end
+  local offset={0,1,0}
+  offset[2]=o.getBounds().offset[2]
+  if offset[2]==-9.75 then p[2]=-6.5;offset[2]=40 end
   o.setScale(o.getScale()*0.1)
   for i,g in pairs(Tables)do
     if g==o.getGUID()then
       p[3]=(i-2)*8
       o.setPosition(p)
       break end end
-  B(o,n,n..'\nSwap to this table',{0,6,0},'surfaceSwap')
+  B.scale,B.width={10,1,10},2600
+  B(o,n,n..'\nSwap to this table',offset,'surfaceSwap')
 end
 function surfaceSwap(o,c,a)
   for _,g in pairs(Tables)do
     local j=getObjectFromGUID(g)
     if j.getPosition()[1]<1 then
       surfaceMini(j)break end end
-  --[[{0.00, -1.30, 0.00}
-{0.00, 0.00, 0.00}
-{1.47, 1.00, 1.17}]]
   local i=0
   o.clearButtons()
   for line in o.getDescription():gmatch('{[^}]+}')do i=i+1
     local x,y,z=string.match(line,'([^,{]+), ([^,]+), ([^}]+)')
     local t={tonumber(x),tonumber(y),tonumber(z)}
-    log(t)
     if i==1 then o.setPositionSmooth(t)
     elseif i==3 then o.setScale(t)
 end end end
@@ -136,10 +137,7 @@ function cnt(o)
   B(o,n,nil,{0,0.1,0})
   B.width,B.height=500,500
   B(o,'@','[b]'..t..'[/b]\nLeft CLick Increase\nRight Click Decrease',{0,0,0},'cdi')
-end--[[cnt Increment by 5
-  B.scale,B.width,B.height={0.5,1,0.5},900,400
-  B(o,'+','Right-click to Increase by 5',{0,0.1,-0.7},'inc')
-  B(o,'-','Right-click to Decrease by 5',{0,0.1,0.7},'dec')end]]
+end
 function edh(o,c,a)local n=tonumber(o.getButtons()[1].label)+1 if a then n=0 end o.editButton({index=0,label=n})end
 function dec(o,c,a)cng(o,a,-1,-5)end function inc(o,c,a)cng(o,a,1,5)end function cdi(o,c,a)cng(o,a,1,-1)end
 function cng(o,a,x,y)local b=x if a then b=y end b=tonumber(o.getButtons()[1].label)+b;o.editButton({index=0,label=b})o.setName(o.getName():gsub('%-?%d+',b))end
@@ -216,23 +214,19 @@ function mtgContext(o,p)
   o.hide_when_face_down=false
   o.clearContextMenu()
   o.highlightOn(stringColorToRGB(p))
-  for s,v in pairs({Lands='Click to cycle modes.\nRight click to .',Scry='Takes the top X cards and places them in a pile.',Cascade='Will search this deck for the first nonland card with CMC less than X.'})do
-    o.addContextMenuItem(s..' X',function(p)
+  for k,v in pairs({Lands='Click to cycle modes.\nRight click to .',Scry='Takes the top X cards and places them in a pile.',Cascade='Will search this deck for the first nonland card with CMC less than X.'})do
+    o.addContextMenuItem(k..' X',function(p)
         M.font_color=stringColorToRGB(p)
         M.tooltip=v
         
-        M.label='Cancel '..s
-        M.click_function='cB'
         M.position[3]=-0.7
-        o.createButton(M)
+        M(o,'Cancel '..k,nil,nil,'cB')
         
-        M.label=s..' for 0'
-        M.click_function='c'..s
         M.position[3]=0.7
-        o.createButton(M)
+        M(o,k..' for 0',nil,nil,'c'..k)
         
         M.label='0'
-        M.input_function='i'..s
+        M.input_function='i'..k
         M.position[3]=0
         M.font_size=200
         M.width=M.height
