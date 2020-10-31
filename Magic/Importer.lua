@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.88
+mod_name,version='Card Importer',1.881
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -155,42 +155,43 @@ function spawnDeck(wr,qTbl)
           WebRequest.get(url,function(c)
               setCard(c,qTbl)end)end,i*Tick)end
 end end
+setCSV=4
+function spawnCSV(wr,qTbl)
+  local deck,list={},wr.text
+  for line in list:gmatch('([^\r\n]+)')do
+    local tbl,l={},','..line:gsub(',("[^"]+"),',function(g)return','..g:gsub(',','')..','end)
+    l=l:gsub(',',', ')
+    for csv in l:gmatch(',([^,]+)')do if csv:len()==1 then break
+    else table.insert(tbl,csv:sub(2))end end
+    if #tbl<setCSV then uLog(tbl)printToAll('Tell Amuzet that an Error occored in spawnCSV:\n'..qTbl.full)return endLoop()
+    elseif not tbl[2]:find('%d+')then
+    elseif tbl[1]=='main'or tbl[1]~='maybeboard'then
+      local b='https://api.scryfall.com/cards/named?fuzzy='..tbl[3]
+      if tbl[setCSV]and tbl[setCSV]~='000'then b=b..'&set='..tbl[setCSV]end
+      for i=1,tbl[2]do table.insert(deck,b)end
+  end end
+  qTbl.deck=#deck
+  for i,u in ipairs(deck)do
+    Wait.time(function()
+        WebRequest.get(u,function(c)
+            local t=JSON.decode(c.text)
+            if t.object~='card'then if u:find('&')then
+              WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
+              else WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard',function(c)setCard(c,qTbl)end)end
+            else setCard(c,qTbl)end end)end,i*Tick*2)end end 
 
 local DeckSites={
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastbin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   deckbox=function(a)return a..'/export',spawnDeck end,
-  scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
+--scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
+  scryfall=function(a)setCSV=7 return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/csv',spawnCSV end,
+  tappedout=function(a)setCSV=4 return a:gsub('.cb=%d+','')..'?fmt=csv',spawnCSV end,
 --A function which returns a url and function which handels that url's output
   mtggoldfish=function(a)
     if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
     elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
     else return a,function(wr,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
-  tappedout=function(a)return a:gsub('.cb=%d+','')..'?fmt=csv',function(wr,qTbl)
-    --atogatog-1/?cb=1602825445
-    printToAll('Tappedout Alters Unsupported',{0.1,0.5,0.8})
-    local deck,list={},wr.text
-    for line in list:gmatch('([^\r\n]+)')do
-      local tbl,l={},','..line:gsub(',("[^"]+"),',function(g)return','..g:gsub(',','')..','end)
-      l=l:gsub(',',', ')
-      for csv in l:gmatch(',([^,]+)')do if csv:len()==1 then break
-      else table.insert(tbl,csv:sub(2))end end
-      if #tbl>10 then uLog(tbl)
-      elseif tbl[1]=='main'then
-        local b='https://api.scryfall.com/cards/named?fuzzy='..tbl[3]
-        if tbl[4]and tbl[4]~='000'then b=b..'&set='..tbl[4]end
-        for i=1,tbl[2]do table.insert(deck,b)end
-    end end
-    qTbl.deck=#deck
-    for i,u in ipairs(deck)do
-      Wait.time(function()
-          WebRequest.get(u,function(c)
-              local t=JSON.decode(c.text)
-              if t.object~='card'then if u:find('&')then
-                WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
-                else WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard',function(c)setCard(c,qTbl)end)end
-              else setCard(c,qTbl)end end)end,i*Tick*2)
-    end end end,
   archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/?format=json',function(wr,qTbl)
     qTbl.deck=0
     local json=wr.text
@@ -508,6 +509,7 @@ local Usage=[[    [b]%s
 [b][ff7700]random[/b] [i]isecalpwubrg<>=# quantity[/i] [-]['[i]ri=2[/i]' Spawns a Red Instant of CMC Two]
 [b][ff7700]search[/b] [i]syntax[/i] [-][Spawns all cards matching that search (be careful)]
 [b][ff7700]random[/b] ?q=[i]syntax quantity[/i] [-][Advanced Random using search syntax (go crazy!)]
+[b][ff7700]clear[/b] [i]back[/i]/[i]queue[/i] [-][Clears the latest request in the queue, Resets cardbacks to Default]
 [b][ff7700]quality[/b] [i]mode[/i] [-][Changes the quality of the image]
 [i]small,normal,large,art_crop,border_crop[/i] ]]
 function endLoop()if Importer.request[1]then Importer.request[1].text()table.remove(Importer.request,1)end Importer()end
@@ -571,8 +573,8 @@ function onPlayerDisconnect(player)
 end end
 local chatToggle=false
 function onChat(msg,p)
-  if msg:find('!?[Ss][cryfal]* ')then
-    local a=msg:match('!?[Ss][cryfal]* (.*)')or false
+  if msg:find('!?[Ss]cryfall ')then
+    local a=msg:match('!?[Ss]cryfall (.*)')or false
     if a=='hide'and p.admin then
       chatToggle=not chatToggle
       if chatToggle then msg='supressing' else msg='showing'end
@@ -581,11 +583,11 @@ function onChat(msg,p)
       p.print(Usage,{0.9,0.9,0.9})return false
     elseif a=='promote me' and p.steam_id==author then
       p.promote()
-    elseif a=='queue'then
+    elseif a=='clear queue'then
       printToAll(SMG..'Removing the first request. Attempting to move onto next request.',SMC)
       endLoop()
-    elseif a=='clear'then
-      self.script_state='{"76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
+    elseif a=='clear back'then
+      self.script_state='{"76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
       local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
