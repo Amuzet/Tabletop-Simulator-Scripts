@@ -163,7 +163,7 @@ function spawnCSV(wr,qTbl)
     l=l:gsub(',',', ')
     for csv in l:gmatch(',([^,]+)')do if csv:len()==1 then break
     else table.insert(tbl,csv:sub(2))end end
-    if #tbl<setCSV then uLog(tbl)printToAll('Tell Amuzet that an Error occored in spawnCSV:\n'..qTbl.full)return endLoop()
+    if #tbl<setCSV-1 then uLog(tbl)printToAll('Tell Amuzet that an Error occored in spawnCSV:\n'..qTbl.full)return endLoop()
     elseif not tbl[2]:find('%d+')then
     elseif tbl[1]=='main'or tbl[1]~='maybeboard'then
       local b='https://api.scryfall.com/cards/named?fuzzy='..tbl[3]
