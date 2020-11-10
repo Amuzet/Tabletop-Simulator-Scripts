@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.89
+mod_name,version='Card Importer',1.9
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -84,6 +84,28 @@ function setCard(wr,qTbl)
     elseif json.object=='error'then Player[qTbl.color].broadcast(json.details,{1,0,0})end
   else error('No Data Returned Contact Amuzet. setCard')end endLoop()end
 
+function parseForToken(oracle,qTbl)endLoop()end
+--[[  if oracle:find('token')and oracle:find('[Cc]reate')then
+    --My first attempt to parse oracle text for token info
+    local ptcolorType,abilities=oracle:match('[Cc]reate(.+)(token[^\n]*)')
+    --Check for power and toughness
+    local power,toughness='_','_'
+    if ptColorType:find('%d/%d')then
+      power,toughness=ptColorType:match('(%d+)/(%d+)')end
+    --It wouldn't be able to find treasure or clues
+    local colors=''
+    for k,v in pairs({w='white',u='blue',b='black',r='red',g='green',c='colorless'})do
+     if ptColorType:find(v)then colors=colors..k end end
+    --How the heck am I going to do abilities
+    if abilities:find('tokens? with ')then
+      local abTbl={}
+      abilities=abilities:gsub('"([^"]+)"',function(a)
+        table.insert(abTbl,a)return''end)
+      for _,v in pairs({'haste','first strike','double strike','reach','flying'})do
+        if abilities:find(v)then table.insert(abTbl,v)end end
+    end
+  end
+end]]
 function spawnList(wr,qTbl)
   uLog(wr.url)
   local txt=wr.text
@@ -99,7 +121,7 @@ function spawnList(wr,qTbl)
       Player[qTbl.color].broadcast(json.details,{1,0,0})
   end end endLoop()end
 --[[DeckFormatHandle]]
-local sOver={DAR='DOM',MPS_AKH='MP2',MPS_KLD='MPS',FRF_UGIN='UGIN'}
+local sOver={['10ED']='10E',DAR='DOM',MPS_AKH='MP2',MPS_KLD='MPS',FRF_UGIN='UGIN'}
 local dFile={
   uidCheck=',%w+-%w+-%w+-%w+-%w+',uid=function(line)
     local num,uid=string.match('__'..line..'__','__%a+,(%d+).+,([%w%-]+)__')
@@ -139,7 +161,9 @@ function spawnDeck(wr,qTbl)
     local sideboard=''
     qTbl.image={}
     local deck,list={},wr.text:gsub('\n%S*Sideboard(.*)',function(a)sideboard=a return ''end)
-    if sideboard~=''then uNotebook('Sideboard',sideboard:gsub('\n%S*Maybeboar.*\n','\n'))end
+    if sideboard~=''then
+      Player[qTbl.color].broadcast('Extraboards Found and pasted into Notebook\n"Scryfall deck" to spawn most recent Notebook Tab')
+      uNotebook(qTbl.url,sideboard)end
     
     for b in list:gmatch('([^\r\n]+)')do
       for k,v in pairs(dFile)do
@@ -157,19 +181,28 @@ function spawnDeck(wr,qTbl)
 end end
 setCSV=4
 function spawnCSV(wr,qTbl)
-  local deck,list={},wr.text
+  local side,deck,list='',{},wr.text
   for line in list:gmatch('([^\r\n]+)')do
     local tbl,l={},','..line:gsub(',("[^"]+"),',function(g)return','..g:gsub(',','')..','end)
     l=l:gsub(',',', ')
-    for csv in l:gmatch(',([^,]+)')do if csv:len()==1 then break
-    else table.insert(tbl,csv:sub(2))end end
+    for csv in l:gmatch(',([^,]+)')do
+      if csv:len()==1 then break
+      else table.insert(tbl,csv:sub(2))end end
     if #tbl<setCSV-1 then uLog(tbl)printToAll('Tell Amuzet that an Error occored in spawnCSV:\n'..qTbl.full)return endLoop()
-    elseif not tbl[2]:find('%d+')then
-    elseif tbl[1]=='main'or tbl[1]~='maybeboard'then
+    elseif not tbl[2]:find('%d+')then--FirstCSVLine
+    elseif(
+      setCSV==4 and tbl[1]:find('main'))or(
+      setCSV==7 and not tbl[1]:find('board'))then
       local b='https://api.scryfall.com/cards/named?fuzzy='..tbl[3]
       if tbl[setCSV]and tbl[setCSV]~='000'then b=b..'&set='..tbl[setCSV]end
       for i=1,tbl[2]do table.insert(deck,b)end
+    else--Side/Maybe
+      side=side..tbl[2]..' '..tbl[3]..'\n'
+      uLog(side)
   end end
+  if side~=''then
+    Player[qTbl.color].broadcast('Sideboard Found and pasted into Notebook\n"Scryfall deck" to spawn most recent Notebook Tab')
+    uNotebook(qTbl.url,side)end
   qTbl.deck=#deck
   for i,u in ipairs(deck)do
     Wait.time(function()
@@ -209,7 +242,7 @@ local DeckSites={
         Wait.time(function()
           WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
             function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end
-    if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook. Type "Scryfall deck" to spawn it now.')
+    if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
     uNotebook(json.name,board)end end end,
   cubetutor=function(a)return a,function(wr,qTbl)
     local cube,html={},wr.text:sub(100000)
@@ -321,7 +354,17 @@ Importer=setmetatable({
           for _,v in ipairs(json.all_parts)do if json.name~=v.name then
               WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end end
         --What is this elseif json.oracle
-        else Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})endLoop()end end)end,
+        elseif json.object=='card'then
+          local oracle=json.oracle_text
+          if json.card_faces then
+            for _,f in ipairs(json.card_faces)do oracle=oracle..json.name:gsub('"','\'')..'\n'..setOracle(f)end end
+          parseForToken(oracle,qTbl)
+        elseif qTbl.target then
+          local o=qTbl.target.getDescription()
+          if o:find('[Cc]reate')or o:find('emblem')then parseForToken(o,qTbl)
+          else Player[qTbl.color].broadcast('Card not found in Scryfall\nAnd did not have oracle text to parse.',{0.9,0.9,0.9})endLoop()end
+        else
+          Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})endLoop()end end)end,
   
   Print=function(qTbl)
     local url,n='https://api.scryfall.com/cards/search?unique=prints&q=',qTbl.name:lower():gsub('%s','')
@@ -560,7 +603,8 @@ function onLoad(data)
   uNotebook('SData',self.script_state)
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
-  printToAll(u,{0.9,0.9,0.9})end
+  printToAll(u,{0.9,0.9,0.9})
+  onChat('Scryfall clear back')end
 
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
 function onPlayerConnect(player)
@@ -587,7 +631,7 @@ function onChat(msg,p)
       printToAll(SMG..'Removing the first request. Attempting to move onto next request.',SMC)
       endLoop()
     elseif a=='clear back'then
-      self.script_state='{"76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
+      self.script_state='{"76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
       local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
