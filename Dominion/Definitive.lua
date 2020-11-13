@@ -1,5 +1,5 @@
 --DominionDefinitiveEditionModifiedByAmuzet2020_07_30_k
-VERSION,GITURL=2.5,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
+VERSION,GITURL=2.6,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
 --[[Bugs:
 Some card backs are miscolored so you can tell which is which in hands. ex shelters
 Heirlooms spawn an extra card next to yellow if there are 5+ players
@@ -28,116 +28,123 @@ end
 --Runs when the map is first loaded
 function onLoad(saved_data)
   WebRequest.get(GITURL,function(wr)
-        local v=wr.text:match('VERSION,GITURL=(%d+%p%d+)')
-        if v then v=tonumber(v)
-          if v<VERSION then     broadcastToAll('Oh look at you with a Testing Version\nPlease Report any bugs to Amuzet.',{0,1,1})
-          elseif v>VERSION then broadcastToAll('There is an UPDATE!\nCan be found in TTSClub.',{1,1,0})
-          else                  broadcastToAll('Up to Date!\nHave a nice time playing.',{0,1,0})end
-        else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
+    local v=wr.text:match('VERSION,GITURL=(%d+%p?%d+)')
+    if v then v=tonumber(v)
+      if v<VERSION then     broadcastToAll('Oh look at you with a Testing Version\nPlease Report any bugs to Amuzet.',{0,1,1})
+      elseif v>VERSION then broadcastToAll('There is an UPDATE!\nAttempting Update.',{1,1,0})self.setLuaScript(wr.text)self.reload()
+      else                  broadcastToAll('Up to Date!\nHave a nice time playing.',{0,1,0})end
+    else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
   local Color={Blue={31/255,136/255,255/255},Green={49/255,179/255,43/255},Red={219/255,26/255,24/255},White={0.3,0.3,0.3},Orange={244/255,100/255,29/255},Yellow={231/255,229/255,44/255}}
-    if saved_data~=''then
-      local loaded_data=JSON.decode(saved_data)
-      gameState=loaded_data.gs
-      eventMax=loaded_data.emax
-      blackMarketMax=loaded_data.bmax
-      eventCount=loaded_data.ect
-      useSets=loaded_data.ust
-      usePlatinum=loaded_data.upt
-      useShelters=loaded_data.ush
-      useHeirlooms=loaded_data.uhl
-      obeliskTarget=loaded_data.obl
-      bmDeck=loaded_data.bmd
-      sL.n=loaded_data.sl or 1
-    else
-      gameState=1
-      eventMax=4
-      blackMarketMax=25
-      eventCount=0
-      usePlatinum=0
-      useShelters=0
-      useHeirlooms=false
-      useSets={}
-      bmDeck={}
-      obeliskTarget=nil
+  sL={n=1,
+  {'Official Sets','Currently only official sets are allowed.\nThis excludes first printings, promos and fan expansions.',14},
+  {'Printed Cards','Currently only printed cards are allowed.\nThis excludes fan expansions.',14},
+  {'Expansions','Currently only expansions are allowed.\nThis excludes promo and cut cards, Adamabrams and Xtras.',22},
+  {'Everyting','Currently cards from any set are allowed.\nThis excludes nothing.',#ref.cardSets-1}}
+  if saved_data~=''then
+    local loaded_data=JSON.decode(saved_data)
+    gameState=loaded_data.gs
+    eventMax=loaded_data.emax
+    blackMarketMax=loaded_data.bmax
+    eventCount=loaded_data.ect
+    useSets=loaded_data.ust
+    usePlatinum=loaded_data.upt
+    useShelters=loaded_data.ush
+    useHeirlooms=loaded_data.uhl
+    obeliskTarget=loaded_data.obl
+    bmDeck=loaded_data.bmd
+    sL.n=loaded_data.sl or 1
+  else
+    gameState=1
+    eventMax=4
+    blackMarketMax=25
+    eventCount=0
+    usePlatinum=0
+    useShelters=0
+    useHeirlooms=false
+    useSets={}
+    bmDeck={}
+    obeliskTarget=nil
+  end
+  setUninteractible()
+  math.randomseed(os.time())
+  
+  for k,p in pairs(ref.players)do
+    for _,o in pairs(getObjectFromGUID(p.zone).getObjects())do
+      if o.getName()=='Victory Points'then
+        ref.players[k].vp=o.getGUID()
+      elseif o.getName()=='Debt Tokens'then
+        ref.players[k].debt=o.getGUID()
+      elseif o.getName()=='Coffers'then
+        ref.players[k].coin=o.getGUID()
+  end end end
+  
+  if gameState==1 then
+    --Added Heirlooms
+    for _,v in ipairs(getPile('Heirlooms').getObjects())do ref.heirlooms[v.name]=v.guid end
+    setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][-]\n\nBefore pressing Start Game, you may place any card from the expansion piles into the empty supply slots. Select any number of expansions to be randomly selected to fill all the remaining slots. You may also remove any undesireable card from its expansion deck to prevent it from being selected. You may save the game now to save your selected kingdom and expansions before pressing start.\n\n[FFFF00][b]Do not delete any decks or place any deck of cards into a supply slot.[/b]')
+    local B={label='',click_function='click_selectDeck',function_owner=self,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}}
+    for i in ipairs(ref.cardSets)do
+      local obj=getObjectFromGUID(ref.cardSets[i].guid)
+      if obj then
+        B.label='Select\n'..obj.getName()
+        obj.createButton(B)
+        for j, guid in ipairs(useSets)do
+          local obj2=getObjectFromGUID(guid)
+          if obj==obj2 then
+            obj.highlightOn({0,1,0})
+            break end end end end
+    B.click_function='click_forcePile'
+    for k,v in pairs({1,5,6})do
+      local obj=getObjectFromGUID(ref.supplyPiles[v].guid)
+      if obj then
+        B.label='Force\n'..obj.getName()
+        obj.createButton(B)
+        local bool=0
+        if B.label:find('Platinum')then bool=usePlatinum
+        elseif B.label:find('Shelters')then bool=useShelters
+        elseif B.label:find('Boulder Trap pile')then bool=useBoulderTrap end  
+        if bool==1 then obj.highlightOn({0,1,0})
+        elseif bool==2 then obj.highlightOn({1,0,0})end
+        end end
+    local startB=getObjectFromGUID(ref.startButton)
+    if startB then
+      local btn=setmetatable({d=-3,function_owner=self,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
+        b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end startB.createButton(b)end})
+      btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{0,0,-36})
+      btn('Quick Setup\nTwo Sets','Random Kingdom from any two sets',{-8.5,0,-48})
+      btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
+      btn('Quick Setup\nAll Sets','Random Kingdom from every set')
+      btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
+      btn('Balanced Setup\nDual Sets','Random Kingdom made with 5 cards of one set and 5 from another',{8.5,0,-48})
+      btn('Balanced Setup\nTriple Sets','Random Kingdom made with 3 cards each from 3 sets with a forth card from a random one of those sets')
+      btn('Balanced Setup\nFive Sets','Random Kingdom made with 2 cards each from 5 sets')
+      btn('Balanced Setup\nTen Sets','Random Kingdom made with a card each from 10 different sets')
+      btn.color={0,0,0}btn.font_color={1,1,1}
+      btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{0,0,-48},'click_blackMarketLimit')
+      btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
+      btn.font_color={0,1,0}
+      btn('Include in Randomizer\nOfficial Expansions','These sets are all official expansions made by Donald X V of Rio Grande Games')
+      --btn('Included Sets:\n'..sL[sL.n][1],'Toggles sets which sets are allowed in Quick Setup.\nCurrently only official sets are allowed.\nThis excludes Custom and Promo cards.',nil,'click_setLimit')
     end
-    setUninteractible()
-    math.randomseed(os.time())
-    
-    for k,p in pairs(ref.players)do
-      for _,o in pairs(getObjectFromGUID(p.zone).getObjects())do
-        if o.getName()=='Victory Points'then
-          ref.players[k].vp=o.getGUID()
-        elseif o.getName()=='Debt Tokens'then
-          ref.players[k].debt=o.getGUID()
-        elseif o.getName()=='Coffers'then
-          ref.players[k].coin=o.getGUID()
-    end end end
-    
-    if gameState==1 then
-      --Added Heirlooms
-      for _,v in ipairs(getPile('Heirlooms').getObjects())do ref.heirlooms[v.name]=v.guid end
-      setNotes('[40e0d0][b][u]Dominion: Definitive Edition[/b][/u][-]\n\nBefore pressing Start Game, you may place any card from the expansion piles into the empty supply slots. Select any number of expansions to be randomly selected to fill all the remaining slots. You may also remove any undesireable card from its expansion deck to prevent it from being selected. You may save the game now to save your selected kingdom and expansions before pressing start.\n\n[FFFF00][b]Do not delete any decks or place any deck of cards into a supply slot.[/b]')
-      local B={label='',click_function='click_selectDeck',function_owner=Global,position={0,0.4,0.6},rotation={0,0,0},scale={0.5,1,0.5},height=600,width=2000,font_size=250,color={0,0,0},font_color={1,1,1}}
-      for i in ipairs(ref.cardSets)do
-        local obj=getObjectFromGUID(ref.cardSets[i].guid)
-        if obj then
-          B.label='Select\n'..obj.getName()
-          obj.createButton(B)
-          for j, guid in ipairs(useSets)do
-            local obj2=getObjectFromGUID(guid)
-            if obj==obj2 then
-              obj.highlightOn({0,1,0})
-              break end end end end
-      B.click_function='click_forcePile'
-      for k,v in pairs({1,5,6})do
-        local obj=getObjectFromGUID(ref.supplyPiles[v].guid)
-        if obj then
-          B.label='Force\n'..obj.getName()
-          obj.createButton(B)
-          local bool=0
-          if B.label:find('Platinum')then bool=usePlatinum
-          elseif B.label:find('Shelters')then bool=useShelters
-          elseif B.label:find('Boulder Trap pile')then bool=useBoulderTrap end  
-          if bool==1 then obj.highlightOn({0,1,0})
-          elseif bool==2 then obj.highlightOn({1,0,0})end
-          end end
-      local startB=getObjectFromGUID(ref.startButton)
-      if startB then
-        local btn=setmetatable({d=-3,function_owner=Global,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
-          b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end startB.createButton(b)end})
-        btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{0,0,-36})
-        btn('Quick Setup\nTwo Sets','Random Kingdom from any two sets',{-8.5,0,-48})
-        btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
-        btn('Quick Setup\nAll Sets','Random Kingdom from every set')
-        btn('Tutorial\nBasic Game','Set Kingdom with only actions and up to two attacks')
-        btn('Balanced Setup\nDual Sets','Random Kingdom made with 5 cards of one set and 5 from another',{8.5,0,-48})
-        btn('Balanced Setup\nTriple Sets','Random Kingdom made with 3 cards each from 3 sets with a forth card from a random one of those sets')
-        btn('Balanced Setup\nFive Sets','Random Kingdom made with 2 cards each from 5 sets')
-        btn('Balanced Setup\nTen Sets','Random Kingdom made with a card each from 10 different sets')
-        btn.color={0,0,0}btn.font_color={1,1,1}
-        btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{0,0,-48},'click_blackMarketLimit')
-        btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
-        --btn('Included Sets:\n'..sL[sL.n][1],'Toggles sets which sets are allowed in Quick Setup.\nCurrently only official sets are allowed.\nThis excludes Custom and Promo cards.',nil,'click_setLimit')
+  end
+  if gameState==2 then
+    bcast('Setup was interrupted, please reset the game.')
+  end
+  if gameState==3 then
+    if obeliskTarget then
+      for i, obj in ipairs(getAllObjects())do
+        if obj.getName()=='Obelisk'or obj.getName()==obeliskTarget .. ' pile'then
+          obj.highlightOn({1,0,1})
+        end
       end
     end
-    if gameState==2 then
-        bcast('Setup was interrupted, please reset the game.')
-    end
-    if gameState==3 then
-        if obeliskTarget then
-            for i, obj in ipairs(getAllObjects())do
-                if obj.getName()=='Obelisk'or obj.getName()==obeliskTarget .. ' pile'then
-                    obj.highlightOn({1,0,1})
-                end
-            end
-        end
-        createEndButton()
-    end
+    createEndButton()
+  end
 end
 function createEndButton()
   local obj=getObjectFromGUID(ref.startButton)
   if obj then
-    obj.createButton({label='End Game',click_function='click_endGame',function_owner=Global,position={-60,0,-4},rotation={0,180,0},height=1500,width=4000,font_size=9000})
+    obj.createButton({label='End Game',click_function='click_endGame',function_owner=self,position={-60,0,-4},rotation={0,180,0},height=1500,width=4000,font_size=9000})
 end end
 function click_endGame(obj, color)
   if not Player[color].admin then
@@ -221,20 +228,14 @@ function click_endGame(obj, color)
         end end end
         tracker.deck=dT[cp]
         for i,v in pairs(tracker.deck)do
-          tracker.amount=tracker.amount + v
-          if getType(i):find('Action')then
-            tracker.actions=tracker.actions + v
-            if v>2 then
-              tracker.orchard=tracker.orchard + 1
+          tracker.amount=tracker.amount+v
+          if getType(i):find('Action')then tracker.actions=tracker.actions+v
+            if v>2 then tracker.orchard=tracker.orchard+1
           end end
-          if getType(i):find('Victory')then
-            tracker.victory=tracker.victory + v end
-          if getType(i):find('Castle')then
-            tracker.castles=tracker.castles + 1 end
-          if getType(i):find('Knight')then
-            tracker.knights=tracker.knights + v end
-          if v==1 then
-            tracker.uniques=tracker.uniques + 1 end
+          if getType(i):find('Victory')then tracker.victory=tracker.victory+v end
+          if getType(i):find('Castle')then  tracker.castles=tracker.castles+1 end
+          if getType(i):find('Knight')then  tracker.knights=tracker.knights+v end
+          if v==1 then                      tracker.uniques=tracker.uniques+1 end
         end
         -- Score Based on thier VP
         for k,v in pairs(tracker.deck)do
@@ -272,7 +273,7 @@ function click_endGame(obj, color)
   end
   if obj then obj.clearButtons()end
   gameState=4
-  startLuaCoroutine(Global,'scoreCoroutine')
+  startLuaCoroutine(self,'scoreCoroutine')
 end
 --Used in Button Callbacks
 newText=setmetatable({type='3DText',position={},rotation={90,0,0}
@@ -637,7 +638,7 @@ function setupKingdom(summonException)
                   if eventCount < eventMax then
                     --local tp=getType(v.name) if tp=='Way'then if w==1 then break end w=w+1 end
                     eventCount=eventCount + 1
-                    deck.takeObject({position=ref.eventSlots[eventCount].pos, index=v.index, callback='setCallback', callback_owner=Global})
+                    deck.takeObject({position=ref.eventSlots[eventCount].pos, index=v.index, callback='setCallback', callback_owner=self})
                     break end
                 else
                   card=true
@@ -752,7 +753,7 @@ function setupKingdom(summonException)
     createPile()
     return 1
   end
-  startLuaCoroutine(Global, 'setupKingdomCoroutine')
+  startLuaCoroutine(self, 'setupKingdomCoroutine')
 end
 -- Callback to fix the event position
 function setCallback(obj)obj.setRotation({0,90,0})end
@@ -916,10 +917,10 @@ Estate='Estate Token',
 Journey='Journey Token',
 Project='Owns Project',
 Spellcaster='Spell Tokens'}
-  for k,v in ipairs(temp)do if Use(v)then temp[k]=nil end end
+  for k,v in pairs(temp)do if Use(k)then temp[k]=nil end end
   for _,obj in pairs(getAllObjects())do
-    for k,v in ipairs(temp)do
-      if obj.getName()==k or obj.getName()=='Rules '..k then
+    for k,v in pairs(temp)do
+      if obj.getName()==v or obj.getName()=='Rules '..k then
         obj.destruct()
   end end end
   getObjectFromGUID(ref.Board).destruct()
@@ -982,7 +983,7 @@ Spellcaster='Spell Tokens'}
     if getPile('Heirlooms')then getPile('Heirlooms').destruct()end
     return 1
   end
-  startLuaCoroutine(Global, 'tokenCoroutine')
+  startLuaCoroutine(self, 'tokenCoroutine')
   if useShelters~=1 and getPile('Shelters')then
     getPile('Shelters').destruct()
     setupBaseCardCount(false, false)
@@ -1093,7 +1094,7 @@ function createPile()
         if v.tag=='Deck'and v.getName():sub(-5)~=' pile'then
             v.setName(v.takeObject({position=v.getPosition()}).getName()..' pile')
     end end end cleanUp()return 1
-  end startLuaCoroutine(Global, 'createPileCoroutine')end
+  end startLuaCoroutine(self, 'createPileCoroutine')end
 function getVP(n)for _,v in pairs(MasterData)do if n==v.name then if v.VP then return v.VP end return 0 end end end
 function getCost(n)for _,v in pairs(MasterData)do if n==v.name then return v.cost end end return'M0D0P0'end
 function getType(n)for _,v in pairs(MasterData)do if n==v.name then return v.type end end return'Event'end
@@ -1192,7 +1193,7 @@ function dealStartingHands()
     Turns.enable=true
     return 1
   end
-  startLuaCoroutine(Global, 'dealStartingHandsCoroutine')
+  startLuaCoroutine(self, 'dealStartingHandsCoroutine')
 end
 function removeFromPile(pile, count)
   log(count,pile.getName())
@@ -1216,7 +1217,7 @@ function tokenMake(obj,key,n,pos,name)
   else
     p={p[1]-0.9,p[2]+1,p[3]-1.25}
   end
-  local t={position=p,rotation={0,180,0},callback='tokenCallback',callback_owner=Global,params={name or obj.getName(),n or 0}}
+  local t={position=p,rotation={0,180,0},callback='tokenCallback',callback_owner=self,params={name or obj.getName(),n or 0}}
   log(t.params)
   if not n then t.callback=nil end
   getObjectFromGUID(ref.tokenBag[key]).takeObject(t)
@@ -1225,7 +1226,7 @@ end
 function setUninteractible(t)
   for _,o in pairs(getAllObjects())do
     local n=o.getName()
-    if('CardDeck'):find(o.tag)and not('Trash'):find(n)then
+    if('CardDeck'):find(o.tag)then
       local f=false
       for j,k in pairs({'replacementPiles','supplyPiles','eventSets','sidePiles','cardSets'})do
         if not f then for i,c in ipairs(ref[k])do if n==c.name then f,ref[k][i].guid=true,o.getGUID()break end end end end
@@ -1315,7 +1316,8 @@ supplyPiles={
 {name='Curses'},
 {name='Estates'},
 {name='Duchies'},
-{name='Provinces'}},
+{name='Provinces'},
+{name='Trash'}},
 sidePiles={
 {name='Heirlooms'},
 {name='Spellcasters Spells pile'},
@@ -1378,12 +1380,12 @@ kingdomSlots={
 {guid='03a180',zone='9e931d'},
 {guid='25f0bd',zone='00770c'}},
 players={
-Blue  ={deckZone='307d12',discardZone='41de74',zone='062acc',coins='b2dc22',vp='b59b65',debt='186c83',tavern='015528',deck={-39.5,4,14.5},discard={-44.5,4,14.5}},
-Green ={deckZone='9359a4',discardZone='72ba37',zone='c11794',coins='22bdb3',vp='6ae2a8',debt='a34771',tavern='af5c58',deck={-39.5,4,-27.5},discard={-44.5,4,-27.5}},
-White ={deckZone='e6b388',discardZone='eb044b',zone='c95925',coins='b6bf41',vp='1b4618',debt='3d4844',tavern='d7d996',deck={-11.5,4,-27.5},discard={-16.5,4,-27.5}},
-Red   ={deckZone='5a6e68',discardZone='e09013',zone='d1c5af',coins='4b832d',vp='84f540',debt='9cfa4a',tavern='48295f',deck={16.5,4,-27.5},discard={11.5,4,-27.5}},
-Orange={deckZone='420340',discardZone='bf9b32',zone='10c425',coins='ce8828',vp='0d128b',debt='f2a253',tavern='fd4953',deck={44.5,4,-27.5},discard={-39.5,4,-27.5}},
-Yellow={deckZone='7ee56d',discardZone='046cfd',zone='827520',coins='17dd2a',vp='c979ca',debt='10cb81',tavern='dea1f7',deck={44.5,4,14.5},discard={39.5,4,14.5}}},
+Blue  ={deckZone='307d12',discardZone='41de74',zone='062acc',coins='b2dc22',vp='b59b65',debt='186c83',tavern='015528',deck={-67.5,4,-28},discard={-72.5,4,-28}},
+Green ={deckZone='9359a4',discardZone='72ba37',zone='c11794',coins='22bdb3',vp='6ae2a8',debt='a34771',tavern='af5c58',deck={-39.5,4,-28},discard={-44.5,4,-28}},
+White ={deckZone='e6b388',discardZone='eb044b',zone='c95925',coins='b6bf41',vp='1b4618',debt='3d4844',tavern='d7d996',deck={-11.5,4,-28},discard={-16.5,4,-28}},
+Red   ={deckZone='5a6e68',discardZone='e09013',zone='d1c5af',coins='4b832d',vp='84f540',debt='9cfa4a',tavern='48295f',deck={16.5,4,-28},discard={11.5,4,-28}},
+Orange={deckZone='420340',discardZone='bf9b32',zone='10c425',coins='ce8828',vp='0d128b',debt='f2a253',tavern='fd4953',deck={44.5,4,-28},discard={-39.5,4,-28}},
+Yellow={deckZone='7ee56d',discardZone='046cfd',zone='827520',coins='17dd2a',vp='c979ca',debt='10cb81',tavern='dea1f7',deck={72.5,4,-28},discard={67.5,4,-28}}},
 --All card sets/expansions
 cardSets={
 {name='Dominion'},
@@ -1425,11 +1427,6 @@ eventSets={
 {name='Adamabrams Extras'},
 {name='Legacy Events'},
 {name='Legacy Edicts'}}}
-sL={n=1,
-{'Official Sets','Currently only official sets are allowed.\nThis excludes first printings, promos and fan expansions.',14},
-{'Printed Cards','Currently only printed cards are allowed.\nThis excludes fan expansions.',14},
-{'Expansions','Currently only expansions are allowed.\nThis excludes promo and cut cards, Adamabrams and Xtras.',22},
-{'Everyting','Currently cards from any set are allowed.\nThis excludes nothing.',#ref.cardSets-1}}
 --Name of all cards along with costs, used for sorting
 MasterData={
 {cost='M0D0P0',name='Copper',type='Treasure'},
@@ -1800,7 +1797,7 @@ MasterData={
 {cost='MXDXP0',type='Landmark',name='Orchard',VP=function(t)return t.orchard*4 end},
 {cost='MXDXP0',type='Landmark',name='Palace',VP=function(t)return math.min(t.deck.Copper or 0, t.deck.Silver or 0, t.deck.Gold or 0)*3 end},
 {cost='MXDXP0',type='Landmark',name='Tomb',depend='VP'},
-{cost='MXDXP0',type='Landmark',name='Tower',VP=function(t)local vp,ne,zs,f=0,{},{},false;for _,g in ipairs(ref.basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end table.insert(zs,getObjectFromGUID(ref.baneSlot.zone))for _,s in ipairs(ref.kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do if o.tag=='Card'and o.getName()~='Bane Card'then if getType(o.getName()):find('Knight')==nil then table.insert(ne,o.getName())else table.insert(ne,'Knights')end elseif o.tag=='Deck'then table.insert(ne,o.getName():sub(1,-6))end end end for c,n in pairs(t.deck)do for _,p in ipairs(ne)do if p==c then f=true;end end if getType(c):find('Knight')then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Global Blackmarket Var]]if getType(c):find('Victory')==nil and not f then vp=vp+n end end return vp end},
+{cost='MXDXP0',type='Landmark',name='Tower',VP=function(t)local vp,ne,zs,f=0,{},{},false;for _,g in ipairs(ref.basicSlotzs)do table.insert(zs,getObjectFromGUID(g))end table.insert(zs,getObjectFromGUID(ref.baneSlot.zone))for _,s in ipairs(ref.kingdomSlots)do table.insert(zs,getObjectFromGUID(s.zone))end for _,z in ipairs(zs)do for __,o in ipairs(z.getObjects())do if o.tag=='Card'and o.getName()~='Bane Card'then if getType(o.getName()):find('Knight')==nil then table.insert(ne,o.getName())else table.insert(ne,'Knights')end elseif o.tag=='Deck'then table.insert(ne,o.getName():sub(1,-6))end end end for c,n in pairs(t.deck)do for _,p in ipairs(ne)do if p==c then f=true;end end if getType(c):find('Knight')then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[self Blackmarket Var]]if getType(c):find('Victory')==nil and not f then vp=vp+n end end return vp end},
 {cost='MXDXP0',type='Landmark',name='Triumphal Arch',VP=function(t)local h,s=0,0;for c,n in pairs(t.deck)do if getType(c):find('Action')then if n>h then s=h;h=n elseif n>s then s=n end end end return s*3 end},
 {cost='MXDXP0',type='Landmark',name='Wall',VP=function(t)return -(t.amount-15)end},
 {cost='MXDXP0',type='Landmark',name='Wolf Den',VP=function(t)log(t)return -t.wolf*3 end},

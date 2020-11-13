@@ -1,15 +1,23 @@
 --By Amuzet
-version,mod_name=1,'Dominion Play Area'
-local DISCONNECT,playArea,currDebt,option=false,false,false,{Flag=false,Horn=false,autoHorn=false}
+version,mod_name=2,'Dominion Play Area'
+GITURL='https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Cleaner.lua'
+local Script,DISCONNECT,playArea,currDebt,option=false,false,false,false,{Flag=false,Horn=false,autoHorn=false}
 function onLoad(sData)
+  if not Script then
+    Script=getObjectFromGUID('176e6a')
+    log(Script)
+  end
+  WebRequest.get(GITURL,function(wr)
+    local v=wr.text:match('version,mod_name=(%d*%p?%d*)')
+    if v then v=tonumber(v)
+      if v>version then self.setLuaScript(wr.text)self.reload()end
+    else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
   if sData~=''then
     local o=sData:match('(w+)')
     o=getObjectFromGUID(o)
     if o then playArea=o else onSave()end end onDrop()end
-
 function onSave()if playArea then return playArea.getGUID() end return''end
 function onDrop()broadcastToAll('The Play Area will be set up when turns are turned on.\nOr a player passes the turn.',{0.9,0.9,0.9})end
-
 function onChat(s,p)
   if p.admin then
     local m=s:lower()
@@ -20,7 +28,7 @@ end end end
 
 function onObjectEnterScriptingZone(z,o)
   if z==playArea and o.getDescription():find('Treasure')then
-    local dToken=getObjectFromGUID(Global.getTable('ref_players')[Turns.turn_color].debt)
+    local dToken=getObjectFromGUID(pt[Turns.turn_color].debt)
     if dToken and not currDebt then
       local n=dToken.getVar('count')
       if n>0 then currDebt=n
@@ -28,21 +36,23 @@ function onObjectEnterScriptingZone(z,o)
 end end end end
 function onPlayerDisconnect(player)
   DISCONNECT=player.color
-  delay('dc',player)
-end function dc(player)DISCONNECT=false end
+  delay('dc',{color=DISCONNECT})
+end function dc()DISCONNECT=false end
 function wait(time)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
 function onPlayerTurn(player)
-  if Global.getTable('ref_players')and Global.getVar('gameState')==3 then
-    local function oPT()
+  local gs=Script.getVar('gameState')
+  if gs==3 then
     currDebt=false
-    wait(1)
-    if not playArea then setPlayArea()
+    if not playArea then
+      setPlayArea()
+      pt=Script.getTable('ref')['players']
+      log(pt)
     elseif Player[Turns.getPreviousTurnColor()]and not DISCONNECT then
       --Find where to put them
-      local t=Global.getTable('ref_players')[Turns.getPreviousTurnColor()]
+      log(pt)
+      local t=pt[Turns.getPreviousTurnColor()]
       local zDd,zDk=getObjectFromGUID(t.discardZone),getObjectFromGUID(t.deckZone)
-      local pDd,pDk=zDd.getPosition(),zDk.getPosition()
-      t.discardZone,t.deckZone,t.discard,t.deck=zDd,zDk,pDd,pDk
+      t.zoneDiscard,t.zoneDeck=zDd,zDk
       local dN,flip=0,false
       for _,v in pairs(zDd.getObjects())do
         if v.tag=='Deck'or v.tag=='Card'then dN=dN+1
@@ -51,11 +61,10 @@ function onPlayerTurn(player)
               if dN>1 or v.tag=='Deck'and getObjectFromGUID(v.guid).is_face_down then
                 --Both Deck and Discard were facedown or two decks are in your discard!
                 Player[Turns.getPreviousTurnColor()].broadcast('Fix your Deck/Discard area!',{1,0,1})
-        end end end end if flip and dN<2 then
-        t.discardZone,t.deckZone,t.discard,t.deck=zDk,zDd,pDk,pDd end end
+      end end end end end
       --FlagHorn check
       t.draw=5
-      for _,v in pairs(t.deckZone.getObjects())do
+      for _,v in pairs(t.zoneDeck.getObjects())do
         if v.getName()=='-1 Card Token'then t.draw=t.draw-1
           local p=v.getPosition()
           v.setPosition({p[1],p[2],p[3]+5})end end
@@ -65,7 +74,7 @@ function onPlayerTurn(player)
           local tbl={position=t.deck,rotation={0,0,0},1}
           for _,o in pairs(playArea.getObjects())do
             if o.tag=='Card'and o.getName()=='Border Guard'then
-              o.putObject(getDeck(t.deckZone.getObjects()))break
+              o.putObject(getDeck(t.zoneDeck.getObjects()))break
             elseif o.tag=='Deck'then
               for d,c in pairs(o.getObjects())do
                 if c.nickname=='Border Guard'then
@@ -84,16 +93,12 @@ function onPlayerTurn(player)
     for k,v in pairs(c)do c[k]=(v*0.6)+0.1 end c[4]=1
     self.setColorTint(c)
   end
-  startLuaCoroutine(self,'oPT')
-  end
 end
 
 function setPlayArea()
   self.interactable=false
   self.setLock(true)
-  self.setPosition({0,1,-2.2})
   self.setRotation({0,0,0})
-  self.setScale({112,0.1,16.4})
   self.setName('playArea')
   self.setDescription('Cards played here and in your hand will be auto discarded once you end your turn. Make sure to keep any Duration cards off this play area untill they are ready to be discarded. A new 5 cards will be drawn automaticly once you end your turn.')
 
@@ -102,7 +107,7 @@ function setPlayArea()
   spawnObject(tZ).setLuaScript(clean('playArea'))
 end
 function autoDrawCards(p)
-  local cDk=getDeck(p.deckZone.getObjects())
+  local cDk=getDeck(p.zoneDeck.getObjects())
   --Attempt to draw cards
   if cDk and cDk.tag=='Deck'and cDk.getQuantity()>=p.draw then
     cDk.deal(p.draw,p.color)
@@ -119,7 +124,7 @@ function reshuffleDiscard(p)
   --Calculate Remaining
   p.draw=p.draw-#Player[p.color].getHandObjects()
   if p.draw>0 then
-    local cDk=getDeck(p.discardZone.getObjects())
+    local cDk=getDeck(p.zoneDiscard.getObjects())
     --Reshuffle Discard Pile
     if not cDk then broadcastToAll('Has something gone wrong?',p.color,{0.9,0.1,0.9})
     elseif cDk.tag=='Card'then cDk.setPosition(Player[p.color].getHandTransform().position)
