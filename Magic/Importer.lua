@@ -28,7 +28,9 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       c.name=c.name:gsub('"','')..'\n'..c.type_line:gsub(' // .*','')..' '..c.cmc..'CMC'
       --Oracle text Handling for Split/DFCs
       if c.card_faces then
-        for _,f in ipairs(c.card_faces)do c.oracle=c.oracle..c.name:gsub('"','\'')..'\n'..setOracle(f)end
+        for _,f in ipairs(c.card_faces)do
+          f.name=f.name:gsub('"','')..'\n'..f.type_line:gsub(' // .*','')..' '..c.cmc..'CMC'
+          c.oracle=c.oracle..f.name:gsub('"','\'')..'\n'..setOracle(f)..(_== 1 and '\n' or '')end
       else c.oracle=setOracle(c)end
       
       local n=t.n
