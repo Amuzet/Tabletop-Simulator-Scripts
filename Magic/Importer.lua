@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.9
+mod_name,version='Card Importer',1.901
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -28,7 +28,9 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       c.name=c.name:gsub('"','')..'\n'..c.type_line:gsub(' // .*','')..' '..c.cmc..'CMC'
       --Oracle text Handling for Split/DFCs
       if c.card_faces then
-        for _,f in ipairs(c.card_faces)do c.oracle=c.oracle..c.name:gsub('"','\'')..'\n'..setOracle(f)end
+        for _,f in ipairs(c.card_faces)do
+          f.name=f.name:gsub('"','')..'\n'..f.type_line
+          c.oracle=c.oracle..f.name..'\n'..setOracle(f)..(_==#c.card_faces and ''or'\n')end
       else c.oracle=setOracle(c)end
       
       local n=t.n
@@ -190,7 +192,7 @@ function spawnCSV(wr,qTbl)
       else table.insert(tbl,csv:sub(2))end end
     if #tbl<setCSV-1 then uLog(tbl)printToAll('Tell Amuzet that an Error occored in spawnCSV:\n'..qTbl.full)return endLoop()
     elseif not tbl[2]:find('%d+')then--FirstCSVLine
-    elseif(
+    elseif(setCSV==3)or(
       setCSV==4 and tbl[1]:find('main'))or(
       setCSV==7 and not tbl[1]:find('board'))then
       local b='https://api.scryfall.com/cards/named?fuzzy='..tbl[3]
@@ -219,7 +221,9 @@ local DeckSites={
   deckbox=function(a)return a..'/export',spawnDeck end,
 --scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
   scryfall=function(a)setCSV=7 return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/csv',spawnCSV end,
-  tappedout=function(a)setCSV=4 return a:gsub('.cb=%d+','')..'?fmt=csv',spawnCSV end,
+  --https://tappedout.net/users/i_am_moonman/lists/15-11-20-temp-cube/?cat=type&sort=&fmt=csv
+  tappedout=function(a)if a:find('/lists/')then setCSV=3 else setCSV=4 end
+    return a:gsub('.cb=%d+','')..'?fmt=csv',spawnCSV end,
 --A function which returns a url and function which handels that url's output
   mtggoldfish=function(a)
     if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end

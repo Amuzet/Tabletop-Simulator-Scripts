@@ -342,7 +342,7 @@ function click_selectDeck(obj, color)
     for _,s in pairs(ref.cardSets)do
       if g==s.guid then l=l..s.name..'\n'
   break end end end
-  b.editButton({index=0,label=l..'Start Game',height=790*(#useSets+2)+100})
+  self.editButton({index=0,label=l..'Start Game',height=790*(#useSets+2)+100})
   obj.editButton({font_color=a})
 end
 function click_AllSets(obj, color)useSets={}
@@ -671,7 +671,8 @@ function setupKingdom(summonException)
                 elseif('Knights,Castles,Catapult / Rocks,Encampment / Plunder,Gladiator / Fortune,Patrician / Emporium,Settlers / Bustling Village,Sauna / Avanto,Stallions,Panda / Gardener,W Invoking Witch / W Summoned Fiend'):find(v.nickname)then
                   coroutine.yield(0)
                   local p=getPile(v.nickname..' pile')
-                  p.shuffle()
+                  p.takeObject({index=1,position={-75,2,0}})
+                  coroutine.yield(0)
                   p.takeObject({index=1,position=deckAddPos,flip=true})
                   deck.takeObject({index=v.index}).destruct()
                   cleanDeck=false
@@ -876,8 +877,20 @@ function cleanUp()
   if Use('Druid')then dC=dC+3 end
   if Use('XHandler')then dC=dC+3 end
   if Use('Spellcaster')then eC=eC+2 end
-  for i,v in ipairs(sideSlots)do getPile(v..' pile').setPosition(ref.sideSlots[i].pos)end
-  for i=#sideSlots+dC,#ref.sideSlots do getObjectFromGUID(ref.sideSlots[i].guid).destruct()end
+  for i,v in ipairs(sideSlots)do
+    local obj=getPile(v..' pile')
+    obj.setPosition(ref.sideSlots[i].pos)
+    obj.setLock(false)end
+  
+  local x=getObjectFromGUID(ref.sideSlots[#sideSlots].guid).getPosition()[1]-6.25
+  for i=#sideSlots+1,#ref.sideSlots do
+    local obj=getObjectFromGUID(ref.sideSlots[i].guid)
+    if i<#sideSlots+dC then
+      obj.setRotation({0,270,0})
+      obj.setPosition({x,1.2,13.5+(i-#sideSlots)*4.5})
+    else
+      obj.destruct()
+    end end
   
   getObjectFromGUID(ref.storageZone.fog).destruct()
   
@@ -970,12 +983,15 @@ Spellcaster='Spell Tokens'}
                 obeliskPiles =nil
             end break
     end end end end
-    if Use('BlackMarket')then pos=blackMarketDeck.getPosition()local g=0
-      for i,card in ipairs(blackMarketDeck.getObjects())do
+    if Use('BlackMarket')then
+      local deckBM=false
+      for i, v in ipairs(getObjectFromGUID(ref.randomizer.zone).getObjects())do if v.tag=='Deck'then deckBM=v end end
+      pos=deckBM.getPosition()local g=0
+      for i,card in ipairs(deckBM.getObjects())do
         if getType(card.name):find('Gathering')then g=g+1
-          if     g==1 then tokenMake(blackMarketDeck,'vp',0,nil,card.nickname)
-          elseif g==2 then tokenMake(blackMarketDeck,'vp',0,{0.9,1,-1.25},card.nickname)
-          else   tokenMake(blackMarketDeck,'vp',0,{-0.9,1,-1.25},card.nickname)
+          if     g==1 then tokenMake(deckBM,'vp',0,nil,card.nickname)
+          elseif g==2 then tokenMake(deckBM,'vp',0,{0.9,1,-1.25},card.nickname)
+          else   tokenMake(deckBM,'vp',0,{-0.9,1,-1.25},card.nickname)
     end end end end
     wait(1,'cutcDelete')
     for _,v in pairs(ref.tokenBag)do getObjectFromGUID(v).destruct()end
