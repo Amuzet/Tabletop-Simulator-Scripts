@@ -1,5 +1,5 @@
 --DominionDefinitiveEditionModifiedByAmuzet2020_07_30_k
-VERSION,GITURL=2.6,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
+VERSION,GITURL=2.7,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
 --[[Bugs:
 Some card backs are miscolored so you can tell which is which in hands. ex shelters
 Heirlooms spawn an extra card next to yellow if there are 5+ players
@@ -86,7 +86,7 @@ function onLoad(saved_data)
     for i in ipairs(ref.cardSets)do
       local obj=getObjectFromGUID(ref.cardSets[i].guid)
       if obj then
-        B.label='Select\n'..obj.getName()
+        B.label='Include\n'..obj.getName()
         obj.createButton(B)
         for j, guid in ipairs(useSets)do
           local obj2=getObjectFromGUID(guid)
@@ -110,7 +110,6 @@ function onLoad(saved_data)
     if startB then
       local btn=setmetatable({d=-3,function_owner=self,position={-24,0,-8},rotation={0,180,0},scale={0.7,0.7,0.7},height=2000,width=5750,font_size=5000},{__call=function(b,l,t,p,f)
         b.position,b.label,b.tooltip=p or {b.position[1],b.position[2],b.position[3]-b.d},l,t or'';if f then b.click_function=f else b.click_function='click_' .. l:gsub('[^\n]+\n',''):gsub('%s','')end startB.createButton(b)end})
-      btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{0,0,-36})
       btn('Quick Setup\nTwo Sets','Random Kingdom from any two sets',{-8.5,0,-48})
       btn('Quick Setup\nThree Sets','Random Kingdom from any three sets')
       btn('Quick Setup\nAll Sets','Random Kingdom from every set')
@@ -120,11 +119,11 @@ function onLoad(saved_data)
       btn('Balanced Setup\nFive Sets','Random Kingdom made with 2 cards each from 5 sets')
       btn('Balanced Setup\nTen Sets','Random Kingdom made with a card each from 10 different sets')
       btn.color={0,0,0}btn.font_color={1,1,1}
-      btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{0,0,-48},'click_blackMarketLimit')
-      btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',nil,'click_eventLimit')
-      btn.font_color={0,1,0}
-      btn('Include in Randomizer\nOfficial Expansions','These sets are all official expansions made by Donald X V of Rio Grande Games')
-      --btn('Included Sets:\n'..sL[sL.n][1],'Toggles sets which sets are allowed in Quick Setup.\nCurrently only official sets are allowed.\nThis excludes Custom and Promo cards.',nil,'click_setLimit')
+      btn('Selected Sets\nStart Game','Random Kingdom from selected sets and cards',{0,0,-39})
+      btn('Black Market\nLimit: '..blackMarketMax,'The Number of cards in the Black Market',{-16,0,-31},'click_blackMarketLimit')
+      btn('Max Events: '..eventMax,'The Maximum number of noncards in Kingdom',{16,0,-31},'click_eventLimit')
+      btn.width=7000
+      btn('Include in Randomizer\nOfficial Expansions','These sets are all official expansions made by Donald X V of Rio Grande Games',{42,0,-31},'click_setLimit')
     end
   end
   if gameState==2 then
@@ -343,7 +342,7 @@ function click_selectDeck(obj, color)
     for _,s in pairs(ref.cardSets)do
       if g==s.guid then l=l..s.name..'\n'
   break end end end
-  b.editButton({index=0,label=l..'[009911]Start Game[-]',height=790*(#useSets+2)+100})
+  b.editButton({index=0,label=l..'Start Game',height=790*(#useSets+2)+100})
   obj.editButton({font_color=a})
 end
 function click_AllSets(obj, color)useSets={}
@@ -1384,7 +1383,7 @@ Blue  ={deckZone='307d12',discardZone='41de74',zone='062acc',coins='b2dc22',vp='
 Green ={deckZone='9359a4',discardZone='72ba37',zone='c11794',coins='22bdb3',vp='6ae2a8',debt='a34771',tavern='af5c58',deck={-39.5,4,-28},discard={-44.5,4,-28}},
 White ={deckZone='e6b388',discardZone='eb044b',zone='c95925',coins='b6bf41',vp='1b4618',debt='3d4844',tavern='d7d996',deck={-11.5,4,-28},discard={-16.5,4,-28}},
 Red   ={deckZone='5a6e68',discardZone='e09013',zone='d1c5af',coins='4b832d',vp='84f540',debt='9cfa4a',tavern='48295f',deck={16.5,4,-28},discard={11.5,4,-28}},
-Orange={deckZone='420340',discardZone='bf9b32',zone='10c425',coins='ce8828',vp='0d128b',debt='f2a253',tavern='fd4953',deck={44.5,4,-28},discard={-39.5,4,-28}},
+Orange={deckZone='420340',discardZone='bf9b32',zone='10c425',coins='ce8828',vp='0d128b',debt='f2a253',tavern='fd4953',deck={44.5,4,-28},discard={39.5,4,-28}},
 Yellow={deckZone='7ee56d',discardZone='046cfd',zone='827520',coins='17dd2a',vp='c979ca',debt='10cb81',tavern='dea1f7',deck={72.5,4,-28},discard={67.5,4,-28}}},
 --All card sets/expansions
 cardSets={
