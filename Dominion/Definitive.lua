@@ -167,11 +167,12 @@ function click_endGame(obj, color)
             else bcast(currentPlayer..' is Miserable',{1,0,1})end end
           if obj.tag=='Card'or obj.tag=='Deck'then
             local t=getType(obj.getName())
-            if t and t~='Boon'and t~='Hex'and t~='Artifact'and t~='State'and t~='Project'then
+            if t and('LandmarkBoonHexStateArtifactProject'):find(t)then elseif t then
               obj.setRotation({0,180,180})
               obj.setPosition(ref.players[currentPlayer].deck)
               coroutine.yield(0)end end end end
       local gObjs=function(s)return getObjectFromGUID(ref.players[currentPlayer][s]).getObjects()end
+      --ERROR UNKOWN past this point!
       if Player[currentPlayer].getHandCount()>0 then
         vP[currentPlayer],dT[currentPlayer]=0,{}
         
@@ -187,7 +188,7 @@ function click_endGame(obj, color)
           end end
           if obj.tag=='Card'or obj.tag=='Deck'then
             local t=getType(obj.getName())
-            if t and t~='Boon'and t~='Hex'and t~='Artifact'and t~='State'then
+            if t and('LandmarkBoonHexStateArtifactProject'):find(t)then elseif t then
               obj.setRotation({0,180,180})
               obj.setPosition(ref.players[currentPlayer].deck)
               coroutine.yield(0)
@@ -231,6 +232,12 @@ function click_endGame(obj, color)
           if getType(i):find('Action')then tracker.actions=tracker.actions+v
             if v>2 then tracker.orchard=tracker.orchard+1
           end end
+          if Use('LandGrant')then
+            if tracker['PlayerDefined']==nil then
+              tracker['PlayerDefined']=0 end
+            if getType(i):find('PlayerDefined')then
+              tracker['PlayerDefined']=tracker['PlayerDefined']+v end
+          end
           if getType(i):find('Victory')then tracker.victory=tracker.victory+v end
           if getType(i):find('Castle')then  tracker.castles=tracker.castles+1 end
           if getType(i):find('Knight')then  tracker.knights=tracker.knights+v end
@@ -342,7 +349,7 @@ function click_selectDeck(obj, color)
     for _,s in pairs(ref.cardSets)do
       if g==s.guid then l=l..s.name..'\n'
   break end end end
-  self.editButton({index=0,label=l..'Start Game',height=790*(#useSets+2)+100})
+  self.editButton({index=8,label=l..'Start Game',height=790*(#useSets+2)+100})
   obj.editButton({font_color=a})
 end
 function click_AllSets(obj, color)useSets={}
@@ -414,13 +421,16 @@ end
 function click_BasicGame(obj, color)
   bcast('Beginner Tutorial')
   newText({20,1,50},'THE GAME ENDS WHEN:\nAny 3 piles are empty or\nThe Province pile is empty.')
-  newText({0,1,11},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
+  newText({0,2,11},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
   local knd={
 'Cellar,Festival,Mine,Moat,Patrol,Poacher,Smithy,Village,Witch,Workshop',
 'Cellar,Market,Merchant,Militia,Mine,Moat,Remodel,Smithy,Village,Workshop',}
   kingdomList( knd[ math.random(1,#knd) ] , {obj,color} )
 end
-
+function click_RedditWeekly(obj, color)
+  bcast('Reddit Weekly')
+  
+end
 function click_forcePile(obj, color)
   local guid,c=obj.getGUID(),{1,1,1}
   if guid==ref.supplyPiles[1].guid then
@@ -668,11 +678,12 @@ function setupKingdom(summonException)
                   deck.takeObject({index=v.index}).destruct()
                   cleanDeck=false
                   break
-                elseif('Knights,Castles,Catapult / Rocks,Encampment / Plunder,Gladiator / Fortune,Patrician / Emporium,Settlers / Bustling Village,Sauna / Avanto,Stallions,Panda / Gardener,W Invoking Witch / W Summoned Fiend'):find(v.nickname)then
+                elseif('KnightsCastlesX Stallions'):find(v.nickname)or v.nickname:find(' / ')then
                   coroutine.yield(0)
                   local p=getPile(v.nickname..' pile')
                   p.takeObject({index=1,position={-75,2,0}})
                   coroutine.yield(0)
+                  p.shuffle()
                   p.takeObject({index=1,position=deckAddPos,flip=true})
                   deck.takeObject({index=v.index}).destruct()
                   cleanDeck=false
@@ -704,7 +715,8 @@ function setupKingdom(summonException)
             end end end
             if not baneSet then
                 for j, card in ipairs(deck.getObjects())do
-                    local tp=getType(card.name) if tp=='Event'or tp=='Landmark'or tp=='Project'or tp=='Way'or tp=='Edict'or tp=='Spell'then
+                    local tp=getType(card.name)
+                    if('EventLandmarkProjectWayEdictSpell'):find(tp)then
                     elseif getCost(card.nickname)=='M2D0P0'or getCost(card.nickname)=='M3D0P0'then
                         Use.Add(card.nickname)
                         if card.nickname=='Black Market'then
@@ -725,9 +737,11 @@ function setupKingdom(summonException)
                     deck.takeObject({index=v.index}).destruct()
                     cleanDeck=false
                     break
-                  elseif('Knights,Castles,Catapult / Rocks,Encampment / Plunder,Gladiator / Fortune,Patrician / Emporium,Settlers / Bustling Village,Sauna / Avanto,Stallions,Panda / Gardener,W Invoking Witch / W Summoned Fiend'):find(v.nickname)then
+                  elseif('KnightsCastlesX Stallions'):find(v.nickname)or v.nickname:find(' / ')then
                     coroutine.yield(0)
                     local p=getPile(v.nickname..' pile')
+                    p.takeObject({index=1,position={-75,2,0}})
+                    coroutine.yield(0)
                     p.shuffle()
                     p.takeObject({index=1,position=deckAddPos,flip=true})
                     deck.takeObject({index=v.index}).destruct()
@@ -881,8 +895,9 @@ function cleanUp()
     local obj=getPile(v..' pile')
     obj.setPosition(ref.sideSlots[i].pos)
     obj.setLock(false)end
-  
-  local x=getObjectFromGUID(ref.sideSlots[#sideSlots].guid).getPosition()[1]-6.25
+  local x=0
+  if #sideSlots~=0 then
+    x=getObjectFromGUID(ref.sideSlots[#sideSlots].guid).getPosition()[1]-6.25 end
   for i=#sideSlots+1,#ref.sideSlots do
     local obj=getObjectFromGUID(ref.sideSlots[i].guid)
     if i<#sideSlots+dC then
@@ -952,7 +967,7 @@ Spellcaster='Spell Tokens'}
   function tokenCoroutine()
     wait(4,'cutcSetup')
     log(Use[1])
-    if Use('Landmark')or Use('Gathering')or Use('TradeRoute')or Use('Tax')or Use('Panda / Gardener')then
+    if Use('Landmark')or Use('Gathering')or Use('TradeRoute')or Use('Tax')or Use('C Panda / Gardener')then
       obeliskPiles={}
       local function slot(z)
         for __,obj in ipairs(getObjectFromGUID(z).getObjects())do
@@ -962,7 +977,7 @@ Spellcaster='Spell Tokens'}
             getSetup('Aqueduct')(obj)
             getSetup('Trade Route')(obj)
             getSetup('Defiled Shrine')(obj)
-            getSetup('Panda / Gardener')(obj)
+            getSetup('C Panda / Gardener')(obj)
             if getType(obj.getObjects()[obj.getQuantity()].name):find('Gathering')then tokenMake(obj,'vp')end
             break end end end
       for _,v in ipairs(ref.basicSlots)do slot(v.zone)end
@@ -1048,10 +1063,10 @@ function createPile()
           v.destruct()getPile('Settlers / Bustling Village pile').setPosition(ks.pos)
         elseif v.getName()=='Sauna / Avanto'then
           v.destruct()getPile('Sauna / Avanto pile').setPosition(ks.pos)
-        elseif v.getName()=='Stallions'then
-          v.destruct()getPile('Stallions pile').setPosition(ks.pos)
-        elseif v.getName()=='Panda / Gardener'then
-          v.destruct()getPile('Panda / Gardener pile').setPosition(ks.pos)
+        elseif v.getName()=='X Stallions'then
+          v.destruct()getPile('X Stallions pile').setPosition(ks.pos)
+        elseif v.getName()=='C Panda / Gardener'then
+          v.destruct()getPile('C Panda / Gardener pile').setPosition(ks.pos)
         --All other cards get 10 copies
         else while k<10 do v.clone({position=ks.pos})k=k+1
   end end end end end
@@ -1089,10 +1104,10 @@ function createPile()
         v.destruct()getPile('Patrician / Emporium pile').setPosition(ref.baneSlot.pos)
       elseif v.getName()=='Settlers / Bustling Village'then
         v.destruct()getPile('Settlers / Bustling Village pile').setPosition(ref.baneSlot.pos)
-      elseif v.getName()=='Stallions'then
-        v.destruct()getPile('Stallions pile').setPosition(ref.baneSlot.pos)
-      elseif v.getName()=='Panda / Gardener'then
-        v.destruct()getPile('Panda / Gardener pile').setPosition(ks.pos)
+      elseif v.getName()=='X Stallions'then
+        v.destruct()getPile('X Stallions pile').setPosition(ref.baneSlot.pos)
+      elseif v.getName()=='C Panda / Gardener'then
+        v.destruct()getPile('C Panda / Gardener pile').setPosition(ks.pos)
       --All other cards get 10 copies
       else while k<10 do v.clone({position=ref.baneSlot.pos})k=k+1
   end end end end
@@ -1245,7 +1260,7 @@ function setUninteractible(t)
       local f=false
       for j,k in pairs({'replacementPiles','supplyPiles','eventSets','sidePiles','cardSets'})do
         if not f then for i,c in ipairs(ref[k])do if n==c.name then f,ref[k][i].guid=true,o.getGUID()break end end end end
-      if not f then o.highlightOn({1,0,0.5})print(n)end
+      if gameState==1 and not f then o.highlightOn({1,0,0.5})print(n)end
     else local p=o.getPosition();p={p[1],1.3,p[3]}
       --if o.getGMNotes():find('side')then ref.sideSlots[o.getGMNotes():match('%d+')]={guid=o.getGUID()}end
       for j,c in pairs({'basicSlots','eventSlots','kingdomSlots'})do
@@ -1380,8 +1395,8 @@ replacementPiles={
 {name='Gladiator / Fortune pile'},
 {name='Patrician / Emporium pile'},
 {name='Settlers / Bustling Village pile'},
-{name='Stallions pile'},
-{name='Panda / Gardener pile'},
+{name='X Stallions pile'},
+{name='C Panda / Gardener pile'},
 {name='W Invoking Witch / W Summoned Fiend pile'}},
 kingdomSlots={
 {guid='ea57b1',zone='987e4a'},
@@ -2036,6 +2051,7 @@ MasterData={
 {cost='M7D0P0',name='X Mustang',type='Action - Victory - Stallion',VP=2},
 {cost='M8D0P0',name='X Friesian',type='Action - Victory - Stallion',VP=3},
 {cost='M9D0P0',name='X Arabian Horse',type='Victory - Stallion',VP=function(t)if t.deck['Arabian Horse']==1 then return t.deck.Horse or 0 else return 0 end end},
+--Wonders http://forum.dominionstrategy.com/index.php?topic=20401.msg844160#msg844160
 --X'v2 http://forum.dominionstrategy.com/index.php?topic=20407.0
 {cost='MXDXP0',type='Landmark',name='X Clock Tower',depend='VP'},
 {cost='MXDXP0',type='Landmark',name='X El Dorado',depend='Artifact'},
@@ -2317,7 +2333,7 @@ MasterData={
 {cost='M4D0P0',name='W Miserly Witch',type='Action - Attack'},
 {cost='M0D0P0',name='W Cursed Copper',type='Treasure - Curse',VP=-1},
 --https://imgur.com/gallery/iaIN7iP
-{cost='M4D0P0',name='W Faustian Witch',type='Action - Attack'},
+{cost='M4D0P0',name='W Faustian Witch',type='Action - Attack',depend='Reserve'},
 {cost='M0D0P0',name='W Cursed Bargain',type='Treasure - Reserve - Curse',VP=-3},
 {cost='M6D2P0',name='W Devious Witch',type='Action - Attack'},
 --https://imgur.com/gallery/lx1BnPg
@@ -2336,8 +2352,87 @@ MasterData={
 --https://imgur.com/a/mw9c4N0
 {cost='M5D0P0',name='W Ghostly Witch',type='Night - Attack'},
 {cost='M0D0P0',name='W Ethereal Curse',type='Night - Curse',VP=-1},
-{cost='M4D0P0',name='W Neighborhood Witch',type='Action',depend='Artifact'},
+{cost='M4D0P0',name='W Neighborhood Witch',type='Action',depend='Artifact Villager'},
 {cost='MXDXPX',type='Artifact',name='W Cauldron'},
+--Venus http://forum.dominionstrategy.com/index.php?topic=20585.0
+{cost='MXDXPX',type='Way',name='V Way of the Centaur',depend='Horse'},
+{cost='MXDXPX',type='Way',name='V Way of the Mermaid'},
+{cost='MXDXPX',type='Way',name='V Way of the Sphinx'},
+{cost='MXDXPX',type='Way',name='V Way of the Harpy'},
+{cost='MXDXPX',type='Way',name='V Way of the Medusa'},
+{cost='MXDXPX',type='Way',name='V Way of the She-Wolf',depend='Doom'},
+{cost='M0DXPX',type='Event',name='V Joy'},
+{cost='M0DXPX',type='Event',name='V Lending',depend='Debt'},
+{cost='M1DXPX',type='Event',name='V Burnish'},
+{cost='M2DXPX',type='Event',name='V Footbridge'},
+{cost='M4DXPX',type='Event',name='V Bride Wait',depend='Aside'},
+{cost='M4DXPX',type='Event',name='V Calmness',depend='MinusCard'},
+{cost='M4DXPX',type='Event',name='V Divination',depend='Aside'},
+{cost='M5DXPX',type='Event',name='V Tie to Ground'},
+{cost='M6DXPX',type='Event',name='V Cursed Land'},
+{cost='MXD7PX',type='Event',name='V Birth of Venus'},
+{cost='M3DXPX',type='Project',name='V Phoenix'},
+{cost='M4DXPX',type='Project',name='V Alert'},
+{cost='M6DXPX',type='Project',name='V Seasons Grace',depend='Jorney'},
+{cost='MXD8PX',type='Project',name='V Greate Cathedral',depend='Exile'},
+{cost='MXD8PX',type='Project',name='V Touch of Life'},
+{cost='MXD12PX',type='Project',name='V Land Grant'},
+{cost='MXDXPX',type='Landmark',name='V Acreage',VP=function(t)return 0 end},
+{cost='MXDXPX',type='Landmark',name='V Barony'},
+{cost='MXDXPX',type='Landmark',name='V Bishopric'},
+{cost='MXDXPX',type='Landmark',name='V County'},
+{cost='MXDXPX',type='Landmark',name='V Domain',VP=function(t)return math.min(t.deck.Province or 0,t.deck.Duchy or 0,t.deck.Estate or 0)*3 end},
+{cost='MXDXPX',type='Landmark',name='V Gold Mine',VP=function(t)return(t.deck.Gold or 0)end},
+{cost='MXDXPX',type='Landmark',name='V Grange',VP=function(t)return math.floor(t.amount/10)end},
+{cost='MXDXPX',type='Landmark',name='V Virgin Lands'},
+{cost='MXDXPX',type='Landmark',name='V Yards',VP=function(t)return math.floor(t.amount/10)end},
+{cost='M2D0P0',name='V Maid',type='Action'},
+{cost='M2D0P0',name='V Small Village',type='Action'},
+{cost='M2D0P0',name='V Taverner',type='Action - Reserve'},
+{cost='M2D0P0',name='V Wanderer',type='Action'},
+{cost='M3D0P0',name='V Horse Lady',type='Action',depend='Horse Exile'},
+{cost='M3D0P0',name='V Minstrel',type='Action'},
+{cost='M3D0P0',name='V Money Trick',type='Treasure - Reaction',depend='Exile'},
+{cost='M3D0P0',name='V Secret Place',type='Action',depend='Aside'},
+{cost='M3D0P0',name='V Valkyries',type='Action - Reaction',depend='Horse'},
+{cost='M3D0P0',name='V Workers',type='Action',depend='Villager'},
+{cost='M4D0P0',name='V Emissary',type='Action - Attack'},
+{cost='M4D0P0',name='V Faithful Knight',type='Action',depend='VP Coffers Villager'},
+{cost='M4D0P0',name='V Guildmaster',type='Action - Command'},
+{cost='M4D0P0',name='V Hidden Pond',type='Victory'},
+{cost='M4D0P0',name='V Nurse',type='Night'},
+{cost='M4D0P0',name='V Sacred Hall',type='Action - Victory',depend='VP'},
+{cost='M4D0P0',name='V Underworld Gate',type='Night'},
+{cost='M5D0P0',name='V Blessing',type='Action',depend='Wish'},
+{cost='M5D0P0',name='V Buffoon',type='Action - Attack - Command'},
+{cost='M5D0P0',name='V Circus Camp',type='Action'},
+{cost='M5D0P0',name='V Crusader',type='Action'},
+{cost='M5D0P0',name='V Dangerous Ground',type='Action'},
+{cost='M5D0P0',name='V Golden Spoils',type='Treasure'},
+{cost='M5D0P0',name='V Gravedigger',type='Night'},
+{cost='M5D0P0',name='V Hands of Gold',type='Night',depend='Villager'},
+{cost='M5D0P0',name='V Immolater',type='Action - Duration'},
+{cost='M5D0P0',name='V Magic Library',type='Action - Reaction'},
+{cost='M5D0P0',name='V Marketplace',type='Action'},
+{cost='M5D0P0',name='V Shipmaster',type='Action - Duration'},
+{cost='M5D0P0',name='V Tavern Nights',type='Night - Reserve'},
+{cost='M5D0P0',name='V Wishing Fountain',type='Action'},
+{cost='M5D0P0',name='V Tale-Teller',type='Night'},
+{cost='M6D0P0',name='V Distant Island',type='Victory',depend='Exile',VP=2},
+{cost='M6D0P0',name='V Paladin',type='Action'},
+{cost='M6D0P0',name='V Amazon',type='Action',depend='Horse'},
+{cost='M4D0P0',name='V Fruits / V Fruit Mix',type='Treasure',depend='Coffers'},
+{cost='M4D0P0',name='V Fruits',type='Treasure',depend='Coffers'},
+{cost='M6D0P0',name='V Fruit Mix',type='Treasure',depend='Coffers'},
+{cost='M0D0P0',name='V Young Saboteur',type='Action - Novice'},
+{cost='M0D0P0',name='V Young Sorceress',type='Action - Novice'},
+{cost='M0D0P0',name='V Young Smith',type='Action - Novice'},
+{cost='M0D0P0',name='V Young Trickster',type='Action - Novice',depend='Coffers'},
+{cost='M2D0P0',name='V Coin of Honor',type='Treasure - Heirloom'},
+{cost='M2D0P0',name='V Blessed Gems',type='Treasure - Heirloom'},
+{cost='M2D0P0',name='V Harpy',type='Action - Attack'},
+{cost='M2D0P0',name='V Medusa',type='Action - Attack'},
+{cost='M2D0P0',name='V She-Wolf',type='Action - Attack - Doom'},
 --Custom https://www.reddit.com/r/dominion/comments/hrx0rb/original_new_cards_i_made_hope_you_enjoy1_lol/
 {cost='MXDXPX',type='Artifact',name='Letter'},
 {cost='MXDXPX',type='Artifact',name='Statue'},
@@ -2355,7 +2450,7 @@ MasterData={
 {cost='M4D0P0',name='C Tulip Field',type='Victory',depend='Coffers Villager',VP=function(dt)end},
 {cost='M5D0P0',name='C Backstreet',type='Night',depend='Coffers Villager'},
 {cost='M0D0P0',name='C Rabbit',type='Action - Treasure'},
-{cost='M5D0P0',name='C Magician',type='Action',depend='Rabbit'},
+{cost='M5D0P0',name='C Magician',type='Action',depend='Rabbit Coffers'},
 {cost='M4D0P0',name='C Fishing Boat',type='Action - Duration'},
 {cost='M3D0P0',name='C Drawbridge',type='Action - Reserve'},
 {cost='M4D0P0',name='C Jinxed Jewel v1',type='Treasure - Night - Heirloom'},
