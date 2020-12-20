@@ -25,13 +25,16 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
   {__call=function(t,c,qTbl)
       --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
       t.json,c.face,c.oracle,c.back='','','',Back[qTbl.player]or Back.___
-      c.name=c.name:gsub('"','')..'\n'..c.type_line:gsub(' // .*','')..' '..c.cmc..'CMC'
+      
       --Oracle text Handling for Split/DFCs
       if c.card_faces then
         for _,f in ipairs(c.card_faces)do
-          f.name=f.name:gsub('"','')..'\n'..f.type_line
+          f.name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC'
+          if _==1 then c.name=f.name end
           c.oracle=c.oracle..f.name..'\n'..setOracle(f)..(_==#c.card_faces and ''or'\n')end
-      else c.oracle=setOracle(c)end
+      else
+        c.name=c.name:gsub('"','')..'\n'..c.type_line..' '..c.cmc..'CMC'
+        c.oracle=setOracle(c)end
       
       local n=t.n
       if qTbl.deck then
@@ -46,7 +49,6 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       elseif c.image_uris then
         c.face=c.image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
       else --DFC Cards
-        c.name=c.name:gsub(' // [^\n]*','')
         c.face=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
         if qTbl.mode~='Deck'then
           c.back=c.face:gsub('normal',Quality[qTbl.player])

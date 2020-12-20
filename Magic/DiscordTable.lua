@@ -207,6 +207,10 @@ function onPlayerTurn(ply)if ply then
   end end
 end end
 --Context Object
+function onObjectEnterScriptingZone(z,o)
+  if o.tag=='Deck'and o.is_face_down then
+    for k,c in pairs(T)do if z.getGUID()==c.z then
+    mtgContext(o,k)T[k].d=o break end end end end
 local M=setmetatable({function_owner=Global,position={0,-0.35,-0.7},color={0,0,0},rotation={0,0,180},width=900,height=250,font_size=120,alignment=3,validation=2,value=0},
     {__call=function(b,o,l,t,p,f)b.position,b.label,b.tooltip,b.click_function=p or b.position,l,t or'',f or'none'o.createButton(b)end})
 function mtgContext(o,p)
@@ -214,7 +218,7 @@ function mtgContext(o,p)
   o.hide_when_face_down=false
   o.clearContextMenu()
   o.highlightOn(stringColorToRGB(p))
-  for k,v in pairs({Lands='Click to cycle modes.\nRight click to .',Scry='Takes the top X cards and places them in a pile.',Cascade='Will search this deck for the first nonland card with CMC less than X.'})do
+  for k,v in pairs({Scry='Takes the top X cards and places them in a pile.',Cascade='Will search this deck for the first nonland card with CMC less than X.',Lands='Click to cycle modes.\nRight click to .'})do
     o.addContextMenuItem(k..' X',function(p)
         M.font_color=stringColorToRGB(p)
         M.tooltip=v
@@ -260,7 +264,7 @@ function cCascade(o,c,a)local x,t=oS(o)
   printToAll('Cascade for '..x,stringColorToRGB(c))
   for _,v in pairs(o.getObjects())do
     if not v.name:find('CMC')then cB(o)
-      if v.name==''then
+      if v.name:len()<1 then
         Player[c].broadcast('Auto Cascade Stopped: Card not named!')
       else
         Player[c].broadcast('Auto Cascade Stopped: Spell not Costed!\nClick Button to make a decklist of your deck in a new notebook tab.\nRight click to dismiss.')
@@ -270,7 +274,7 @@ function cCascade(o,c,a)local x,t=oS(o)
         M.position[3]=0
         o.createButton(M)
       end return true
-    elseif not v.name:find('Land')and tonumber(v.name:match(' (%d+)CMC'))<tonumber(x) then t.flip=not t.flip break
+    elseif not v.name:find('Land')and tonumber(v.name:match('%s(%d+)CMC'))<tonumber(x) then t.flip=not t.flip break
     else o.takeObject(t)end end
     cB(o)o.takeObject(t)end
 function cDeckList(o,c,a)
