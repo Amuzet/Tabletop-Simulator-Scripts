@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.901
+mod_name,version='Card Importer',1.902
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -661,12 +661,12 @@ function registerModule()
   enc=Global.getVar('Encoder')
   if enc then
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
-    enc.call('APIregisterTool',{toolID=pID,name=pID,funcOwner=self,activateFunc='toggleMenu',display=true})
+    enc.call('APIregisterProperty',{propID=pID,name=pID,values={},funcOwner=self,activateFunc='toggleMenu',visible=true,tags="tool,cardImporter,Amuzet"})
     function eEmblemAndTokens(o,p)ENC(o,p,'Token')end function eOracle(o,p)ENC(o,p,'Text')end function eRulings(o,p)ENC(o,p,'Rules')end function ePrintings(o,p)ENC(o,p,'Print')end function eRespawn(o,p)ENC(o,p,'Spawn')end function eSetSleeve(o,p)ENC(o,p,'Back')end
     function eReverseCard(o,p)ENC(o,p)spawnObjectJSON({json=o.getJSON():gsub('BackURL','FaceURL'):gsub('FaceURL','BackURL',1)})
 end end end
 function ENC(o,p,m)enc.call('APIrebuildButtons',{obj=o})if m then if o.getName()==''and m~='Back'then Player[p].broadcast('Card has no name!',{1,0,1}) else Importer({position={o.getPosition().x+1,o.getPosition().y+1,o.getPosition().z+1},target=o,player=Player[p].steam_id,color=p,name=o.getName():gsub('\n.*','')or'Energy Reserve',mode=m,full='Card Encoder'})end end end
-function toggleMenu(o)enc=Global.getVar('Encoder')if enc then flip=enc.call("APIgetFlip",{obj=o})for i,v in ipairs(buttons)do Button(o,v,flip)end Button:reset()end end
+function toggleMenu(o,p)enc=Global.getVar('Encoder')if enc then flip=enc.call("APIgetFlip",{obj=o})for i,v in ipairs(buttons)do Button(o,v,flip)end Button:reset()end end
 Button=setmetatable({label='UNDEFINED',click_function='eOracle',function_owner=self,height=400,width=2100,font_size=360,scale={0.4,0.4,0.4},position={0,0.28,-1.35},rotation={0,0,90},reset=function(t)t.label='UNDEFINED';t.position={0,0.28,-1.35}end
   },{__call=function(t,o,l,f)
       local inc,i=0.325,0
