@@ -524,7 +524,7 @@ Importer=setmetatable({
     elseif qTbl and t.request[2]then
       local msg='Queueing request '..#t.request
       if t.request[4]then msg=msg..'. Queue auto clears after the 13th request!'
-      elseif t.request[3]then msg=msg..'. Type `Scryfall queue` to Force quit the queue!'end
+      elseif t.request[3]then msg=msg..'. Type `Scryfall clear queue` to Force quit the queue!'end
       Player[qTbl.color].broadcast(msg)
     elseif t.request[1]then
       local tbl=t.request[1]
