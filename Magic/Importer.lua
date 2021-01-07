@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.911
+mod_name,version='Card Importer',1.912
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -659,13 +659,20 @@ end end end
 pID=mod_name
 function registerModule()
   enc=Global.getVar('Encoder')
-  if enc then
-    local prop={toolID=pID,propID=pID,name=pID,values={},funcOwner=self,activateFunc='toggleMenu',visible=true,display=true,tags='tool,cardImporter,Amuzet'}
+  if enc then--Fix THIS!
+    local prop={name=pIDfuncOwner=self,activateFunc='toggleMenu'}
     local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
-    if v and tonumber(v:match('%d+%.%d+'))<4.4 then prop.propID=nil
+    if v and tonumber(v:match('%d+%.%d+'))<4.4 then
+      prop.toolID=pID
+      prop.display=true
       enc.call('APIregisterTool',prop)
-    else enc.call('APIregisterProperty',prop)end
+    elseif false then
+      prop.values={}
+      prop.visible=true
+      prop.propID=pID
+      prop.tags='tool,cardImporter,Amuzet'
+      enc.call('APIregisterProperty',prop)end
     function eEmblemAndTokens(o,p)ENC(o,p,'Token')end function eOracle(o,p)ENC(o,p,'Text')end function eRulings(o,p)ENC(o,p,'Rules')end function ePrintings(o,p)ENC(o,p,'Print')end function eRespawn(o,p)ENC(o,p,'Spawn')end function eSetSleeve(o,p)ENC(o,p,'Back')end
     function eReverseCard(o,p)ENC(o,p)spawnObjectJSON({json=o.getJSON():gsub('BackURL','FaceURL'):gsub('FaceURL','BackURL',1)})
 end end end
