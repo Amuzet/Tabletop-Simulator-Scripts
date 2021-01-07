@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.91
+mod_name,version='Card Importer',1.911
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -221,6 +221,7 @@ local DeckSites={
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastbin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   deckbox=function(a)return a..'/export',spawnDeck end,
+  mtgdecks=function(a)return a..'/dec',spawnDeck end,
 --scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
   scryfall=function(a)setCSV=7 return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/csv',spawnCSV end,
   --https://tappedout.net/users/i_am_moonman/lists/15-11-20-temp-cube/?cat=type&sort=&fmt=csv
