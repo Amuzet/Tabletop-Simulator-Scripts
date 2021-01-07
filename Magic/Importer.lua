@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.901
+mod_name,version='Card Importer',1.91
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -268,22 +268,21 @@ local DeckSites={
                 WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
               else setCard(c,qTbl)end end)end,i*Tick*2)
     end end end,
-  cubecobra=function(a)return a:gsub('/list/','/download/csv/')..'?primary=Color%20Category&secondary=Types-Multicolor&tertiary=CMC2',function(wr,qTbl)
-    local cube,n,list={},0,wr.text:gsub('[^\r\n]+','',1)
+  cubecobra=function(a)return a:gsub('/cube/(%w+)/','download/csv'),function(wr,qTbl)
+    local cube,list={},wr.text:gsub('[^\r\n]+','',1)
     if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
     for line in list:gmatch('([^\r\n]+)')do
-      local tbl,l={},line:gsub(',',', ')
+      local tbl,n,l={},0,line:gsub('.-"','',2)
+      log(line)
       table.insert(tbl,line:match('"([^"]+)"'))
-      l=l:gsub('"([^"]+)"','',1)
-      for csv in l:gmatch(',"?([^,"]+)')do
-        table.insert(tbl,csv)end
-      if #tbl>16 then uLog(tbl)
-      else n=n+1
-        if n<4 then uLog(tbl)end
-        if tbl[12]:find('http')then qTbl.image[n]=tbl[12]:match('"([^"]+)')end
-        local b='https://api.scryfall.com/cards/'..tbl[5]..'/'..tbl[6]
-        table.insert(cube,b)
-    end end
+      for csv in l:gmatch('(,.-),')do log(csv)
+        if csv:len()==1 then table.insert(tbl,false)
+        else table.insert(tbl,csv:gsub('"',''))end end
+      if n<10 then n=n+1 log(tbl)end
+      --if tbl[12]:find('http')then qTbl.image[n]=tbl[12]:match('"([^"]+)')end
+      local b='https://api.scryfall.com/cards/'..tbl[5]..'/'..tbl[6]
+      table.insert(cube,b)
+    end
     qTbl.deck=#cube
     for i,url in ipairs(cube)do
       Wait.time(function()
@@ -524,7 +523,7 @@ Importer=setmetatable({
     elseif qTbl and t.request[2]then
       local msg='Queueing request '..#t.request
       if t.request[4]then msg=msg..'. Queue auto clears after the 13th request!'
-      elseif t.request[3]then msg=msg..'. Type `Scryfall queue` to Force quit the queue!'end
+      elseif t.request[3]then msg=msg..'. Type `Scryfall clear queue` to Force quit the queue!'end
       Player[qTbl.color].broadcast(msg)
     elseif t.request[1]then
       local tbl=t.request[1]
@@ -609,8 +608,7 @@ function onLoad(data)
   uNotebook('SData',self.script_state)
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
-  printToAll(u,{0.9,0.9,0.9})
-  onChat('Scryfall clear back')end
+  printToAll(u,{0.9,0.9,0.9})end
 
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
 function onPlayerConnect(player)
@@ -634,8 +632,9 @@ function onChat(msg,p)
     elseif a=='promote me' and p.steam_id==author then
       p.promote()
     elseif a=='clear queue'then
-      printToAll(SMG..'Removing the first request. Attempting to move onto next request.',SMC)
-      endLoop()
+      version=version-1
+      printToAll(SMG..'Respawning Importer!',SMC)
+      self.reload()
     elseif a=='clear back'then
       self.script_state='{"76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
@@ -660,8 +659,12 @@ pID=mod_name
 function registerModule()
   enc=Global.getVar('Encoder')
   if enc then
+    local prop={toolID=pID,propID=pID,name=pID,values={},funcOwner=self,activateFunc='toggleMenu',visible=true,display=true,tags='tool,cardImporter,Amuzet'}
+    local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
-    enc.call('APIregisterTool',{toolID=pID,name=pID,funcOwner=self,activateFunc='toggleMenu',display=true})
+    if v and tonumber(v:match('%d+%.%d+'))<4.4 then prop.propID=nil
+      enc.call('APIregisterTool',prop)
+    else enc.call('APIregisterProperty',prop)end
     function eEmblemAndTokens(o,p)ENC(o,p,'Token')end function eOracle(o,p)ENC(o,p,'Text')end function eRulings(o,p)ENC(o,p,'Rules')end function ePrintings(o,p)ENC(o,p,'Print')end function eRespawn(o,p)ENC(o,p,'Spawn')end function eSetSleeve(o,p)ENC(o,p,'Back')end
     function eReverseCard(o,p)ENC(o,p)spawnObjectJSON({json=o.getJSON():gsub('BackURL','FaceURL'):gsub('FaceURL','BackURL',1)})
 end end end
