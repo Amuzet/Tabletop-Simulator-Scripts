@@ -609,7 +609,8 @@ function onLoad(data)
   uNotebook('SData',self.script_state)
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
-  printToAll(u,{0.9,0.9,0.9})end
+  printToAll(u,{0.9,0.9,0.9})
+  onChat('Scryfall clear back')end
 
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
 function onPlayerConnect(player)
