@@ -661,7 +661,7 @@ pID=mod_name
 function registerModule()
   enc=Global.getVar('Encoder')
   if enc then--Fix THIS!
-    local prop={name=pIDfuncOwner=self,activateFunc='toggleMenu'}
+    local prop={name=pID,funcOwner=self,activateFunc='toggleMenu'}
     local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
     if v and tonumber(v:match('%d+%.%d+'))<4.4 then
