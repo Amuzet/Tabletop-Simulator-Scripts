@@ -668,7 +668,7 @@ function registerModule()
       prop.toolID=pID
       prop.display=true
       enc.call('APIregisterTool',prop)
-    elseif false then
+    else
       prop.values={}
       prop.visible=true
       prop.propID=pID
