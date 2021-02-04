@@ -1,12 +1,37 @@
 --By Amuzet
-mod_name,version='Card Importer',1.914
+mod_name,version='Card Importer',1.91431415
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL)end end
-newText=setmetatable({type='3DText',position={0,2,0},rotation={90,0,0}},{__call=function(t,p,text,f)t.position=p local o=spawnObject(t);o.TextTool.setValue(text)o.TextTool.setFontSize(f or 50)return function(t)if t then o.TextTool.setValue(t)else o.destruct()end end end})
+
+textItems={}            -- pieHere, keep a table of all active textObjects
+newText=setmetatable({
+  type='3DText',
+  position={0,2,0},
+  rotation={90,0,0}},
+  {__call=function(t,p,text,f)
+    t.position=p
+    local o=spawnObject(t)
+    table.insert(textItems,o)
+    o.TextTool.setValue(text)
+    o.TextTool.setFontSize(f or 50)
+    return function(t)
+      if t then
+        o.TextTool.setValue(t)
+      else
+        for i,oo in ipairs(textItems) do
+          if oo==o then
+            table.remove(textItems,i)
+          end
+        end
+        o.destruct()
+      end
+    end
+  end})
+
 --[[Variables]]
 local Tick,Test,Quality,Back=0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
 --[[Card Spawning Class]]
@@ -21,11 +46,11 @@ local Deck=setmetatable({White={n=0,did='',cd='',co='',json='',position={0,0,0}}
     t[qTbl.color].position[2]=t[qTbl.color].position[2]+1
     t[qTbl.color].did,t[qTbl.color].cd,t[qTbl.color].co,t[qTbl.color].n='','','',0
     spawnObjectJSON(t[qTbl.color])endLoop()end})
-local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,callback='INC',callback_owner=self,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
+local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,callback='INC',callback_owner=self,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Memo":"%s","Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
   {__call=function(t,c,qTbl)
       --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
       t.json,c.face,c.oracle,c.back='','','',Back[qTbl.player]or Back.___
-      
+
       --Oracle text Handling for Split/DFCs
       if c.card_faces then
         for _,f in ipairs(c.card_faces)do
@@ -35,7 +60,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       else
         c.name=c.name:gsub('"','')..'\n'..c.type_line..' '..c.cmc..'CMC'
         c.oracle=setOracle(c)end
-      
+
       local n=t.n
       if qTbl.deck then
         if qTbl.deck==1 then qTbl.deck=false else
@@ -56,7 +81,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
           t.hwfd=false
       end end
       --Set JSON to Spawn Card
-      t.json=string.format(t.j,c.name,c.oracle,n,n,c.face,c.back)
+      t.json=string.format(t.j,c.oracle_id,c.name,c.oracle,n,n,c.face,c.back)     -- pieHere, added oracleid to card's memo field
       --What to do with this card
       if qTbl.deck then --Add it to player deck
         Deck[qTbl.color].did=Deck[qTbl.color].did..n..'00,'
@@ -110,27 +135,65 @@ function parseForToken(oracle,qTbl)endLoop()end
     end
   end
 end]]
-function spawnList(wr,qTbl)
+
+function spawnList(wr,qTbl)     --pieHere, remade to split a list into separate cards
   uLog(wr.url)
   local txt=wr.text
   --for _,s in pairs({'colors','color_identity','games','legalities','artist_ids','prices','related_uris','purchase_uris'})do
     --txt=txt:gsub('"'..s..'":{.+%},','')end
   if txt then
-    local n,json=1,JSON.decode(txt)
-    if json.object=='list'then qTbl.deck=#json.data
-      for i,v in ipairs(json.data) do Wait.time(function()Card(v,qTbl)end,i*Tick)end return
-    elseif json.object=='card'then
-      Card(json,qTbl)return
-    elseif json.object=='error'then
+    local jsonType = txt:sub(1,20):match('{"object":"(%w+)"')
+    if jsonType=='list' then
+      local nCards=txt:match('"total_cards":(%d+)')
+      if nCards~=nil then nCards=tonumber(nCards) else
+        -- a jsonlist but couldn't find total_cards ? shouldn't happen, but just in case
+        textItems[#textItems].destruct()
+        table.remove(textItems,#textItems)
+        return
+      end
+      if tonumber(nCards)>100 then
+        Player[qTbl.color].broadcast('This search query gives too many results (>100)',{1,0,0})
+        textItems[#textItems].destruct()
+        table.remove(textItems,#textItems)
+        return
+      end
+      qTbl.deck=nCards
+      local last=0
+      local cards={}
+      for i=1,nCards do
+        start=string.find(txt,'{"object":"card"',last+1)
+        local nopen,txti=1,start
+        while nopen~=0 do      -- pieHere, my dumb but secure way to find the correct {} enclosing a card table
+          txti=txti+1
+          if txt:sub(txti,txti)=='{' then nopen=nopen+1
+          elseif txt:sub(txti,txti)=='}' then nopen=nopen-1 end
+        end
+        last=txti
+        local card = JSON.decode(txt:sub(start,last))
+        Wait.time(function() Card(card,qTbl) end, i*Tick)
+      end
+      return
+
+    elseif jsonType=='card' then
+      local n,json=1,JSON.decode(txt)
+      Card(json,qTbl)
+      return
+
+    elseif jsonType=='error' then
+      local n,json=1,JSON.decode(txt)
       Player[qTbl.color].broadcast(json.details,{1,0,0})
-  end end endLoop()end
+    end
+  end
+  endLoop()
+end
+
 --[[DeckFormatHandle]]
 local sOver={['10ED']='10E',DAR='DOM',MPS_AKH='MP2',MPS_KLD='MPS',FRF_UGIN='UGIN'}
 local dFile={
   uidCheck=',%w+-%w+-%w+-%w+-%w+',uid=function(line)
     local num,uid=string.match('__'..line..'__','__%a+,(%d+).+,([%w%-]+)__')
     return num,'https://api.scryfall.com/cards/'..uid end,
-  
+
   dckCheck='%[[%w_]+:%w+%]',dck=function(line)
     local num,set,col,name=line:match('(%d+).%W+([%w_]+):(%w+)%W+(%w.*)')
     local alter=name:match(' #(http%S+)')or false
@@ -139,7 +202,7 @@ local dFile={
     elseif sOver[set]then set=sOver[set]end
     set=set:gsub('_.*',''):lower()
     return num,'https://api.scryfall.com/cards/'..set..'/'..col,alter end,
-  
+
   decCheck='%[[%w_]+%]',dec=function(line)
     local num,set,name=line:match('(%d+).%W+([%w_]+)%W+(%w.*)')
     local alter=name:match(' #(http%S+)')or false
@@ -148,7 +211,7 @@ local dFile={
     elseif sOver[set]then set=sOver[set]end
     set=set:gsub('_.*',''):lower()
     return num,'https://api.scryfall.com/cards/named?fuzzy='..name..'&set='..set,alter end,
-  
+
   defCheck='%d+.%w+',def=function(line)
     local num,name=line:match('(%d+).(.*)')
     local alter=name:match(' #(http%S+)')or false
@@ -168,7 +231,7 @@ function spawnDeck(wr,qTbl)
     if sideboard~=''then
       Player[qTbl.color].broadcast('Extraboards Found and pasted into Notebook\n"Scryfall deck" to spawn most recent Notebook Tab')
       uNotebook(qTbl.url,sideboard)end
-    
+
     for b in list:gmatch('([^\r\n]+)')do
       for k,v in pairs(dFile)do
         if type(v)=='string'and b:find(v)then
@@ -177,7 +240,7 @@ function spawnDeck(wr,qTbl)
             --table.insert(qTbl.image,r)
           end break end end end
     qTbl.deck=#deck
-    
+
     for i,url in ipairs(deck) do
       Wait.time(function()
           WebRequest.get(url,function(c)
@@ -215,7 +278,7 @@ function spawnCSV(wr,qTbl)
             if t.object~='card'then if u:find('&')then
               WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
               else WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard',function(c)setCard(c,qTbl)end)end
-            else setCard(c,qTbl)end end)end,i*Tick*2)end end 
+            else setCard(c,qTbl)end end)end,i*Tick*2)end end
 
 local DeckSites={
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
@@ -336,13 +399,13 @@ Importer=setmetatable({
   Search=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/search?q='..qTbl.name,function(wr)
         spawnList(wr,qTbl)end)end,
-  
+
   Back=function(qTbl)
     if qTbl.target then qTbl.url=qTbl.target.getJSON():match('BackURL": "([^"]*)"')end
     Back[qTbl.player]=qTbl.url
     Player[qTbl.color].broadcast('Card Backs set to\n'..qTbl.url,{0.9,0.9,0.9})
     endLoop()end,
-  
+
   Spawn=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         local obj=JSON.decode(wr.text)
@@ -351,7 +414,7 @@ Importer=setmetatable({
               spawnList(wr,qTbl)end)
           return false
         else setCard(wr,qTbl)end end)end,
-  
+
   Token=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         local json=JSON.decode(wr.text)
@@ -371,7 +434,7 @@ Importer=setmetatable({
           else Player[qTbl.color].broadcast('Card not found in Scryfall\nAnd did not have oracle text to parse.',{0.9,0.9,0.9})endLoop()end
         else
           Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})endLoop()end end)end,
-  
+
   Print=function(qTbl)
     local url,n='https://api.scryfall.com/cards/search?unique=prints&q=',qTbl.name:lower():gsub('%s','')
     if('plains island swamp mountain forest'):find(n)then
@@ -379,35 +442,40 @@ Importer=setmetatable({
       broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic specify that in your decklist\nor Spawn it using "Scryfall island&set=kld" the corresponding setcode',{0.9,0.9,0.9})
       endLoop()
     else
-    WebRequest.get(url..qTbl.name,function(wr)
-        spawnList(wr,qTbl)end)end end,
-  
+      if qTbl.oracleid~=nil then      -- pieHere, if oracleID is given use that to find prints (allows to get prints for tokens)
+        WebRequest.get(url..qTbl.oracleid,function(wr)spawnList(wr,qTbl)end)
+      else
+        WebRequest.get(url..qTbl.name,function(wr)spawnList(wr,qTbl)end)
+      end
+    end
+  end,
+
   Legalities=function(qTbl)
     WebRequest.get('http://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         for f,l in pairs(JSON.decode(wr.text:match('"legalities":({[^}]+})')))do printToAll(l..' in '..f) end endLoop()end)end,
-  
+
   Legal=function(qTbl)
     WebRequest.get('http://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         local n,s,t='','',JSON.decode(wr.text:match('"legalities":({[^}]+})'))
         for f,l in pairs(t)do if l=='legal'and s==''then s='[11ff11]'..f:sub(1,1):upper()..f:sub(2)..' Legal'
           elseif l=='not_legal'and s~=''then if n==''then n='Not Legal in:' end n=n..' '..f end end
-        
+
         if s==''then s='[ff1111]Banned' else local b=''
           for f,l in pairs(t)do if l=='banned'then b=b..' '..f end end
           if b~=''then s=s..'[-]\n[ff1111]Banned in:'..b end end
-        
+
         local r=''
         for f,l in pairs(t)do if l=='restricted'then r=r..' '..f end end
         if r~=''then s=s..'[-]\n[ffff11]Restricted in:'..r end
         printToAll('Legalities:'..qTbl.full:match('%s.*')..'\n'..s,{1,1,1})
         endLoop()end)end,
-  
+
   Text=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?format=text&fuzzy='..qTbl.name,function(wr)
         if qTbl.target then qTbl.target.setDescription(wr.text)
         else Player[qTbl.color].broadcast(wr.text)end
         endLoop()end)end,
-  
+
   Rules=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
         WebRequest.get(JSON.decode(wr.text).rulings_uri,function(wr)
@@ -415,14 +483,14 @@ Importer=setmetatable({
           if data[1]then for _,v in pairs(data)do
               text=text..v.published_at..'[-]\n[ff7700]'..v.comment..'[-][00cc88]\n'end
           else text='No Rulings'end
-          
+
           if text:len()>1000 then
             uNotebook('R'..SF.request,text)
             broadcastToAll('Rulings are too long!\nFull rulings can be found in the Notebook',{0.9,0.9,0.9})
           elseif qTbl.target then qTbl.target.setDescription(text)
           else broadcastToAll(text,{0.9,0.9,0.9})
           end endLoop()end)end)end,
-  
+
   Mystery=function(qTbl)
     local t,url={},'http://api.scryfall.com/cards/random?q=set:mb1+'
     for _,r in pairs({'common','uncommon'})do
@@ -435,7 +503,7 @@ Importer=setmetatable({
     table.insert(t,url..'(r:rare+or+r:mythic)+frame:2015')
     table.insert(t,url..'(r:rare+or+r:mythic)+-frame:2015')
     local fSlot={'http://api.scryfall.com/cards/random?q=set:cmb1','http://api.scryfall.com/cards/random?q=set:fmb1'}
-    
+
     qTbl.url='Mystery Booster'
     if qTbl.name:find('playtest')then
       qTbl.url='Playtest Booster'
@@ -443,14 +511,14 @@ Importer=setmetatable({
     elseif qTbl.name:find('both')then
       table.insert(t,fSlot[math.random(1,2)])
     else table.insert(t,fSlot[2])end
-    
+
     qTbl.deck=#t
     qTbl.mode='Deck'
     for i,u in pairs(t)do
       Wait.time(function()WebRequest.get(u,function(wr)
             setCard(wr,qTbl)end)end,i*Tick)end
     end,
-  
+
   Booster=function(qTbl)
     if qTbl.name==''then qTbl.name='ori'end
     WebRequest.get('https://api.scryfall.com/sets/'..qTbl.name,function(w)
@@ -460,13 +528,13 @@ Importer=setmetatable({
           qTbl.url='Booster '..j.name
           qTbl.deck=#pack
           qTbl.mode='Deck'
-          
+
           for i,u in pairs(pack)do
             Wait.time(function()WebRequest.get(u,function(wr)
                   setCard(wr,qTbl)end)end,i*Tick)end
         else Player[qTbl.color].broadcast(j.details,{1,0,0})endLoop()
     end end)end,
-  
+
   Random=function(qTbl)
     local url,q1='https://api.scryfall.com/cards/random','?q=is:hires'
     if qTbl.name:find('q=')then url=url..qTbl.full:match('%s(%S+)')else
@@ -492,11 +560,11 @@ Importer=setmetatable({
         Wait.time(function()
         WebRequest.get(url,function(wr)setCard(wr,qTbl)end)end,i*Tick)end
     else WebRequest.get(url,function(wr)setCard(wr,qTbl)end)end end,
-  
+
   Quality=function(qTbl)
     if('small normal large art_crop border_crop'):find(qTbl.name)then
       Quality[qTbl.player]=qTbl.name end endLoop()end,
-  
+
   Deck=function(qTbl)
     if qTbl.url then
       for k,v in pairs(DeckSites) do
@@ -509,7 +577,7 @@ Importer=setmetatable({
       local d=getNotebookTabs();d=d[#d]
       spawnDeck({text=d.body,url='Notebook '..d.title..d.color},qTbl)
     end return false end,
-  
+
     },{
   __call=function(t,qTbl)
     if qTbl then
@@ -599,7 +667,7 @@ function onLoad(data)
         self.destruct()
       else o.destruct()end
       break end end
-  
+
   WebRequest.get(GITURL,self,'uVersion')
   if data~=''then Back=JSON.decode(data)end
   Back=TBL.new(Back)
@@ -636,6 +704,9 @@ function onChat(msg,p)
     elseif a=='clear queue'then
       version=version-1
       printToAll(SMG..'Respawning Importer!',SMC)
+      for _,o in pairs(textItems) do   --pieHere, delete existing 3dTexts
+        if o~=nil then o.destruct() end
+      end
       self.reload()
     elseif a=='clear back'then
       self.script_state='{"76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
@@ -648,10 +719,10 @@ function onChat(msg,p)
           if tbl.mode:lower()==k:lower()and type(v)=='function'then
             tbl.mode,tbl.name=k,tbl.name:lower():gsub(k:lower(),'',1)
             break end end end
-      
+
       if tbl.name:len()<1 then tbl.name='blank card'
       else tbl.name=tbl.name:gsub('%s','')end
-      
+
       Importer(tbl)
       if chatToggle then uLog(msg,p.steam_name)return false end
 end end end
@@ -677,7 +748,31 @@ function registerModule()
     function eEmblemAndTokens(o,p)ENC(o,p,'Token')end function eOracle(o,p)ENC(o,p,'Text')end function eRulings(o,p)ENC(o,p,'Rules')end function ePrintings(o,p)ENC(o,p,'Print')end function eRespawn(o,p)ENC(o,p,'Spawn')end function eSetSleeve(o,p)ENC(o,p,'Back')end
     function eReverseCard(o,p)ENC(o,p)spawnObjectJSON({json=o.getJSON():gsub('BackURL','FaceURL'):gsub('FaceURL','BackURL',1)})
 end end end
-function ENC(o,p,m)enc.call('APIrebuildButtons',{obj=o})if m then if o.getName()==''and m~='Back'then Player[p].broadcast('Card has no name!',{1,0,1}) else Importer({position={o.getPosition().x+1,o.getPosition().y+1,o.getPosition().z+1},target=o,player=Player[p].steam_id,color=p,name=o.getName():gsub('\n.*','')or'Energy Reserve',mode=m,full='Card Encoder'})end end end
+
+function ENC(o,p,m)   -- pieHere, look for card memo/oracleid and pass it on
+  enc.call('APIrebuildButtons',{obj=o})
+  if m then
+    if o.getName()=='' and m~='Back' then
+      Player[p].broadcast('Card has no name!',{1,0,1})
+    else
+      local oracleid=nil
+      if o.memo~=nil and o.memo~='' then
+        oracleid='oracleid:'..o.memo
+      end
+      Importer({
+        position=o.getPosition()+Vector(0,1,0)+o.getTransformRight():scale(-2.4),
+        target=o,
+        player=Player[p].steam_id,
+        color=p,
+        oracleid=oracleid,
+        name=o.getName():gsub('\n.*','')or'Energy Reserve',
+        mode=m,
+        full='Card Encoder'
+      })
+    end
+  end
+end
+
 function toggleMenu(o)enc=Global.getVar('Encoder')if enc then flip=enc.call("APIgetFlip",{obj=o})for i,v in ipairs(buttons)do Button(o,v,flip)end Button:reset()end end
 Button=setmetatable({label='UNDEFINED',click_function='eOracle',function_owner=self,height=400,width=2100,font_size=360,scale={0.4,0.4,0.4},position={0,0.28,-1.35},rotation={0,0,90},reset=function(t)t.label='UNDEFINED';t.position={0,0.28,-1.35}end
   },{__call=function(t,o,l,f)
