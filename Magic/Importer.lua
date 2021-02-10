@@ -494,6 +494,7 @@ Rules=function(qTbl)
       local cardDat = JSON.decode(wr.text)
       if cardDat.object=="error" then
         broadcastToAll(cardDat.details,{0.9,0.9,0.9})   -- pieHere, also added the error bit
+	endLoop()
       elseif cardDat.object=="card" then
         WebRequest.get(cardDat.rulings_uri,function(wr)
           local data,text=JSON.decode(wr.text),'[00cc88]'
