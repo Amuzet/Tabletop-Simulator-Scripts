@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.91431415
+mod_name,version='Card Importer',1.91531415
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -76,10 +76,19 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       else --DFC Cards
         c.face=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
         if qTbl.mode~='Deck'then
-          c.back=c.face:gsub('normal',Quality[qTbl.player])
-          c.face=c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
+          -- pieHere: make sure the face and back are on proper sides 4Tyrant, cuz his "dfc flipped" announcements are annoying and why were they flipped here to begin with?
+          local faceAddress=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
+          local backAddress=c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
+          if faceAddress:find("/back/") and backAddress:find("/front/") then
+            local temp=faceAddress
+            faceAddress=backAddress
+            backAddress=temp
+          end
+          c.face=faceAddress
+          c.back=backAddress
           t.hwfd=false
-      end end
+        end
+      end
       --Set JSON to Spawn Card
       t.json=string.format(t.j,c.oracle_id,c.name,c.oracle,n,n,c.face,c.back)     -- pieHere, added oracleid to card's memo field
       --What to do with this card
@@ -223,6 +232,8 @@ function spawnDeck(wr,qTbl)
     uLog(wr.url,'Mal Formated Deck '..qTbl.color)
     uNotebook('D'..qTbl.color,wr.url)
     Player[qTbl.color].broadcast('Your Deck list could not be found\nMake sure the Deck is set to PUBLIC',{1,0.5,0})
+    textItems[#textItems].destruct()    --pieHere, missed removing this txtObject last time
+	  table.remove(textItems,#textItems)
   else
     uLog(wr.url,'Deck Spawned by '..qTbl.color)
     local sideboard=''
@@ -283,7 +294,7 @@ function spawnCSV(wr,qTbl)
 local DeckSites={
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastebin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
-  deckbox=function(a)return a..'/export',spawnDeck end,
+  deckbox=function(a)return a..'/export',spawnDeck end,     --pieHere, deckbox broken: dumbly returns html instead of plain text, I don't have an elegant solution for that
   mtgdecks=function(a)return a..'/dec',spawnDeck end,
 --scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
   scryfall=function(a)setCSV=7 return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/csv',spawnCSV end,
@@ -476,20 +487,39 @@ Importer=setmetatable({
         else Player[qTbl.color].broadcast(wr.text)end
         endLoop()end)end,
 
-  Rules=function(qTbl)
+--pieHere, either scryfall api changed, or this was broken to begin with
+--the rulings_uri returns an "object":"list" that *contains* the sought after data table, as opposed to the data table itself
+Rules=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
-        WebRequest.get(JSON.decode(wr.text).rulings_uri,function(wr)
+      local cardDat = JSON.decode(wr.text)
+      if cardDat.object=="error" then
+        broadcastToAll(cardDat.details,{0.9,0.9,0.9})   -- pieHere, also added the error bit
+      elseif cardDat.object=="card" then
+        WebRequest.get(cardDat.rulings_uri,function(wr)
           local data,text=JSON.decode(wr.text),'[00cc88]'
-          if data[1]then for _,v in pairs(data)do
-              text=text..v.published_at..'[-]\n[ff7700]'..v.comment..'[-][00cc88]\n'end
-          else text='No Rulings'end
-
+          if data.object=='list' then   -- <-- that! pieHere
+            data=data.data
+          end
+          if data~=nil and data[1] then
+            for _,v in pairs(data) do
+              text=text..v.published_at..'[-]\n[ff7700]'..v.comment..'[-][00cc88]\n'
+            end
+          else
+            text='No Rulings'
+          end
           if text:len()>1000 then
-            uNotebook('R'..SF.request,text)
+            uNotebook(cardDat.name,text)
             broadcastToAll('Rulings are too long!\nFull rulings can be found in the Notebook',{0.9,0.9,0.9})
-          elseif qTbl.target then qTbl.target.setDescription(text)
-          else broadcastToAll(text,{0.9,0.9,0.9})
-          end endLoop()end)end)end,
+          elseif qTbl.target then
+            qTbl.target.setDescription(text)
+          else
+            broadcastToAll(text,{0.9,0.9,0.9})
+          end
+          endLoop()
+        end)
+      end
+    end)
+  end,
 
   Mystery=function(qTbl)
     local t,url={},'http://api.scryfall.com/cards/random?q=set:mb1+'
