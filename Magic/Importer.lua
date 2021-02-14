@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.93
+mod_name,version='Card Importer',1.931
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -92,7 +92,7 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       end
       --Set JSON to Spawn Card
       t.json=string.format(t.j,c.oracle_id,c.name,c.oracle,n,n,c.face,c.back)
-      if state then t.json=t.json:sub(1,t.json:len()-1)..',"States":{"2":'..state..'}}'end
+      if state and not qTbl.deck then t.json=t.json:sub(1,t.json:len()-1)..',"States":{"2":'..state..'}}'end
       uNotebook(c.name,t.json)
       --What to do with this card
       if qTbl.deck then --Add it to player deck
@@ -778,7 +778,7 @@ function registerModule()
     local prop={name=pID,funcOwner=self,activateFunc='toggleMenu'}
     local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
-    if v and tonumber(v:match('%d+%.%d+'))<4.4 then
+    if v and tonumber(v:match('%d+%.?%d-'))<4.4 then
       prop.toolID=pID
       prop.display=true
       enc.call('APIregisterTool',prop)
