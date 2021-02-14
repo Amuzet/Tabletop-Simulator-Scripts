@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.91531415
+mod_name,version='Card Importer',1.93
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -49,48 +49,51 @@ local Deck=setmetatable({White={n=0,did='',cd='',co='',json='',position={0,0,0}}
 local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,callback='INC',callback_owner=self,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Memo":"%s","Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
   {__call=function(t,c,qTbl)
       --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
-      t.json,c.face,c.oracle,c.back='','','',Back[qTbl.player]or Back.___
+      t.json,c.face,c.oracle,c.oracleT,c.back='','','','',Back[qTbl.player]or Back.___
+      local n,state,qual=t.n,false,Quality[qTbl.player]
 
-      --Oracle text Handling for Split/DFCs
-      if c.card_faces then
-        for _,f in ipairs(c.card_faces)do
-          f.name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC'
-          if _==1 then c.name=f.name end
-          c.oracle=c.oracle..f.name..'\n'..setOracle(f)..(_==#c.card_faces and ''or'\n')end
-      else
-        c.name=c.name:gsub('"','')..'\n'..c.type_line..' '..c.cmc..'CMC'
-        c.oracle=setOracle(c)end
-
-      local n=t.n
       if qTbl.deck then
         if qTbl.deck==1 then qTbl.deck=false else
         n=Deck[qTbl.color].n+1;Deck[qTbl.color].n=n end end
+      local b=n+1
+      --Oracle text Handling for Split then DFC then Normal
+      if c.card_faces and c.image_uris then
+        for i,f in ipairs(c.card_faces)do
+          f.name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC'
+          if i==1 then c.name=f.name end
+          c.oracle=c.oracle..f.name..'\n'..setOracle(f)..(i==#c.card_faces and''or'\n')end
+        elseif c.card_faces then local f=c.card_faces[1]
+        c.name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC DFC'
+        c.oracle=setOracle(f)else
+        c.name=c.name:gsub('"','')..'\n'..c.type_line..' '..c.cmc..'CMC'
+        c.oracle=setOracle(c)end
+
       --Image Handling
       if qTbl.deck and qTbl.image and qTbl.image[n] then
         c.face=qTbl.image[n]
+      elseif c.card_faces and not c.image_uris then --DFC REWORKED for STATES!
+        local faceAddress=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',qual)
+        local backAddress=c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',qual)
+        if faceAddress:find('/back/') and backAddress:find('/front/') then
+          local temp=faceAddress;faceAddress=backAddress;backAddress=temp end
+        if t.image then faceAddress,backAddress=t.image,t.image end
+        if qTbl.deck then Deck[qTbl.color].n=b else t.n=b end
+        c.face=faceAddress
+        --TTS Decks Skip additional states of cards beyond the first
+        local f=c.card_faces[2]
+        local name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC DFC'
+        local oracle=setOracle(f)
+        state=string.format(t.j,c.oracle_id,name,oracle,b,b,backAddress,c.back)
       elseif t.image then --Custom Image
         c.face=t.image
         t.image=false
       elseif c.image_uris then
-        c.face=c.image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
-      else --DFC Cards
-        c.face=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
-        if qTbl.mode~='Deck'then
-          -- pieHere: make sure the face and back are on proper sides 4Tyrant, cuz his "dfc flipped" announcements are annoying and why were they flipped here to begin with?
-          local faceAddress=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
-          local backAddress=c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',Quality[qTbl.player])
-          if faceAddress:find("/back/") and backAddress:find("/front/") then
-            local temp=faceAddress
-            faceAddress=backAddress
-            backAddress=temp
-          end
-          c.face=faceAddress
-          c.back=backAddress
-          t.hwfd=false
-        end
+        c.face=c.image_uris.normal:gsub('%?.*',''):gsub('normal',qual)
       end
       --Set JSON to Spawn Card
-      t.json=string.format(t.j,c.oracle_id,c.name,c.oracle,n,n,c.face,c.back)     -- pieHere, added oracleid to card's memo field
+      t.json=string.format(t.j,c.oracle_id,c.name,c.oracle,n,n,c.face,c.back)
+      if state then t.json=t.json:sub(1,t.json:len()-1)..',"States":{"2":'..state..'}}'end
+      uNotebook(c.name,t.json)
       --What to do with this card
       if qTbl.deck then --Add it to player deck
         Deck[qTbl.color].did=Deck[qTbl.color].did..n..'00,'
@@ -108,17 +111,22 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
         t.position[2]=t.position[2]+Tick
         spawnObjectJSON(t)endLoop()end end})
 
-function INC(obj)obj.hide_when_face_down,Card.n=Card.hwfd,Card.n+1;Card.hwfd=true end
-function setOracle(c)local n='\n[b]'if c.power then n=n..c.power..'/'..c.toughness elseif c.loyalty then n=n..tostring(c.loyalty)else n='[b]'end return c.oracle_text:gsub('\"',"'")..n..'[/b]'end
-function setCard(wr,qTbl)
+function INC(obj)Card.n=Card.n+1 end
+function setOracle(c)local n='\n[b]'
+  if c.power then n=n..c.power..'/'..c.toughness
+  elseif c.loyalty then n=n..tostring(c.loyalty)
+  else n=false end return c.oracle_text:gsub('\"',"'")..(n and n..'[/b]'or'') end
+function setCard(wr,qTbl,originalData)
   if wr.text then
     local json=JSON.decode(wr.text)
     if json.object=='card'then
       if json.lang=='en'then
         Card(json,qTbl)
       else
-        WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/en',function(a)setCard(a,qTbl)end)
+        WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/en',function(a)setCard(a,qTbl,json)end)
       end return
+    elseif originalData then
+      Card(json,qTbl)
     elseif json.object=='error'then Player[qTbl.color].broadcast(json.details,{1,0,0})end
   else error('No Data Returned Contact Amuzet. setCard')end endLoop()end
 
@@ -145,12 +153,10 @@ function parseForToken(oracle,qTbl)endLoop()end
   end
 end]]
 
-function spawnList(wr,qTbl)     --pieHere, remade to split a list into separate cards
+function spawnList(wr,qTbl)
   uLog(wr.url)
   local txt=wr.text
-  --for _,s in pairs({'colors','color_identity','games','legalities','artist_ids','prices','related_uris','purchase_uris'})do
-    --txt=txt:gsub('"'..s..'":{.+%},','')end
-  if txt then
+  if txt then --PIE's Rework
     local jsonType = txt:sub(1,20):match('{"object":"(%w+)"')
     if jsonType=='list' then
       local nCards=txt:match('"total_cards":(%d+)')
@@ -172,7 +178,7 @@ function spawnList(wr,qTbl)     --pieHere, remade to split a list into separate 
       for i=1,nCards do
         start=string.find(txt,'{"object":"card"',last+1)
         local nopen,txti=1,start
-        while nopen~=0 do      -- pieHere, my dumb but secure way to find the correct {} enclosing a card table
+        while nopen~=0 do
           txti=txti+1
           if txt:sub(txti,txti)=='{' then nopen=nopen+1
           elseif txt:sub(txti,txti)=='}' then nopen=nopen-1 end
@@ -294,8 +300,12 @@ function spawnCSV(wr,qTbl)
 local DeckSites={
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastebin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
-  deckbox=function(a)return a..'/export',spawnDeck end,     --pieHere, deckbox broken: dumbly returns html instead of plain text, I don't have an elegant solution for that
   mtgdecks=function(a)return a..'/dec',spawnDeck end,
+  
+  deckbox=function(a)return a..'/export',function(r,qTbl)
+    local wr={url=r.url}
+    wr.text=r.text:match('%Wbody%W(.+)%W%Wbody%W'):gsub('<br.?>','\n')
+    spawnDeck(wr,qTbl)end end,
 --scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
   scryfall=function(a)setCSV=7 return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/csv',spawnCSV end,
   --https://tappedout.net/users/i_am_moonman/lists/15-11-20-temp-cube/?cat=type&sort=&fmt=csv
@@ -720,6 +730,11 @@ function onPlayerDisconnect(player)
   if player.steam_id==author then
     printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)
 end end
+function onDestroy()
+  for _,o in pairs(textItems) do
+    if o~=nil then o.destruct() end
+  end
+end
 local chatToggle=false
 function onChat(msg,p)
   if msg:find('!?[Ss]cryfall ')then
@@ -727,7 +742,7 @@ function onChat(msg,p)
     if a=='hide'and p.admin then
       chatToggle=not chatToggle
       if chatToggle then msg='supressing' else msg='showing'end
-      broadcastToAll('Importer now '..msg..' Chat messages with Importer in them.\nToggle this with "Importer Hide"',SMC)
+      broadcastToAll('Importer now '..msg..' Chat messages with Importer in them.\nToggle this with "Scryfall Hide"',SMC)
     elseif a=='help'then
       p.print(Usage,{0.9,0.9,0.9})return false
     elseif a=='promote me' and p.steam_id==author then
@@ -735,12 +750,9 @@ function onChat(msg,p)
     elseif a=='clear queue'then
       version=version-1
       printToAll(SMG..'Respawning Importer!',SMC)
-      for _,o in pairs(textItems) do   --pieHere, delete existing 3dTexts
-        if o~=nil then o.destruct() end
-      end
       self.reload()
     elseif a=='clear back'then
-      self.script_state='{"76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://media2.giphy.com/media/QhThCFpjJX8Y0/giphy.mp4","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
+      self.script_state='{"76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
       local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
