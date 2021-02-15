@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.931
+mod_name,version='Card Importer',1.9314
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 
@@ -33,29 +33,15 @@ newText=setmetatable({
   end})
 
 --[[Variables]]
-local Tick,Test,Quality,Back=0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
+local Deck,Tick,Test,Quality,Back=1,0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
 --[[Card Spawning Class]]
-local Deck=setmetatable({White={n=0,did='',cd='',co='',json='',position={0,0,0}},Brown={n=0,did='',cd='',co='',json='',position={0,0,0}},Red={n=0,did='',cd='',co='',json='',position={0,0,0}},Orange={n=0,did='',cd='',co='',json='',position={0,0,0}},Yellow={n=0,did='',cd='',co='',json='',position={0,0,0}},Green={n=0,did='',cd='',co='',json='',position={0,0,0}},Teal={n=0,did='',cd='',co='',json='',position={0,0,0}},Blue={n=0,did='',cd='',co='',json='',position={0,0,0}},Purple={n=0,did='',cd='',co='',json='',position={0,0,0}},Pink={n=0,did='',cd='',co='',json='',position={0,0,0}},j=[[{
-  "Name":"Deck","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},
-  "Nickname":"%s","Description":"%s",
-  "DeckIDs":[%s],
-  "CustomDeck":{%s},
-  "ContainedObjects":[%s]}]]},{__call=function(t,qTbl)
-    t[qTbl.color].json=t.j:format(Player[qTbl.color].steam_name,qTbl.url or'Notebook',t[qTbl.color].did:sub(1,-2),t[qTbl.color].cd:sub(1,-2),t[qTbl.color].co:sub(1,-2))
-    t[qTbl.color].position=qTbl.position or{0,2,0}
-    t[qTbl.color].position[2]=t[qTbl.color].position[2]+1
-    t[qTbl.color].did,t[qTbl.color].cd,t[qTbl.color].co,t[qTbl.color].n='','','',0
-    spawnObjectJSON(t[qTbl.color])endLoop()end})
-local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,callback='INC',callback_owner=self,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Memo":"%s","Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
+local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Memo":"%s","Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
   {__call=function(t,c,qTbl)
       --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
       t.json,c.face,c.oracle,c.oracleT,c.back='','','','',Back[qTbl.player]or Back.___
       local n,state,qual=t.n,false,Quality[qTbl.player]
-
-      if qTbl.deck then
-        if qTbl.deck==1 then qTbl.deck=false else
-        n=Deck[qTbl.color].n+1;Deck[qTbl.color].n=n end end
-      local b=n+1
+      t.n=n+1
+      --Check for card's spoiler image quality
       --Oracle text Handling for Split then DFC then Normal
       if c.card_faces and c.image_uris then
         for i,f in ipairs(c.card_faces)do
@@ -77,12 +63,13 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
         if faceAddress:find('/back/') and backAddress:find('/front/') then
           local temp=faceAddress;faceAddress=backAddress;backAddress=temp end
         if t.image then faceAddress,backAddress=t.image,t.image end
-        if qTbl.deck then Deck[qTbl.color].n=b else t.n=b end
         c.face=faceAddress
         --TTS Decks Skip additional states of cards beyond the first
         local f=c.card_faces[2]
         local name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC DFC'
         local oracle=setOracle(f)
+        local b=n
+        if qTbl.deck then b=qTbl.deck+n end
         state=string.format(t.j,c.oracle_id,name,oracle,b,b,backAddress,c.back)
       elseif t.image then --Custom Image
         c.face=t.image
@@ -92,26 +79,24 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
       end
       --Set JSON to Spawn Card
       t.json=string.format(t.j,c.oracle_id,c.name,c.oracle,n,n,c.face,c.back)
-      if state and not qTbl.deck then t.json=t.json:sub(1,t.json:len()-1)..',"States":{"2":'..state..'}}'end
-      uNotebook(c.name,t.json)
+      if state then t.json=t.json:sub(1,t.json:len()-1)..',"States":{"2":'..state..'}}'end
       --What to do with this card
+      t.position=qTbl.position or{0,2,0}
       if qTbl.deck then --Add it to player deck
-        Deck[qTbl.color].did=Deck[qTbl.color].did..n..'00,'
-        Deck[qTbl.color].co=Deck[qTbl.color].co..t.json:gsub(',"CardID":',',"HideWhenFaceDown":true,"CardID":')..','
-        local fistpos=t.json:find('"'..n..'"')
-        Deck[qTbl.color].cd=Deck[qTbl.color].cd..t.json:sub(fistpos,-3)..','
-        if n==qTbl.deck then Wait.time(function()Deck(qTbl)end,1)
-          Player[qTbl.color].broadcast('All '..n..' Cards loaded!',{0.5,0.5,0.5})
-        elseif n<qTbl.deck then
-          qTbl.text('Spawning here\n'..n..' Cards loaded')
+        spawnObjectJSON(t)
+        if Deck==qTbl.deck then
+          Player[qTbl.color].broadcast('All '..Deck..' Cards loaded!',{0.5,0.5,0.5})
+          Deck=1
+          endLoop()
+        elseif Deck<qTbl.deck then
+          Deck=Deck+1
+          qTbl.text('Spawning here\n'..Deck..' Cards loaded')
         end
       else--Spawn solo card
         uLog(qTbl.color..' Spawned '..c.name:gsub('\n.*',''))
-        t.position=qTbl.position or{0,2,0}
-        t.position[2]=t.position[2]+Tick
-        spawnObjectJSON(t)endLoop()end end})
+        spawnObjectJSON(t)
+        endLoop()end end})
 
-function INC(obj)Card.n=Card.n+1 end
 function setOracle(c)local n='\n[b]'
   if c.power then n=n..c.power..'/'..c.toughness
   elseif c.loyalty then n=n..tostring(c.loyalty)
@@ -778,7 +763,7 @@ function registerModule()
     local prop={name=pID,funcOwner=self,activateFunc='toggleMenu'}
     local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
-    if v and tonumber(v:match('%d+%.?%d-'))<4.4 then
+    if v and(type(v)=='string'and tonumber(v:match('%d+%.%d+'))or v)<4.4then
       prop.toolID=pID
       prop.display=true
       enc.call('APIregisterTool',prop)
