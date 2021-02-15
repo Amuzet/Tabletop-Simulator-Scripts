@@ -2,7 +2,7 @@
 mod_name,version='Card Importer',1.9314
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
-
+coauthor='76561197968157267'--PIE
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL)end end
@@ -709,11 +709,17 @@ function onLoad(data)
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
 function onPlayerConnect(player)
   if player.steam_id==author then
-    printToAll(SMG..'Welcome Amuzet, creator of me. The Card Importer!',SMC)
+    printToAll(SMG..'Welcome '..player.steam_name..', creator of me. The Card Importer!',SMC)
+  elseif player.steam_id==coauthor then
+    printToAll(SMG..'Praise be to '..player.steam_name..'! ',SMC)
+  else
+    player.broadcast(SMG..'Whom the $&%# is this?! You\'ren\'t [b]Oops I Baked a Pie[/b]!',SMC)
 end end
 function onPlayerDisconnect(player)
   if player.steam_id==author then
-    printToAll(SMG..'Goodbye Amuzet, take care of yur self buddy-o-pal!',SMC)
+    printToAll(SMG..'Goodbye '..player.steam_name..', take care of yur self buddy-o-pal!',SMC)
+  elseif player.steam_id==coauthor then
+    printToAll(SMG..'𝜋 doesn\'t terminate, but '..player.steam_name..' does.',SMC)
 end end
 function onDestroy()
   for _,o in pairs(textItems) do
