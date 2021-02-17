@@ -1,8 +1,9 @@
 --By Amuzet
-mod_name,version='Card Importer',1.94
+mod_name,version='Card Importer',1.94314
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
+
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL)end end
@@ -34,11 +35,17 @@ newText=setmetatable({
 
 --[[Variables]]
 local Deck,Tick,Test,Quality,Back=1,0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
+
 --[[Card Spawning Class]]
-local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap_to_grid=true,j='{"Name":"Card","Transform":{"posX":0,"posY":0,"posZ":0,"rotX":0,"rotY":180,"rotZ":180,"scaleX":1.0,"scaleY":1.0,"scaleZ":1.0},"Memo":"%s","Nickname":"%s","Description":"%s","CardID":%i00,"CustomDeck":{"%i":{"FaceURL":"%s","BackURL":"%s","NumWidth":1,"NumHeight":1,"BackIsHidden":true}}}'},
+-- pieHere:
+-- replaced spawnObjectJSON with spawnObjectData, cuz TTS's JSON stuff sucks anyways
+-- spawning deck old-school style, not one card at a time
+-- added a pcall "restart on error" just in case
+local Card=setmetatable({n=1,image=false},
   {__call=function(t,c,qTbl)
-      --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty,mana_cost,highres_image
-      t.json,c.face,c.oracle,c.oracleT,c.back='','','','',Back[qTbl.player]or Back.___
+    success,errorMSG=pcall(function()
+      --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty
+      c.face,c.oracle,c.back='','',Back[qTbl.player] or Back.___
       local n,state,qual=t.n,false,Quality[qTbl.player]
       t.n=n+1
       --Check for card's spoiler image quality
@@ -52,8 +59,9 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
         c.name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC DFC'
         c.oracle=setOracle(f)else
         c.name=c.name:gsub('"','')..'\n'..c.type_line..' '..c.cmc..'CMC'
-        c.oracle=setOracle(c)end
-
+        c.oracle=setOracle(c)
+      end
+      local backDat=nil
       --Image Handling
       if qTbl.deck and qTbl.image and qTbl.image[n] then
         c.face=qTbl.image[n]
@@ -64,38 +72,100 @@ local Card=setmetatable({n=1,hwfd=true,image=false,json='',position={0,0,0},snap
           local temp=faceAddress;faceAddress=backAddress;backAddress=temp end
         if t.image then faceAddress,backAddress=t.image,t.image end
         c.face=faceAddress
-        --TTS Decks Skip additional states of cards beyond the first
         local f=c.card_faces[2]
         local name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC DFC'
         local oracle=setOracle(f)
         local b=n
         if qTbl.deck then b=qTbl.deck+n end
-        state=string.format(t.j,c.oracle_id,name,oracle,b,b,backAddress,c.back)
+        backDat={
+          Transform={posX=0,posY=0,posZ=0,rotX=0,rotY=0,rotZ=0,scaleX=1,scaleY=1,scaleZ=1},
+          Name="Card",
+          Nickname=name,
+          Description=oracle,
+          Memo=c.oracle_id,
+          CardID=b*100,
+          CustomDeck={[b]={FaceURL=backAddress,BackURL=c.back,NumWidth=1,NumHeight=1,Type=0,BackIsHidden=true,UniqueBack=false}},
+        }
       elseif t.image then --Custom Image
+        print(t.image)
         c.face=t.image
         t.image=false
       elseif c.image_uris then
         c.face=c.image_uris.normal:gsub('%?.*',''):gsub('normal',qual)
       end
-      --Set JSON to Spawn Card
-      t.json=string.format(t.j,c.oracle_id,c.name,c.oracle,n,n,c.face,c.back)
-      if state then t.json=t.json:sub(1,t.json:len()-1)..',"States":{"2":'..state..'}}'end
-      --What to do with this card
-      t.position=qTbl.position or{0,2,0}
-      if qTbl.deck then --Add it to player deck
-        spawnObjectJSON(t)
-        if Deck==qTbl.deck then
-          Player[qTbl.color].broadcast('All '..Deck..' Cards loaded!',{0.5,0.5,0.5})
+
+      -- prepare cardDat
+      local cardDat={
+        Transform={posX=0,posY=0,posZ=0,rotX=0,rotY=0,rotZ=0,scaleX=1,scaleY=1,scaleZ=1},
+        Name="Card",
+        Nickname=c.name,
+        Description=c.oracle,
+        Memo=c.oracle_id,
+        CardID=n*100,
+        CustomDeck={[n]={FaceURL=c.face,BackURL=c.back,NumWidth=1,NumHeight=1,Type=0,BackIsHidden=true,UniqueBack=false}},
+      }
+      if backDat then
+        cardDat.States={backDat}
+      end
+
+      -- Spawn
+      if not(qTbl.deck) then        --Spawn solo card
+        local spawnDat={
+          data=cardDat,
+          position=qTbl.position or {0,2,0},
+          rotation=Vector(0,Player[qTbl.color].getPointerRotation(),0)
+        }
+        spawnObjectData(spawnDat)
+        uLog(qTbl.color..' spawned '..c.name:gsub('\n.*',''))
+        endLoop()
+      else                          --Spawn deck
+        if Deck==1 then             --initialize deckDat
+          deckDat={}
+          print(Player[qTbl.color].steam_name)
+          print(qTbl.full)
+          deckDat={
+            Transform={posX=0,posY=0,posZ=0,rotX=0,rotY=0,rotZ=0,scaleX=1,scaleY=1,scaleZ=1},
+            Name="Deck",
+            Nickname=Player[qTbl.color].steam_name or "Deck",
+            Description=qTbl.full or "Deck",
+            DeckIDs={},
+            CustomDeck={},
+            ContainedObjects={},
+          }
+        end
+        deckDat.DeckIDs[Deck]=cardDat.CardID      -- add card info into deckDat
+        deckDat.CustomDeck[n]=cardDat.CustomDeck[n]
+        deckDat.ContainedObjects[Deck]=cardDat
+        if Deck<qTbl.deck then
+          qTbl.text('Spawning here\n'..Deck..' cards loaded')
+          Deck=Deck+1
+        elseif Deck==qTbl.deck then
+          local spawnDat={
+            data=deckDat,
+            position=qTbl.position+Vector(0,0.5,0) or {0,2,0},
+            rotation=Vector(0,Player[qTbl.color].getPointerRotation(),0)
+          }
+          spawnObjectData(spawnDat)
+          Player[qTbl.color].broadcast('All '..Deck..' cards loaded!',{0.5,0.5,0.5})
           Deck=1
           endLoop()
-        elseif Deck<qTbl.deck then
-          Deck=Deck+1
-          qTbl.text('Spawning here\n'..Deck..' Cards loaded')
         end
-      else--Spawn solo card
-        uLog(qTbl.color..' Spawned '..c.name:gsub('\n.*',''))
-        spawnObjectJSON(t)
-        endLoop()end end})
+      end
+    end)
+    if not success then
+      printToAll('Something went wrong and the importer crashed, giving the error:',{1,0,0})
+      printToAll(errorMSG,{0.8,0,0})
+      printToAll("If you were doing everything you were supposed to, please let Amuzet know on discord or the workshop page (please remember what you typed to get the error, and the error message itself).",{0,1,1})
+      printToAll('Restarting Importer...',{0,0.5,1})
+      for i,o in ipairs(textItems) do
+        if o~=nil then
+          o.destruct()
+        end
+      end
+      self.reload()
+    end
+  end})
+
 
 function setOracle(c)local n='\n[b]'
   if c.power then n=n..c.power..'/'..c.toughness
@@ -805,6 +875,8 @@ function onChat(msg,p)
                       [':'] ='%%3A',
                       ['%(']='%%28',
                       ['%)']='%%29',
+                      ['%{']='%%7B',
+                      ['%}']='%%7D',
                       ['%[']='%%5B',
                       ['%]']='%%5D',
                       ['%|'] ='%%7C',
@@ -818,11 +890,11 @@ function onChat(msg,p)
           tbl.name=tbl.name:gsub(char,replacement)
         end
 
-        -- -- pieHere, this would be the smarter way to do it.. but for some reason it doesn't quite work?
-        -- -- not sure what's wrong here..
-        -- chars2encode={' ','>','<',':','%(','%)','%[','%]','%|','%/','\\','%^','%$','%?','%!'}
+        -- -- pieHere, this would be the smarter way to do it, but for some reason it doesn't quite work?
+        -- -- it's just the ^ sybmol? can't get that one to encode..
+        -- chars2encode={' ','>','<',':','%(','%)','%{','%}','%[','%]','%|','%/','\\','%^','%$','%?','%!'}
         -- for _,char in pairs(chars2encode) do
-        --   tbl.name=tbl.name:gsub(char,'%%'..string.format("%X",string.unicode(char)))
+        --   tbl.name=tblname:gsub(char,'%%'..string.format("%X",string.unicode(char)))
         -- end
 
       end
