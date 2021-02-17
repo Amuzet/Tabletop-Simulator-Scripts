@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.9314
+mod_name,version='Card Importer',1.94
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -7,7 +7,7 @@ coauthor='76561197968157267'--PIE
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL)end end
 
-textItems={}            -- pieHere, keep a table of all active textObjects
+textItems={}
 newText=setmetatable({
   type='3DText',
   position={0,2,0},
@@ -149,12 +149,14 @@ function spawnList(wr,qTbl)
         -- a jsonlist but couldn't find total_cards ? shouldn't happen, but just in case
         textItems[#textItems].destruct()
         table.remove(textItems,#textItems)
+        endLoop()   --pieHere, I missed this one too
         return
       end
       if tonumber(nCards)>100 then
         Player[qTbl.color].broadcast('This search query gives too many results (>100)',{1,0,0})
         textItems[#textItems].destruct()
         table.remove(textItems,#textItems)
+        endLoop()   --pieHere, I missed this one too
         return
       end
       qTbl.deck=nCards
@@ -205,6 +207,10 @@ local dFile={
 
   decCheck='%[[%w_]+%]',dec=function(line)
     local num,set,name=line:match('(%d+).%W+([%w_]+)%W+(%w.*)')
+    if num==nil or name==nil then    --pieHere, avoids that one edge-case error with deckstats decks
+      return 0,'',''
+    end
+    local num,set,name=line:match('(%d+).%W+([%w_]+)%W+(%w.*)')
     local alter=name:match(' #(http%S+)')or false
     name=name:gsub(' #.+','')
     if set:find('DD3_')then set=set:gsub('DD3_','')
@@ -217,13 +223,14 @@ local dFile={
     local alter=name:match(' #(http%S+)')or false
     name=name:gsub(' #.+','')
     return num,'https://api.scryfall.com/cards/named?fuzzy='..name,alter end}
+
 --[[Deck spawning]]
 function spawnDeck(wr,qTbl)
   if wr.text:find('!DOCTYPE')then
     uLog(wr.url,'Mal Formated Deck '..qTbl.color)
     uNotebook('D'..qTbl.color,wr.url)
     Player[qTbl.color].broadcast('Your Deck list could not be found\nMake sure the Deck is set to PUBLIC',{1,0.5,0})
-    textItems[#textItems].destruct()    --pieHere, missed removing this txtObject last time
+    textItems[#textItems].destruct()
 	  table.remove(textItems,#textItems)
   else
     uLog(wr.url,'Deck Spawned by '..qTbl.color)
@@ -240,14 +247,21 @@ function spawnDeck(wr,qTbl)
           local n,a,r=dFile[k:sub(1,3)](b)
           for i=1,n do table.insert(deck,a)
             --table.insert(qTbl.image,r)
-          end break end end end
+          end
+          break
+        end
+      end
+    end
     qTbl.deck=#deck
 
     for i,url in ipairs(deck) do
       Wait.time(function()
-          WebRequest.get(url,function(c)
-              setCard(c,qTbl)end)end,i*Tick)end
-end end
+                  WebRequest.get(url,function(c) setCard(c,qTbl) end)
+                end,i*Tick)
+    end
+  end
+end
+
 setCSV=4
 function spawnCSV(wr,qTbl)
   local side,deck,list='',{},wr.text
@@ -256,8 +270,13 @@ function spawnCSV(wr,qTbl)
     l=l:gsub(',',', ')
     for csv in l:gmatch(',([^,]+)')do
       if csv:len()==1 then break
-      else table.insert(tbl,csv:sub(2))end end
-    if #tbl<setCSV-1 then uLog(tbl)printToAll('Tell Amuzet that an Error occored in spawnCSV:\n'..qTbl.full)return endLoop()
+      else
+        table.insert(tbl,csv:sub(2))
+      end
+    end
+    if #tbl<setCSV-1 then uLog(tbl)printToAll('Tell Amuzet that an Error occored in spawnCSV:\n'..qTbl.full)
+      endLoop()
+      return
     elseif not tbl[2]:find('%d+')then--FirstCSVLine
     elseif(setCSV==3)or(
       setCSV==4 and tbl[1]:find('main'))or(
@@ -268,25 +287,36 @@ function spawnCSV(wr,qTbl)
     else--Side/Maybe
       side=side..tbl[2]..' '..tbl[3]..'\n'
       uLog(side)
-  end end
+    end
+  end
   if side~=''then
     Player[qTbl.color].broadcast('Sideboard Found and pasted into Notebook\n"Scryfall deck" to spawn most recent Notebook Tab')
-    uNotebook(qTbl.url,side)end
+    uNotebook(qTbl.url,side)
+  end
   qTbl.deck=#deck
   for i,u in ipairs(deck)do
     Wait.time(function()
-        WebRequest.get(u,function(c)
-            local t=JSON.decode(c.text)
-            if t.object~='card'then if u:find('&')then
-              WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
-              else WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard',function(c)setCard(c,qTbl)end)end
-            else setCard(c,qTbl)end end)end,i*Tick*2)end end
+                WebRequest.get(u,function(c)
+                                   local t=JSON.decode(c.text)
+                                   if t.object~='card'then
+                                     if u:find('&') then
+                                       WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
+                                     else
+                                       WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard',function(c)setCard(c,qTbl)end)
+                                     end
+                                   else
+                                     setCard(c,qTbl)
+                                   end
+                end)
+    end,i*Tick*2)
+  end
+end
 
 local DeckSites={
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastebin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   mtgdecks=function(a)return a..'/dec',spawnDeck end,
-  
+
   deckbox=function(a)return a..'/export',function(r,qTbl)
     local wr={url=r.url}
     wr.text=r.text:match('%Wbody%W(.+)%W%Wbody%W'):gsub('<br.?>','\n')
@@ -442,13 +472,13 @@ Importer=setmetatable({
           Player[qTbl.color].broadcast('No Tokens Found',{0.9,0.9,0.9})endLoop()end end)end,
 
   Print=function(qTbl)
-    local url,n='https://api.scryfall.com/cards/search?unique=prints&q=',qTbl.name:lower():gsub('%s','')
+    local url,n='https://api.scryfall.com/cards/search?unique=prints&q=',qTbl.name:lower():gsub('%s',''):gsub('%%20','')    -- pieHere, making search with spaces possible
     if('plains island swamp mountain forest'):find(n)then
       --url=url:gsub('prints','art')end
       broadcastToAll('Please Do NOT print Basics\nIf you would like a specific Basic specify that in your decklist\nor Spawn it using "Scryfall island&set=kld" the corresponding setcode',{0.9,0.9,0.9})
       endLoop()
     else
-      if qTbl.oracleid~=nil then      -- pieHere, if oracleID is given use that to find prints (allows to get prints for tokens)
+      if qTbl.oracleid~=nil then
         WebRequest.get(url..qTbl.oracleid,function(wr)spawnList(wr,qTbl)end)
       else
         WebRequest.get(url..qTbl.name,function(wr)spawnList(wr,qTbl)end)
@@ -482,18 +512,16 @@ Importer=setmetatable({
         else Player[qTbl.color].broadcast(wr.text)end
         endLoop()end)end,
 
---pieHere, either scryfall api changed, or this was broken to begin with
---the rulings_uri returns an "object":"list" that *contains* the sought after data table, as opposed to the data table itself
 Rules=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
       local cardDat = JSON.decode(wr.text)
       if cardDat.object=="error" then
-        broadcastToAll(cardDat.details,{0.9,0.9,0.9})   -- pieHere, also added the error bit
-	endLoop()
+        broadcastToAll(cardDat.details,{0.9,0.9,0.9})
+	      endLoop()
       elseif cardDat.object=="card" then
         WebRequest.get(cardDat.rulings_uri,function(wr)
           local data,text=JSON.decode(wr.text),'[00cc88]'
-          if data.object=='list' then   -- <-- that! pieHere
+          if data.object=='list' then
             data=data.data
           end
           if data~=nil and data[1] then
@@ -588,8 +616,11 @@ Rules=function(qTbl)
     else WebRequest.get(url,function(wr)setCard(wr,qTbl)end)end end,
 
   Quality=function(qTbl)
-    if('small normal large art_crop border_crop'):find(qTbl.name)then
-      Quality[qTbl.player]=qTbl.name end endLoop()end,
+    if('small normal large art_crop border_crop'):find(qTbl.name) then
+      Quality[qTbl.player]=qTbl.name
+    end
+    endLoop()
+  end,
 
   Deck=function(qTbl)
     if qTbl.url then
@@ -700,7 +731,7 @@ function onLoad(data)
   self.createButton({label="+",click_function='registerModule',function_owner=self,position={0,0.2,-0.5},height=100,width=100,font_size=100,tooltip="Adds Oracle Look Up"})
   Usage=Usage:format(self.getName())
   uNotebook('SHelp',Usage)
-  uNotebook('SData',self.script_state)
+  -- uNotebook('SData',self.script_state)   -- pieHere, remove the debug text popping into the notebook
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
   printToAll(u,{0.9,0.9,0.9})
@@ -712,15 +743,15 @@ function onPlayerConnect(player)
     printToAll(SMG..'Welcome '..player.steam_name..', creator of me. The Card Importer!',SMC)
   elseif player.steam_id==coauthor then
     printToAll(SMG..'Praise be to '..player.steam_name..'! ',SMC)
-  else
-    player.broadcast(SMG..'Whom the $&%# is this?! You\'ren\'t [b]Oops I Baked a Pie[/b]!',SMC)
-end end
+  end
+end
 function onPlayerDisconnect(player)
   if player.steam_id==author then
     printToAll(SMG..'Goodbye '..player.steam_name..', take care of yur self buddy-o-pal!',SMC)
   elseif player.steam_id==coauthor then
     printToAll(SMG..'𝜋 doesn\'t terminate, but '..player.steam_name..' does.',SMC)
-end end
+  end
+end
 function onDestroy()
   for _,o in pairs(textItems) do
     if o~=nil then o.destruct() end
@@ -746,26 +777,66 @@ function onChat(msg,p)
       self.script_state='{"76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
-      local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''):gsub(' ',''),full=a}
-      if tbl.color=='Grey'then tbl.position={0,2,0}end
+      print(a)
+      --pieHere, allow using spaces instead of + when doing search syntax, also allow ( ) grouping
+      local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''),full=a}
+      if tbl.color=='Grey' then
+        tbl.position={0,2,0}
+      end
       if tbl.mode then
-        for k,v in pairs(Importer)do
-          if tbl.mode:lower()==k:lower()and type(v)=='function'then
+        for k,v in pairs(Importer) do
+          if tbl.mode:lower()==k:lower() and type(v)=='function' then
             tbl.mode,tbl.name=k,tbl.name:lower():gsub(k:lower(),'',1)
-            break end end end
+            break
+          end
+        end
+      end
+      print(tbl.name)
+      if tbl.name:len()<1 then
+        tbl.name='blank card'
+      else
+        if tbl.name:sub(1,1)==' ' then
+          tbl.name=tbl.name:sub(2,-1)   --pieHere, remove 1st space
+        end
+        --pieHere, add character encoding to be able to put in same search as on scryfall.com
+        charEncoder={ [' '] ='%%20',
+                      ['>'] ='%%3E',
+                      ['<'] ='%%3C',
+                      [':'] ='%%3A',
+                      ['%(']='%%28',
+                      ['%)']='%%29',
+                      ['%[']='%%5B',
+                      ['%]']='%%5D',
+                      ['%|'] ='%%7C',
+                      ['%/'] ='%%2F',
+                      ['\\']='%%5C',
+                      ['%^'] ='%%5E',
+                      ['%$'] ='%%24',
+                      ['%?'] ='%%3F',
+                      ['%!'] ='%%3F'}
+        for char,replacement in pairs(charEncoder) do
+          tbl.name=tbl.name:gsub(char,replacement)
+        end
 
-      if tbl.name:len()<1 then tbl.name='blank card'
-      else tbl.name=tbl.name:gsub('%s','')end
+        -- -- pieHere, this would be the smarter way to do it.. but for some reason it doesn't quite work?
+        -- -- not sure what's wrong here..
+        -- chars2encode={' ','>','<',':','%(','%)','%[','%]','%|','%/','\\','%^','%$','%?','%!'}
+        -- for _,char in pairs(chars2encode) do
+        --   tbl.name=tbl.name:gsub(char,'%%'..string.format("%X",string.unicode(char)))
+        -- end
 
+      end
       Importer(tbl)
       if chatToggle then uLog(msg,p.steam_name)return false end
-end end end
+    end
+  end
+end
 
 --[[Card Encoder]]
 pID=mod_name
 function registerModule()
   enc=Global.getVar('Encoder')
-  if enc then--Fix THIS!
+  if enc then
     local prop={name=pID,funcOwner=self,activateFunc='toggleMenu'}
     local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
@@ -783,7 +854,7 @@ function registerModule()
     function eReverseCard(o,p)ENC(o,p)spawnObjectJSON({json=o.getJSON():gsub('BackURL','FaceURL'):gsub('FaceURL','BackURL',1)})
 end end end
 
-function ENC(o,p,m)   -- pieHere, look for card memo/oracleid and pass it on
+function ENC(o,p,m)
   enc.call('APIrebuildButtons',{obj=o})
   if m then
     if o.getName()=='' and m~='Back' then
