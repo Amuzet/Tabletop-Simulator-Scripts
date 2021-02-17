@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.94314
+mod_name,version='Card Importer',1.943141
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -109,7 +109,7 @@ local Card=setmetatable({n=1,image=false},
       end
 
       -- Spawn
-      if not(qTbl.deck) then        --Spawn solo card
+      if not(qTbl.deck) or qTbl.deck==1 then        --Spawn solo card
         local spawnDat={
           data=cardDat,
           position=qTbl.position or {0,2,0},
@@ -142,7 +142,7 @@ local Card=setmetatable({n=1,image=false},
         elseif Deck==qTbl.deck then
           local spawnDat={
             data=deckDat,
-            position=qTbl.position+Vector(0,0.5,0) or {0,2,0},
+            position=qTbl.position or {0,2,0},
             rotation=Vector(0,Player[qTbl.color].getPointerRotation(),0)
           }
           spawnObjectData(spawnDat)
