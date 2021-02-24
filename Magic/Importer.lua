@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.943141
+mod_name,version='Card Importer',1.95
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -87,7 +87,6 @@ local Card=setmetatable({n=1,image=false},
           CustomDeck={[b]={FaceURL=backAddress,BackURL=c.back,NumWidth=1,NumHeight=1,Type=0,BackIsHidden=true,UniqueBack=false}},
         }
       elseif t.image then --Custom Image
-        print(t.image)
         c.face=t.image
         t.image=false
       elseif c.image_uris then
@@ -105,7 +104,7 @@ local Card=setmetatable({n=1,image=false},
         CustomDeck={[n]={FaceURL=c.face,BackURL=c.back,NumWidth=1,NumHeight=1,Type=0,BackIsHidden=true,UniqueBack=false}},
       }
       if backDat then
-        cardDat.States={backDat}
+        cardDat.States={[2]=backDat}    -- pieHere, make backface be state#2
       end
 
       -- Spawn
@@ -121,8 +120,6 @@ local Card=setmetatable({n=1,image=false},
       else                          --Spawn deck
         if Deck==1 then             --initialize deckDat
           deckDat={}
-          print(Player[qTbl.color].steam_name)
-          print(qTbl.full)
           deckDat={
             Transform={posX=0,posY=0,posZ=0,rotX=0,rotY=0,rotZ=0,scaleX=1,scaleY=1,scaleZ=1},
             Name="Deck",
@@ -171,19 +168,35 @@ function setOracle(c)local n='\n[b]'
   if c.power then n=n..c.power..'/'..c.toughness
   elseif c.loyalty then n=n..tostring(c.loyalty)
   else n=false end return c.oracle_text:gsub('\"',"'")..(n and n..'[/b]'or'') end
+
 function setCard(wr,qTbl,originalData)
   if wr.text then
     local json=JSON.decode(wr.text)
-    if json.object=='card'then
-      if json.lang=='en'then
+    if json.object=='card' then
+      if json.lang=='en' then
         Card(json,qTbl)
       else
         WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/en',function(a)setCard(a,qTbl,json)end)
-      end return
-    elseif originalData then
-      Card(json,qTbl)
-    elseif json.object=='error'then Player[qTbl.color].broadcast(json.details,{1,0,0})end
-  else error('No Data Returned Contact Amuzet. setCard')end endLoop()end
+      end
+      return
+    -- elseif originalData then
+      -- Card(json,qTbl)
+-- pieHere: ^^^
+-- missing "return"
+-- also the above bit is probably supposed to be Card(originalData,qTbl) to spawn the original foreign card instead of the error json?
+-- replaced with a fuzzy search on the card name instead --> seems to find/get the english version after all
+    elseif originalData.name then
+      WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..originalData.name:gsub('%W',''),function(a)setCard(a,qTbl)end)
+      return
+    elseif json.object=='error' then
+      Player[qTbl.color].broadcast(json.details,{1,0,0})
+      return
+    end
+  else
+    error('No Data Returned Contact Amuzet. setCard')
+  end
+  endLoop()
+end
 
 function parseForToken(oracle,qTbl)endLoop()end
 --[[  if oracle:find('token')and oracle:find('[Cc]reate')then
@@ -234,13 +247,7 @@ function spawnList(wr,qTbl)
       local cards={}
       for i=1,nCards do
         start=string.find(txt,'{"object":"card"',last+1)
-        local nopen,txti=1,start
-        while nopen~=0 do
-          txti=txti+1
-          if txt:sub(txti,txti)=='{' then nopen=nopen+1
-          elseif txt:sub(txti,txti)=='}' then nopen=nopen-1 end
-        end
-        last=txti
+        last=findClosingBracket(txt,start)
         local card = JSON.decode(txt:sub(start,last))
         Wait.time(function() Card(card,qTbl) end, i*Tick)
       end
@@ -383,6 +390,53 @@ function spawnCSV(wr,qTbl)
 end
 
 local DeckSites={
+  moxfield=function(a)      -- PieHere: added moxfield support
+    local urlSuffix = a:match("moxfield%.com/decks/(.*)")
+    local deckID = urlSuffix:match("([^%s%?/$]*)")
+    local url = "https://api.moxfield.com/v2/decks/all/" .. deckID .. "/"
+    return url,function(wr,qTbl)
+      local deckName = wr.text:match('"name":"(.-)","description"'):gsub('(\\u....)',''):gsub('%W','')
+      local startInd=1
+      local endInd
+      local keepGoing=true
+      local cards={}
+      n=0
+      while keepGoing do
+        n=n+1
+        startInd=wr.text:find('{"quantity":',startInd)
+        if startInd==nil then keepGoing=false break end
+        endInd=findClosingBracket(wr.text,startInd)
+        if endInd==nil then keepGoing=false break end
+        local cardSnip = wr.text:sub(startInd,endInd)
+        card={
+          quantity=cardSnip:match('"quantity":(%d+)'),
+          boardType=cardSnip:match('"boardType":"(%a+)"'),
+          scryfall_id=cardSnip:match('"scryfall_id":"(.-)"'),
+          name=cardSnip:match('"name":"(.-)"'):gsub('(\\u....)',''),
+        }
+        table.insert(cards,card)
+        startInd=endInd+1
+      end
+      local sideboard=''
+      qTbl.deck=0
+      for i,card in ipairs(cards) do
+        if card.boardType=='sideboard' or card.boardType=='maybeboard' then
+          sideboard=sideboard..card.quantity..' '..card.name..'\n'
+        elseif card.boardType=='mainboard' or card.boardType=='commanders' or card.boardType=='companions' then
+          for i=1,card.quantity do
+            qTbl.deck=qTbl.deck+1
+            Wait.time(function()
+              WebRequest.get('https://api.scryfall.com/cards/'..card.scryfall_id,
+                function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)
+          end
+        end
+      end
+      if sideboard~='' then
+        Player[qTbl.color].broadcast(deckName..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
+        uNotebook(deckName,sideboard)
+      end
+    end
+  end,
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastebin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   mtgdecks=function(a)return a..'/dec',spawnDeck end,
@@ -741,7 +795,7 @@ local Usage=[[    [b]%s
 [-][-][0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
 [b][0077ff]Scryfall[/b] [i]URL cardname[/i]  [-][Spawns [i]cardname[/i] with [i]URL[/i] as it face]
 [b][0077ff]Scryfall[/b] [i]URL[/i]  [-][Spawn that deck list or Image]
-[b]Supported:[/b] [i]archidekt cubetutor cubecobra deckstats deckbox mtggoldfish scryfall tappedout pastebin[/i]
+[b]Supported:[/b] [i]archidekt cubetutor cubecobra deckstats deckbox moxfield mtggoldfish scryfall tappedout pastebin[/i]
 [b][0077ff]Scryfall help[/b] [-][Displays all possible commands]
 
 [b][ff7700]deck[/b] [-][Spawn deck from newest Notebook tab]
@@ -847,7 +901,6 @@ function onChat(msg,p)
       self.script_state='{"76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
-      print(a)
       --pieHere, allow using spaces instead of + when doing search syntax, also allow ( ) grouping
       local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''),full=a}
       if tbl.color=='Grey' then
@@ -861,7 +914,6 @@ function onChat(msg,p)
           end
         end
       end
-      print(tbl.name)
       if tbl.name:len()<1 then
         tbl.name='blank card'
       else
@@ -902,6 +954,27 @@ function onChat(msg,p)
       if chatToggle then uLog(msg,p.steam_name)return false end
     end
   end
+end
+
+-- find paired {} and []
+function findClosingBracket(txt,st)   -- find paired {} or []
+  local ob,cb='{','}'
+  local pattern='[{}]'
+  if txt:sub(st,st)=='[' then
+    ob,cb='[',']'
+    pattern='[%[%]]'
+  end
+  local txti=st
+  local nopen=1
+  while nopen>0 do
+    txti=string.find(txt,pattern,txti+1)
+    if txt:sub(txti,txti)==ob then
+      nopen=nopen+1
+    elseif txt:sub(txti,txti)==cb then
+      nopen=nopen-1
+    end
+  end
+  return txti
 end
 
 --[[Card Encoder]]
