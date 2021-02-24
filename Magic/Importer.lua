@@ -105,7 +105,7 @@ local Card=setmetatable({n=1,image=false},
         CustomDeck={[n]={FaceURL=c.face,BackURL=c.back,NumWidth=1,NumHeight=1,Type=0,BackIsHidden=true,UniqueBack=false}},
       }
       if backDat then
-        cardDat.States={backDat}
+        cardDat.States={[2]=backDat}   -- pieHere, make the backface be state#2
       end
 
       -- Spawn
@@ -171,19 +171,35 @@ function setOracle(c)local n='\n[b]'
   if c.power then n=n..c.power..'/'..c.toughness
   elseif c.loyalty then n=n..tostring(c.loyalty)
   else n=false end return c.oracle_text:gsub('\"',"'")..(n and n..'[/b]'or'') end
+
 function setCard(wr,qTbl,originalData)
   if wr.text then
-    local json=JSON.decode(wr.text)
-    if json.object=='card'then
-      if json.lang=='en'then
+    local json=JSONdecode(wr.text)
+    if json.object=='card' then
+      if json.lang=='en' then
         Card(json,qTbl)
       else
         WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/en',function(a)setCard(a,qTbl,json)end)
-      end return
-    elseif originalData then
-      Card(json,qTbl)
-    elseif json.object=='error'then Player[qTbl.color].broadcast(json.details,{1,0,0})end
-  else error('No Data Returned Contact Amuzet. setCard')end endLoop()end
+      end
+      return
+    -- elseif originalData then
+      -- Card(json,qTbl)
+-- pieHere: ^^^
+-- missing "return"
+-- also the above bit is probably supposed to be Card(originalData,qTbl) to spawn the original foreign card instead of the error json?
+-- replaced with a fuzzy search on the card name instead --> seems to find/get the english version after all
+    elseif originalData.name then
+      WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..originalData.name:gsub('%W',''),function(a)setCard(a,qTbl)end)
+      return
+    elseif json.object=='error' then
+      Player[qTbl.color].broadcast(json.details,{1,0,0})
+      return
+    end
+  else
+    error('No Data Returned Contact Amuzet. setCard')
+  end
+  endLoop()
+end
 
 function parseForToken(oracle,qTbl)endLoop()end
 --[[  if oracle:find('token')and oracle:find('[Cc]reate')then
@@ -234,13 +250,7 @@ function spawnList(wr,qTbl)
       local cards={}
       for i=1,nCards do
         start=string.find(txt,'{"object":"card"',last+1)
-        local nopen,txti=1,start
-        while nopen~=0 do
-          txti=txti+1
-          if txt:sub(txti,txti)=='{' then nopen=nopen+1
-          elseif txt:sub(txti,txti)=='}' then nopen=nopen-1 end
-        end
-        last=txti
+        last=findClosingBracket(txt,start)
         local card = JSON.decode(txt:sub(start,last))
         Wait.time(function() Card(card,qTbl) end, i*Tick)
       end
@@ -383,6 +393,53 @@ function spawnCSV(wr,qTbl)
 end
 
 local DeckSites={
+  moxfield=function(a)				-- pieHere, moxfield support, avoiding JSON.decode because moxfields json makes TTS crash
+    local urlSuffix = a:match("moxfield%.com/decks/(.*)")
+    local deckID = urlSuffix:match("([^%s%?/$]*)")
+    local url = "https://api.moxfield.com/v2/decks/all/" .. deckID .. "/"
+    return url,function(wr,qTbl)
+      local deckName = wr.text:match('"name":"(.-)","description"'):gsub('(\\u....)',''):gsub('%W','')
+      local startInd=1
+      local endInd
+      local keepGoing=true
+      local cards={}
+      n=0
+      while keepGoing do
+        n=n+1
+        startInd=wr.text:find('{"quantity":',startInd)
+        if startInd==nil then keepGoing=false break end
+        endInd=findClosingBracket(wr.text,startInd)
+        if endInd==nil then keepGoing=false break end
+        local cardSnip = wr.text:sub(startInd,endInd)
+        card={
+          quantity=cardSnip:match('"quantity":(%d+)'),
+          boardType=cardSnip:match('"boardType":"(%a+)"'),
+          scryfall_id=cardSnip:match('"scryfall_id":"(.-)"'),
+          name=cardSnip:match('"name":"(.-)"'):gsub('(\\u....)',''),
+        }
+        table.insert(cards,card)
+        startInd=endInd+1
+      end
+      local sideboard=''
+      qTbl.deck=0
+      for i,card in ipairs(cards) do
+        if card.boardType=='sideboard' or card.boardType=='maybeboard' then
+          sideboard=sideboard..card.quantity..' '..card.name..'\n'
+        elseif card.boardType=='mainboard' or card.boardType=='commanders' or card.boardType=='companions' then
+          for i=1,card.quantity do
+            qTbl.deck=qTbl.deck+1
+            Wait.time(function()
+              WebRequest.get('https://api.scryfall.com/cards/'..card.scryfall_id,
+                function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)
+          end
+        end
+      end
+      if sideboard~='' then
+        Player[qTbl.color].broadcast(deckName..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
+        uNotebook(deckName,sideboard)
+      end
+    end
+  end,
   deckstats=function(a)return a:gsub('%?cb=%d.+','')..'?include_comments=1&export_txt=1',spawnDeck end,
   pastebin=function(a)return a:gsub('com/','com/raw/'),spawnDeck end,
   mtgdecks=function(a)return a..'/dec',spawnDeck end,
@@ -902,6 +959,27 @@ function onChat(msg,p)
       if chatToggle then uLog(msg,p.steam_name)return false end
     end
   end
+end
+
+-- find paired {} and []
+function findClosingBracket(txt,st)   -- find paired {} or []
+  local ob,cb='{','}'
+  local pattern='[{}]'
+  if txt:sub(st,st)=='[' then
+    ob,cb='[',']'
+    pattern='[%[%]]'
+  end
+  local txti=st
+  local nopen=1
+  while nopen>0 do
+    txti=string.find(txt,pattern,txti+1)
+    if txt:sub(txti,txti)==ob then
+      nopen=nopen+1
+    elseif txt:sub(txti,txti)==cb then
+      nopen=nopen-1
+    end
+  end
+  return txti
 end
 
 --[[Card Encoder]]
