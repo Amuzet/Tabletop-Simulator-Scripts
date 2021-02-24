@@ -105,7 +105,7 @@ local Card=setmetatable({n=1,image=false},
         CustomDeck={[n]={FaceURL=c.face,BackURL=c.back,NumWidth=1,NumHeight=1,Type=0,BackIsHidden=true,UniqueBack=false}},
       }
       if backDat then
-        cardDat.States={[2]=backDat}   -- pieHere, make the backface be state#2
+        cardDat.States={[2]=backDat}    -- pieHere, make backface be state#2
       end
 
       -- Spawn
@@ -174,7 +174,7 @@ function setOracle(c)local n='\n[b]'
 
 function setCard(wr,qTbl,originalData)
   if wr.text then
-    local json=JSONdecode(wr.text)
+    local json=JSON.decode(wr.text)
     if json.object=='card' then
       if json.lang=='en' then
         Card(json,qTbl)
@@ -393,7 +393,7 @@ function spawnCSV(wr,qTbl)
 end
 
 local DeckSites={
-  moxfield=function(a)				-- pieHere, moxfield support, avoiding JSON.decode because moxfields json makes TTS crash
+  moxfield=function(a)      -- added moxfield support
     local urlSuffix = a:match("moxfield%.com/decks/(.*)")
     local deckID = urlSuffix:match("([^%s%?/$]*)")
     local url = "https://api.moxfield.com/v2/decks/all/" .. deckID .. "/"
@@ -798,7 +798,7 @@ local Usage=[[    [b]%s
 [-][-][0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
 [b][0077ff]Scryfall[/b] [i]URL cardname[/i]  [-][Spawns [i]cardname[/i] with [i]URL[/i] as it face]
 [b][0077ff]Scryfall[/b] [i]URL[/i]  [-][Spawn that deck list or Image]
-[b]Supported:[/b] [i]archidekt cubetutor cubecobra deckstats deckbox mtggoldfish scryfall tappedout pastebin[/i]
+[b]Supported:[/b] [i]archidekt cubetutor cubecobra deckstats deckbox moxfield mtggoldfish scryfall tappedout pastebin[/i]
 [b][0077ff]Scryfall help[/b] [-][Displays all possible commands]
 
 [b][ff7700]deck[/b] [-][Spawn deck from newest Notebook tab]
