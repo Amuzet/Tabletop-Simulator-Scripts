@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.95
+mod_name,version='Card Importer',1.951
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -185,11 +185,13 @@ function setCard(wr,qTbl,originalData)
 -- missing "return"
 -- also the above bit is probably supposed to be Card(originalData,qTbl) to spawn the original foreign card instead of the error json?
 -- replaced with a fuzzy search on the card name instead --> seems to find/get the english version after all
-    elseif originalData.name then
+    elseif originalData and originalData.name then
       WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..originalData.name:gsub('%W',''),function(a)setCard(a,qTbl)end)
+      endLoop()
       return
     elseif json.object=='error' then
       Player[qTbl.color].broadcast(json.details,{1,0,0})
+      endLoop()
       return
     end
   else
@@ -883,8 +885,9 @@ function onDestroy()
 end
 local chatToggle=false
 function onChat(msg,p)
-  if msg:find('!?[Ss]cryfall ')then
-    local a=msg:match('!?[Ss]cryfall (.*)')or false
+  local firstWord=msg:lower():match('^(.-)%s')
+  if firstWord=='scryfall' or firstWord=='cryfall' or firstWord=='scryfal' or firstWord=='scyfall' then
+    local a=msg:match(firstWord..' (.*)') or false
     if a=='hide'and p.admin then
       chatToggle=not chatToggle
       if chatToggle then msg='supressing' else msg='showing'end
