@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.951
+mod_name,version='Card Importer',1.952
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -885,7 +885,8 @@ function onDestroy()
 end
 local chatToggle=false
 function onChat(msg,p)
-  local firstWord=msg:lower():match('^(.-)%s')
+  local msg=msg:lower()
+  local firstWord=msg:match('^(.-)%s')
   if firstWord=='scryfall' or firstWord=='cryfall' or firstWord=='scryfal' or firstWord=='scyfall' then
     local a=msg:match(firstWord..' (.*)') or false
     if a=='hide'and p.admin then
