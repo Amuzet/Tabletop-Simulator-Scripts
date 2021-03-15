@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Quick Importer',0.2
+mod_name,version='Quick Importer',0.3
 local delete,fData,Data=false,'',{EDH_Modular_Marchesa='servo\nback https://joestradingpost.weebly.com/uploads/1/2/6/3/126301603/published/sol-ring-exquisite.jpg\nhttps://deckstats.net/decks/99237/1048189-modular-marchesa/en'}
 local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,height=400,width=6500,font_size=350,scale={0.2,0.2,0.2},position={0,-0.1,0},rotation={0,0,180},font_color=self.getColorTint(),color={0,0,0}},
   {__call=function(t,l,data)
@@ -10,18 +10,18 @@ local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,he
       if data then
         Data[cf]=data
         self.setVar(t.click_function,function(o,c,a)
-          if delete and a and Data[cf]then Data[cf]=nil
-          elseif a then Player[c].broadcast('[b]This Button will execute these commands: [/b]\nScryfall '..data:gsub('\n','\nScryfall '),{0.7,1,1})return end
+            
+            if delete and a and Data[cf]then Data[cf]=nil
+            elseif a then Player[c].broadcast('Now Editing: '..cf,{0.7,1,1})
+              self.editInput({index=0,value=l..'\n'..data})return end
           for d in data:gmatch('[^\n]+')do passToImporter(o,c,a,d)end end)log(Data)onSave()end self.createButton(t)end})
 
 function input_func(o,c,v,s)if not s then
   local _,l=v:gsub('\n','\n')
   if l<1 then Player[c].broadcast('No Commands were found!\nRemember the first line is just a nickname.')
-  elseif l>12 then Player[c].broadcast('Too many commands were found!\nOnly twelve commands can be saved per button.',{1,0,1})
-  elseif fData==v then
-    Player[c].broadcast('When you`re done just Right Click the black button to save.')
-  else
-    fData=v
+  elseif l>12 then Player[c].broadcast('Too many commands were found!\nOnly twelve commands can be saved per button.',{1,0,0})
+  elseif fData==v then Player[c].broadcast('When you`re done just Right Click the black button to save.')
+  else fData=v
     self.editButton({index=0,height=800,label='Right Click: Create New Button\n'..v:match('[^\n]+')})
     if #self.getButtons()<2 then Player[c].broadcast('The First Line will be the nickname of the button.\nIt will not be read as a command.',{0,1,1})end
 end end end
@@ -51,7 +51,7 @@ function onCollisionEnter(t)
 end end end
 function onLoad(ssd)
   self.createInput({
-      label='EDH Modular Marchesa\n'..Data.EDH_Modular_Marchesa,
+      label='Possible Commands\nrandom ?q=-t:creature+-t:land 10\nsearch set:lrw+command\nbooster lrw\nservo',
       input_function='input_func',function_owner=self,alignment=1,
       scale=B.scale,position={0,-0.1,-0.7},rotation={0,0,180},
       width=B.width,height=B.height*7,font_size=120,validation=1})
@@ -60,7 +60,7 @@ function onLoad(ssd)
   B.font_color={0,0,0}
   B.color={1,1,1}
   B.rotation=nil
-  B.position={2.6,0.1,-1.5}
+  B.position={0,0.1,-1.5}
   
   if ssd~=''then Data=JSON.decode(ssd)end
   log(Data)
