@@ -55,10 +55,10 @@ function onPlayerTurn(player)
       t.zoneDiscard,t.zoneDeck=zDd,zDk
       local dN,flip=0,false
       for _,v in pairs(zDd.getObjects())do
-        if v.tag=='Deck'or v.tag=='Card'then dN=dN+1
+        if v.type=='Deck'or v.type=='Card'then dN=dN+1
           if getObjectFromGUID(v.guid).is_face_down then flip=true
             for _,d in pairs(zDk.getObjects())do
-              if dN>1 or v.tag=='Deck'and getObjectFromGUID(v.guid).is_face_down then
+              if dN>1 or v.type=='Deck'and getObjectFromGUID(v.guid).is_face_down then
                 --Both Deck and Discard were facedown or two decks are in your discard!
                 Player[Turns.getPreviousTurnColor()].broadcast('Fix your Deck/Discard area!',{1,0,1})
       end end end end end
@@ -73,9 +73,9 @@ function onPlayerTurn(player)
         elseif v.getName()=='Horn'and option.autoHorn then
           local tbl={position=t.deck,rotation={0,0,0},1}
           for _,o in pairs(playArea.getObjects())do
-            if o.tag=='Card'and o.getName()=='Border Guard'then
+            if o.type=='Card'and o.getName()=='Border Guard'then
               o.putObject(getDeck(t.zoneDeck.getObjects()))break
-            elseif o.tag=='Deck'then
+            elseif o.type=='Deck'then
               for d,c in pairs(o.getObjects())do
                 if c.nickname=='Border Guard'then
                   tbl.index,tbl.bool=d,true
@@ -109,13 +109,13 @@ end
 function autoDrawCards(p)
   local cDk=getDeck(p.zoneDeck.getObjects())
   --Attempt to draw cards
-  if cDk and cDk.tag=='Deck'and cDk.getQuantity()>=p.draw then
+  if cDk and cDk.type=='Deck'and cDk.getQuantity()>=p.draw then
     cDk.deal(p.draw,p.color)
   elseif cDk then
     -- alert player this may take some time
-    if cDk.tag=='Deck'then
+    if cDk.type=='Deck'then
       cDk.deal(p.draw,p.color)
-    elseif cDk.tag=='Card'and p.draw>0 then
+    elseif cDk.type=='Card'and p.draw>0 then
       --Put that card in the hand
       cDk.setRotation({0,180,0})
       cDk.setPosition(Player[p.color].getHandTransform().position)
@@ -127,8 +127,8 @@ function reshuffleDiscard(p)
     local cDk=getDeck(p.zoneDiscard.getObjects())
     --Reshuffle Discard Pile
     if not cDk then broadcastToAll('Has something gone wrong?',p.color,{0.9,0.1,0.9})
-    elseif cDk.tag=='Card'then cDk.setPosition(Player[p.color].getHandTransform().position)
-    elseif cDk.tag=='Deck'then
+    elseif cDk.type=='Card'then cDk.setPosition(Player[p.color].getHandTransform().position)
+    elseif cDk.type=='Deck'then
       cDk.setRotation({180,0,0})
       cDk.setPositionSmooth(p.deck)
       cDk.shuffle()
@@ -145,14 +145,14 @@ function putDiscard(t,p,hand)
     elseif v.getDescription():find('Hex')then
     elseif v.getDescription():find('State')then
     elseif v.getDescription():find('Artifact')then
-    elseif v.tag=='Deck'and v.name:find(' pile')then
+    elseif v.type=='Deck'and v.name:find(' pile')then
       broadcastToAll('Pile found in play area!\nAssuming you bought 1 and only discarding 1',{1,0,1})
       v.setLock(true)
       local q=v.getPosition()
       q[2]=q[2]+3
       v.setPosition(q)
       v.takeObject({position=p})
-    elseif v.tag=='Deck'or v.tag=='Card'then
+    elseif v.type=='Deck'or v.type=='Card'then
       v.setScale({1.88,1,1.88})
       v.setRotation({0,180,0})
       if hand then
@@ -162,6 +162,6 @@ function putDiscard(t,p,hand)
         v.setPositionSmooth(p)
 end end end end
 function delay(N,t)local p={function_name=N,identifier=N..t.color..'PA',parameters=t,delay=2}Timer.destroy(p.identifier)Timer.create(p)end
-function getDeck(z)for _,v in pairs(z)do if v.tag=='Deck'or v.tag=='Card'then return v end end return false end
+function getDeck(z)for _,v in pairs(z)do if v.type=='Deck'or v.type=='Card'then return v end end return false end
 function clean(s)return('self.setName(\'%s\')function bye(o) if o.getName():find(\'PLAY AREA\')then self.destruct()end end function onObjectDestroy(o)bye(o)end function onObjectDrop(p,o)bye(o)end'):format(s,s)end
 --EOF

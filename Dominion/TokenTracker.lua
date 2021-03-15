@@ -10,7 +10,7 @@ function onload(s)
   rT,oW=self.getName(),self.getDescription()
   txt=oW..' [888888]%s %s '..rT..'.[-] |%s|'
   if stringColorToRGB(oW)then clr=stringColorToRGB(oW)end
-  local a,b=0.9,{click_function='click',function_owner=self,label=count,font_color=clr,position={0,0.1,0},color={0,0,0,0.7},scale={0.8,1,0.8},height=600,width=600,font_size=1500,tooltip=rT..'\nClick to Increase\nRight Click to Decrease'}
+  local a,b=0.9,{click_function='click',function_owner=self,label=count,font_color=clr,position={0,0.1,0},color={0,0,0},scale={0.8,1,0.8},height=600,width=600,font_size=1500,tooltip=rT..'\nClick to Increase\nRight Click to Decrease'}
   if rT=='Owns Project'then b.position[2]=0.7
   elseif ('Pirate Ship CoinsVillagers'):find(rT)then b.position[2]=0.1
   else a,b.scale=1.3,{1.1,1.1,1.1}end
