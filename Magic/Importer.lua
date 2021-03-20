@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.954
+mod_name,version='Card Importer',1.955
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -36,6 +36,11 @@ newText=setmetatable({
 --[[Variables]]
 local Deck,Tick,Test,Quality,Back=1,0.2,false,TBL.new('normal',{}),TBL.new('https://i.stack.imgur.com/787gj.png',{})
 
+--Image Handler
+function trunkateURI(uri,q,s)
+  if q=='png' then uri=uri:gsub('.jpg','.png')end
+  return uri:gsub('%?.*',''):gsub('normal',q)..s
+end
 --[[Card Spawning Class]]
 -- pieHere:
 -- replaced spawnObjectJSON with spawnObjectData, cuz TTS's JSON stuff sucks anyways
@@ -46,14 +51,13 @@ local Card=setmetatable({n=1,image=false},
     success,errorMSG=pcall(function()
       --NeededFeilds in c:name,type_line,cmc,card_faces,oracle_text,power,toughness,loyalty
       c.face,c.oracle,c.back='','',Back[qTbl.player] or Back.___
-      local n,state,qual=t.n,false,Quality[qTbl.player]
+      local n,state,qual,imgSuffix=t.n,false,Quality[qTbl.player],''
       t.n=n+1
       --Check for card's spoiler image quality
       if c.set=='tsr' then
         qual='png'
       elseif c.image_status~='highres_scan' then
-        Player[qTbl.color].broadcast('Highres Scan not ready yet defaulting to small:\n'..c.name,Color.Teal)
-        qual='small'
+        imgSuffix='?spoiler'
       end
       --Oracle text Handling for Split then DFC then Normal
       if c.card_faces and c.image_uris then
@@ -72,8 +76,8 @@ local Card=setmetatable({n=1,image=false},
       if qTbl.deck and qTbl.image and qTbl.image[n] then
         c.face=qTbl.image[n]
       elseif c.card_faces and not c.image_uris then --DFC REWORKED for STATES!
-        local faceAddress=c.card_faces[1].image_uris.normal:gsub('%?.*',''):gsub('normal',qual)
-        local backAddress=c.card_faces[2].image_uris.normal:gsub('%?.*',''):gsub('normal',qual)
+        local faceAddress=trunkateURI( c.card_faces[1].image_uris.normal , qual , imgSuffix )
+        local backAddress=trunkateURI( c.card_faces[2].image_uris.normal , qual , imgSuffix )
         if faceAddress:find('/back/') and backAddress:find('/front/') then
           local temp=faceAddress;faceAddress=backAddress;backAddress=temp end
         if t.image then faceAddress,backAddress=t.image,t.image end
@@ -96,7 +100,7 @@ local Card=setmetatable({n=1,image=false},
         c.face=t.image
         t.image=false
       elseif c.image_uris then
-        c.face=c.image_uris.normal:gsub('%?.*',''):gsub('normal',qual)
+        c.face=trunkateURI( c.image_uris.normal , qual , imgSuffix )
       end
 
       -- prepare cardDat
@@ -863,7 +867,7 @@ function onLoad(data)
   uNotebook('SHelp',Usage)
   -- uNotebook('SData',self.script_state)   -- pieHere, remove the debug text popping into the notebook
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
-  u=u..'\nWhats New: No longer crashes with Time Spiral Remastered Cards.'
+  u=u..'\nWhats New: Now actually spawns Time Spiral Remastered Cards.'
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
   printToAll(u,{0.9,0.9,0.9})
   onChat('Scryfall clear back')end
