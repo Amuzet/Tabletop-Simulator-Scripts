@@ -5,8 +5,9 @@ local Script,DISCONNECT,playArea,currDebt,option=false,false,false,false,{Flag=f
 function onLoad(sData)
   if not Script then
     Script=getObjectFromGUID('176e6a')
-    log(Script)
-  end
+    if Script.script_code:len()<9 then
+      Script=Global
+  end end
   WebRequest.get(GITURL,function(wr)
     local v=wr.text:match('version,mod_name=(%d*%p?%d*)')
     if v then v=tonumber(v)
