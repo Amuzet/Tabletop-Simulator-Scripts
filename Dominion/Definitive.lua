@@ -31,7 +31,7 @@ function onLoad(saved_data)
     if v then v=tonumber(v)
       if v<VERSION then     broadcastToAll('Oh look at you with a Testing Version\nPlease Report any bugs to Amuzet.',{0,1,1})
       elseif v>VERSION then broadcastToAll('There is an UPDATE!\nAttempting Update.\nThe Code will be pasted onto the Invisible block above the Ducy pile.\nCopy and paste its script over Global.\nIf this does not work, find the discord.',{1,1,0})objButton.setLuaScript(wr.text)objButton.reload()
-      else                  broadcastToAll('Up to Date!\nHave a nice time playing.',{0,1,0})end
+      else                  broadcastToAll('THIS UPDATED FROM GITHUB!!\nIT WILL CRASH YOUR GAME!!\nPlease contact Amuzet to get the working save',{1,0,0.2})end
     else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
   sL={n=1,
   {'Official Sets','Currently only official sets are allowed.\nThis excludes first printings, promos and fan expansions.',14},
@@ -119,9 +119,9 @@ function onLoad(saved_data)
             if f then b.click_function=f else b.click_function='click_'..l:gsub('\n.*',''):gsub('%s','')end objButton.createButton(b)end})
       btn('Include In Randomizer\nOfficial Expansions','These sets are all official expansions made by Donald X V of Rio Grande Games')
       put.width=5750
-      btn('Balanced Setup','Random Kingdom made with a card from each selected sets')
-      btn('Tutorial Game','Kingdoms Known to be easy to introduce to new players.')
-      btn('All Sets\nQuick Setup','Just Play')
+      btn('Contact Amuzet\nThe new code','Random Kingdom made with a card from each selected sets')
+      btn('Contact Amuzet\nRequires new assets','Kingdoms Known to be easy to introduce to new players.')
+      btn('Contact Amuzet\nFor Fresh Save','Just Play')
     end
   end
   if gameState==2 then
@@ -138,6 +138,7 @@ function onLoad(saved_data)
     createEndButton()
   end
 end
+function click_ContactAmuzet()bcast('[b]Discord[/b]\nAmuzet#3078',{1,1,1})end
 function createEndButton()
   local obj=getObjectFromGUID(ref.startButton)
   if obj then
