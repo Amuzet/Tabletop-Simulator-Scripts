@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.955
+mod_name,version='Card Importer',1.956
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -54,9 +54,7 @@ local Card=setmetatable({n=1,image=false},
       local n,state,qual,imgSuffix=t.n,false,Quality[qTbl.player],''
       t.n=n+1
       --Check for card's spoiler image quality
-      if c.set=='tsr' then
-        qual='png'
-      elseif c.image_status~='highres_scan' then
+      if c.image_status~='highres_scan' then
         imgSuffix='?spoiler'
       end
       --Oracle text Handling for Split then DFC then Normal
@@ -150,7 +148,7 @@ local Card=setmetatable({n=1,image=false},
           local spawnDat={
             data=deckDat,
             position=qTbl.position or {0,2,0},
-            rotation=Vector(0,Player[qTbl.color].getPointerRotation(),0)
+            rotation=Vector(0,Player[qTbl.color].getPointerRotation(),180)
           }
           spawnObjectData(spawnDat)
           Player[qTbl.color].broadcast('All '..Deck..' cards loaded!',{0.5,0.5,0.5})
@@ -172,7 +170,6 @@ local Card=setmetatable({n=1,image=false},
       self.reload()
     end
   end})
-
 
 function setOracle(c)local n='\n[b]'
   if c.power then n=n..c.power..'/'..c.toughness
@@ -534,7 +531,7 @@ local Booster=setmetatable({
     dom=function(p)return typeCo(p,'t:legendary')end,
     war=function(p)return typeCo(p,'t:planeswalker')end,
     znr=function(p)return typeCo(p,'t:land+(is:spell+or+pathway)')end,
-    tsp='tsb',mb1='fmb1',bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2'
+    tsp='tsb',mb1='fmb1',mh2='h1r',bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2',stx='sta'
   },{__call=function(t,set,n)
     local pack,u={},apiSet..set..'+'
     if not n and t[set]and type(t[set])=='function'then
@@ -545,12 +542,13 @@ local Booster=setmetatable({
       for _,c in pairs({'w','u','b','r','g'})do
         table.insert(pack,u..'r:common+c:'..c)end
       for i=1,6 do table.insert(pack,u..'r:common+-t:basic')end
-      if(t[set]and math.random(1,144)==1)or('tsp mb1'):find(set)then
+      --masterpiece math
+      if(t[set]and math.random(1,144)==1)or('tsp mb1 mh2'):find(set)then
         pack[#pack]=apiSet..t[set]end
       for i=1,3 do table.insert(pack,u..'r:uncommon')end
       table.insert(pack,u..rarity(8,1))
       return pack end end})
-
+--Weird Boosters
 Booster['2xm']=function(p)p[11]=p[#p];for i=9,10 do p[i]=apiSet..'2xm'..rarity()end return p end
 for _,s in pairs({'isd','dka','soi','emn'})do
     Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-is:transform'else p[i]=apiSet..s..rarity()..'+is:transform'end end return p end end
@@ -558,9 +556,33 @@ for _,s in pairs({'cns','cn2'})do
     Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-wm:conspiracy'else p[i]=apiSet..s..rarity()..'+wm:conspiracy'end end return p end end
 for _,s in pairs({'rav','gpt','dis','rtr','gtc','dgm','grn','rna'})do
     Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-t:land'else p[i]=apiSet..s..rarity()..'+t:land+-t:basic'end end return p end end
-for _,s in pairs({'ice','mh1'})do
+for _,s in pairs({'ice','all','csp','mh1'})do
     Booster[s]=function(p)p[math.random(6,11)]=apiSet..s..'+t:basic+t:snow'return p end end
-
+for _,s in pairs({'khm'})do
+    Booster[s]=function(p)p[math.random(6,11)]=apiSet..s..'+t:snow'return p end end
+--Custom Booster Packs
+Booster.STANDARD=function(qTbl)
+  local pack,u={},'http://api.scryfall.com/cards/random?q=f:standard+'
+  for c in ('wubrg'):gmatch('.')do
+    table.insert(pack,u..'r:common+c:'..c)end
+  for i=1,5 do table.insert(pack,u..'r:common+-t:basic')end
+  for i=1,3 do table.insert(pack,u..'r:uncommon')end
+  table.insert(pack,u..rarity(8,1))
+  table.insert(pack,u..'t:basic')
+  table.insert(pack,u:sub(1,39)..'(set:tafr+or+set:tstx+or+set:tkhm+or+set:tznr+or+set:sznr+or+set:tm21+or+set:tiko+or+set:tthb+or+set:teld)')
+  for i=#pack-1,#pack do
+    if math.random(1,2)==1 then
+      pack[i]=u..'(border:borderless+or+frame:showcase+or+frame:extendedart+or+set:plist+or+set:sta)'
+    end end
+  return pack end
+function spawnPack(qTbl,pack)
+  qTbl.deck=#pack
+  qTbl.mode='Deck'
+  log(pack)
+  for i,u in pairs(pack)do
+    Wait.time(function()WebRequest.get(u,function(wr)
+          setCard(wr,qTbl)end)end,i*Tick)end
+end
 --[[Importer Data Structure]]
 Importer=setmetatable({
   --Variables
@@ -646,7 +668,7 @@ Importer=setmetatable({
         else Player[qTbl.color].broadcast(wr.text)end
         endLoop()end)end,
 
-Rules=function(qTbl)
+  Rules=function(qTbl)
     WebRequest.get('https://api.scryfall.com/cards/named?fuzzy='..qTbl.name,function(wr)
       local cardDat = JSON.decode(wr.text)
       if cardDat.object=="error" then
@@ -708,20 +730,19 @@ Rules=function(qTbl)
     end,
 
   Booster=function(qTbl)
-    if qTbl.name==''then qTbl.name='ori'end
-    WebRequest.get('https://api.scryfall.com/sets/'..qTbl.name,function(w)
+    if Booster[qTbl.name:upper()]then
+      qTbl.url='Booster '..qTbl.name
+      spawnPack(qTbl,Booster[qTbl.name:upper()](qTbl))
+    elseif #qTbl.name<5 then
+      if qTbl.name==''then qTbl.name='ori'end
+      WebRequest.get('https://api.scryfall.com/sets/'..qTbl.name,function(w)
         local j=JSON.decode(w.text)
         if j.object=='set'then
-          local pack=Booster(qTbl.name)
           qTbl.url='Booster '..j.name
-          qTbl.deck=#pack
-          qTbl.mode='Deck'
-
-          for i,u in pairs(pack)do
-            Wait.time(function()WebRequest.get(u,function(wr)
-                  setCard(wr,qTbl)end)end,i*Tick)end
-        else Player[qTbl.color].broadcast(j.details,{1,0,0})endLoop()
-    end end)end,
+          spawnPack(qTbl,Booster(qTbl.name))
+      else Player[qTbl.color].broadcast(j.details,{1,0,0})endLoop()
+      end end)
+    else Player[qTbl.color].broadcast('No Booster found to make')endLoop()end end,
 
   Random=function(qTbl)
     local url,q1='https://api.scryfall.com/cards/random','?q=is:hires'
