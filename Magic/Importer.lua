@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.956
+mod_name,version='Card Importer',1.957
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -499,20 +499,42 @@ local DeckSites={
                 WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
               else setCard(c,qTbl)end end)end,i*Tick*2)
     end end end,
-  cubecobra=function(a)return a:gsub('/cube/(%w+)/','download/csv'),function(wr,qTbl)
+  cubecobra=function(a)return a:gsub('list','download/csv')..'?showother=false',function(wr,qTbl)
     local cube,list={},wr.text:gsub('[^\r\n]+','',1)
     if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
+    local c = 0
     for line in list:gmatch('([^\r\n]+)')do
       local tbl,n,l={},0,line:gsub('.-"','',2)
-      log(line)
-      table.insert(tbl,line:match('"([^"]+)"'))
-      for csv in l:gmatch('(,.-),')do log(csv)
-        if csv:len()==1 then table.insert(tbl,false)
-        else table.insert(tbl,csv:gsub('"',''))end end
-      if n<10 then n=n+1 log(tbl)end
+      --Grab all non-empty strings surrounded by quotes, will include set and cn
+      --"Lupine Prototype",2,"Artifact Creature - Wolf Construct",,"emn","197",rare,c,Owned,Non-foil,false,,,"","",61494
+      --"Lupine Prototype","Artifact Creature - Wolf Construct","emn","197"
+      for obj in line:gmatch('"([^"]+)"') do
+          --log(obj)
+          table.insert(tbl,obj)
+      end
+      --for csv in l:gmatch('"([^,"]+)"')do log('csv:') log(csv)
+        --if csv:len()==1 then table.insert(tbl,false)
+        --else table.insert(tbl,csv:gsub('"',''))end end
+
       --if tbl[12]:find('http')then qTbl.image[n]=tbl[12]:match('"([^"]+)')end
-      local b='https://api.scryfall.com/cards/'..tbl[5]..'/'..tbl[6]
-      table.insert(cube,b)
+      --Only include cards that aren't on the maybeboard
+      if line:match(',false,') then
+        local b='https://api.scryfall.com/cards/'..tbl[3]..'/'..tbl[4]
+        --Catch custom images
+        --This could break so fucking hard if someone uses http as a tag ffs
+        --Doesn't catch image backs, so if someone's making a DFC they can fuck themselves.
+        c=c+1
+        if tbl[5]:match('http') then --Use c to count which card should have its image replaced
+            log('c:')
+            log(c)
+            log(tbl[5])
+            qTbl.image[c]=tbl[5] --This might be messing it up, if qTbl is static across imports.
+            --If it cares about the nth card spawned, then c will always point to the nth card overall
+            --instead of from this import.
+            --b = tbl[5]
+        end
+        table.insert(cube,b)
+      end
     end
     qTbl.deck=#cube
     for i,url in ipairs(cube)do
@@ -930,7 +952,7 @@ function onChat(msg,p)
       printToAll(SMG..'Respawning Importer!',SMC)
       self.reload()
     elseif a=='clear back'then
-      self.script_state='{"76561198015252567":"https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/5/5c/Cardback_reimagined.png","76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","a":"Dummy"}'
+      self.script_state='{"76561198015252567":"https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/5/5c/Cardback_reimagined.png","76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","76561198042114416":"https://gamepedia.cursecdn.com/mtgsalvation_gamepedia/f/f8/Magic_card_back.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
       --pieHere, allow using spaces instead of + when doing search syntax, also allow ( ) grouping
