@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.957
+mod_name,version='Card Importer',1.958
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -472,7 +472,7 @@ local DeckSites={
     json=JSON.decode(json)
     local board=''
     for _,v in pairs(json.cards)do
-      if('SideboardMaybeboard'):find(v.categories[1])then
+      if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
         board=board..v.quantity..' '..v.card.uid
       else for i=1,v.quantity do
         qTbl.deck=qTbl.deck+1
