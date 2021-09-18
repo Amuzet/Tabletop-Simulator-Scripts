@@ -30,3 +30,5 @@ Tools/GamePickerTable.lua
 Villainous.lua
 Tools/Shadows.lua
 Tools/GameEthnos.lua
+MonsterFamily.lua
+Magic/DeckSeeker.lua

@@ -1,6 +1,6 @@
 --By Amuzet
 mod_name,version='Quick Importer',0.3
-local delete,fData,Data=false,'',{EDH_Modular_Marchesa='servo\nback https://joestradingpost.weebly.com/uploads/1/2/6/3/126301603/published/sol-ring-exquisite.jpg\nhttps://deckstats.net/decks/99237/1048189-modular-marchesa/en'}
+local delete,fData,Data='','',{}
 local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,height=400,width=6500,font_size=350,scale={0.2,0.2,0.2},position={0,-0.1,0},rotation={0,0,180},font_color=self.getColorTint(),color={0,0,0}},
   {__call=function(t,l,data)
       --local inc,i,h=0.325,0,t.height
@@ -10,9 +10,9 @@ local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,he
       if data then
         Data[cf]=data
         self.setVar(t.click_function,function(o,c,a)
-            
-            if delete and a and Data[cf]then Data[cf]=nil
-            elseif a then Player[c].broadcast('Now Editing: '..cf,{0.7,1,1})
+            if a then
+              if delete~=cf then delete=cf else Data[cf]=nil end
+              Player[c].broadcast('Now Editing: '..cf,{0.7,1,1})
               self.editInput({index=0,value=l..'\n'..data})return end
           for d in data:gmatch('[^\n]+')do passToImporter(o,c,a,d)end end)log(Data)onSave()end self.createButton(t)end})
 
@@ -34,7 +34,7 @@ function cf_How_To_Use_Quick_Importer(o,c,a)
   elseif fData==''then
     self.editButton({index=0,tooltip='Right Click: Create New Button'})
   else
-    Player[c].broadcast('The First Line is what The Button will be named.\nThe Following lines seperated with the `enter` key are what is passed to the Card Importer 1.82 and Newer!\nRight click will submit and save all these commands as a new Button')
+    Player[c].broadcast('The First Line is what The Button will be named.\nThe Following lines seperated with the `enter` key are what is passed to the Card Importer 1.82+!\nRight click will submit and save all these commands as a new Button')
 end end
 function onDrop()self.setRotation({0,(self.getRotation()[2]+45)-((self.getRotation()[2]+45)%180),0})end
 function onSave()self.script_state=JSON.encode(Data)end

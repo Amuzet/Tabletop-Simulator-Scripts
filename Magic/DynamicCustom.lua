@@ -22,10 +22,10 @@ function onSave(k,v,sE)
 function onDrop()Timer.create({function_name='tyic',identifier=self.getGUID(),delay=1})end
 function onLoad(D)
   if D~=''then d=JSON.decode(D)end
-  self.addContextMenuItem('Finilize Card',setStatic)
   tyic()end
 function tyic()
   self.clearInputs()
+  self.addContextMenuItem('Finalize Card',setStatic)
   I(-0.85,1710,1,'img')
   I(-1.29,1710,1,'nm')
   I( 0.28,1710,1,'ty')
@@ -36,17 +36,17 @@ end
 function g(a)return a and '\n[b]'..a..'[/b]'or''end
 function setStatic()
   local s=[[--StaticCustomCard
-noencode=1;function onLoad()local B=setmetatable({click_function='N',function_owner=self,width=0,height=0,position={0,0.25,-1.3},scale={0.3,1,0.3},font_size=150},{__call=function(b,p,l)b.label,b.position[3]=l,p;self.createButton(b)end})
-if self.script_state~=''then self.clearButtons() d=JSON.decode(self.script_state)B(-1.27,d.nm)B(0.28,d.ty)B(0.82,d.tx)%send end function onDrop()Timer.create({function_name='onLoad',identifier=self.getGUID(),delay=1})end function N()end]]
+local B=setmetatable({click_function='N',function_owner=self,width=0,height=0,position={0,0.25,-1.3},scale={0.3,1,0.3},font_size=150},{__call=function(b,p,l)b.label,b.position[3]=l,p;self.createButton(b)end})
+noencode=1;function onLoad()if self.script_state~=''then self.clearButtons()d=JSON.decode(self.script_state)B(-1.27,d.nm)B(0.28,d.ty)B(0.82,d.tx)%send end function onDrop()Timer.create({function_name='onLoad',identifier=self.getGUID(),delay=1})end function N()end]]
   local m=''
-  if d.pt then m=m..'B.position[1]=0.75;B(1.3,d.pt)'end
-  if d.lt then m=m..'B.position[1],B.width,B.height=-0.75,200,200;B(1.3,d.lt)'end
+  if d.pt~=''then m=m..'B.position[1]=0.75;B(1.3,d.pt)'end
+  if d.lt~=''then m=m..'B.position[1],B.width,B.height=-0.75,200,200;B(1.3,d.lt)'end
   local sT={json=self.getJSON(),position=self.getPosition()}
   for k,v in pairs(sT.position)do sT.position[k]=v+1 end
-  if d.img then for _,s in pairs({'.jpg','.png','.webm','.mp4'})do
+  if d.img~=''then for _,s in pairs({'.jpg','.png','.webm','.mp4'})do
     if d.img:find(s)then sT.json=sT.json:gsub('"FrontURL": "[^"]+"','"FrontURL": "'..d.img..'"')
       break end end end
-  sT.json=sT.json:gsub('"Description": "[^"]+','"Description": "'..d.tx..g(d.lt)..g(d.pt)..g(d.img),1)
+  sT.json=sT.json:gsub('"Description": "[^"]+','"Description": "'..d.tx..g(d.lt)..g(d.pt)..d.img,1)
   sT.json=sT.json:gsub('"Nickname": "[^"]+','"Nickname": "'..d.nm..'\n'..d.ty,1)
   spawnObjectJSON(sT).setLuaScript(s:format(m))
 end

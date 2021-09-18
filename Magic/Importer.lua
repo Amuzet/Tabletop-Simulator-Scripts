@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.958
+mod_name,version='Card Importer',1.959
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -542,13 +542,13 @@ local DeckSites={
           WebRequest.get(url,function(c)
               setCard(c,qTbl)end)end,i*Tick*2)end
     end end}
-local apiSet='http://api.scryfall.com/cards/random?q=is:booster+set:'
+local apiSet='http://api.scryfall.com/cards/random?q=is:booster+s:'
 function rarity(m,r,u)
-  if math.random(1,m or 36)==1 then return'+r:mythic'
-  elseif math.random(1,r or 8)==1 then return'+r:rare'
-  elseif math.random(1,u or 4)==1 then return'+r:uncommon'
-  else return'+r:common'end end
-function typeCo(p,t)local n=math.random(13,#p);for i=13,#p do if n==i then p[i]=p[i]..'+'..t else p[i]=p[i]..'+-('..t..')'end end return p end
+  if math.random(1,m or 36)==1 then return'r:mythic'
+  elseif math.random(1,r or 8)==1 then return'r:rare'
+  elseif math.random(1,u or 4)==1 then return'r:uncommon'
+  else return'r:common'end end
+function typeCo(p,t)local n=math.random(#p-1,#p)for i=13,#p do if n==i then p[i]=p[i]..'+'..t else p[i]=p[i]..'+-('..t..')'end end return p end
 local Booster=setmetatable({
     dom=function(p)return typeCo(p,'t:legendary')end,
     war=function(p)return typeCo(p,'t:planeswalker')end,
@@ -559,29 +559,28 @@ local Booster=setmetatable({
     if not n and t[set]and type(t[set])=='function'then
       return t[set](t(set,true))
     else
-      if('rav gpt dis rtr gtc dgm grn rna'):find(set)then u=u..'-t:land+'
-      elseif('cns cn2'):find(set)then u=u..'+-wm:conspiracy+'end
-      for _,c in pairs({'w','u','b','r','g'})do
-        table.insert(pack,u..'r:common+c:'..c)end
+      for c in('wubrg'):gmatch('.')do table.insert(pack,u..'r:common+c>='..c)end
       for i=1,6 do table.insert(pack,u..'r:common+-t:basic')end
       --masterpiece math
-      if(t[set]and math.random(1,144)==1)or('tsp mb1 mh2'):find(set)then
+      if not n and((t[set]and math.random(1,144)==1)or('tsp mb1 mh2'):find(set))then
         pack[#pack]=apiSet..t[set]end
       for i=1,3 do table.insert(pack,u..'r:uncommon')end
       table.insert(pack,u..rarity(8,1))
       return pack end end})
+--ReplacementSlot
+function rSlot(p,s,a,b)for i,v in pairs(p)do if i==6 then p[i]=p[i]..a else p[i]=apiSet..s..'+'..rarity()..b end end return p end
 --Weird Boosters
-Booster['2xm']=function(p)p[11]=p[#p];for i=9,10 do p[i]=apiSet..'2xm'..rarity()end return p end
-for _,s in pairs({'isd','dka','soi','emn'})do
-    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-is:transform'else p[i]=apiSet..s..rarity()..'+is:transform'end end return p end end
-for _,s in pairs({'cns','cn2'})do
-    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-wm:conspiracy'else p[i]=apiSet..s..rarity()..'+wm:conspiracy'end end return p end end
-for _,s in pairs({'rav','gpt','dis','rtr','gtc','dgm','grn','rna'})do
-    Booster[s]=function(p)local n=math.random(6,11);for i,v in pairs(p)do if i~=n then p[i]=p[i]..'+-t:land'else p[i]=apiSet..s..rarity()..'+t:land+-t:basic'end end return p end end
-for _,s in pairs({'ice','all','csp','mh1'})do
-    Booster[s]=function(p)p[math.random(6,11)]=apiSet..s..'+t:basic+t:snow'return p end end
-for _,s in pairs({'khm'})do
-    Booster[s]=function(p)p[math.random(6,11)]=apiSet..s..'+t:snow'return p end end
+Booster['2xm']=function(p)p[11]=p[#p]for i=9,10 do p[i]=apiSet..'2xm'..'+'..rarity()end return p end
+for s in('isd dka soi emn'):gmatch('%S+')do
+  Booster[s]=function(p)return rSlot(p,s,'+-is:transform','+is:transform')end end
+for s in('mid'):gmatch('%S+')do--Crimson Moon
+  Booster[s]=function(p)local n=math.random(#p-1,#p)for i,v in pairs(p)do if i==6 or i==n then p[i]=p[i]..'+is:transform'else p[i]=p[i]..'+-is:transform'end end return p end end
+for s in('cns cn2'):gmatch('%S+')do
+  Booster[s]=function(p)return rSlot(p,s,'+-wm:conspiracy','+wm:conspiracy')end end
+for s in('rav gpt dis rtr gtc dgm grn rna'):gmatch('%S+')do
+  Booster[s]=function(p)return rSlot(p,s,'+-t:land','+t:land+-t:basic')end end
+for s in('ice all csp mh1 khm'):gmatch('%S+')do
+  Booster[s]=function(p)p[6]=apiSet..s..'+t:basic+t:snow'return p end end
 --Custom Booster Packs
 Booster.STANDARD=function(qTbl)
   local pack,u={},'http://api.scryfall.com/cards/random?q=f:standard+'
@@ -597,6 +596,26 @@ Booster.STANDARD=function(qTbl)
       pack[i]=u..'(border:borderless+or+frame:showcase+or+frame:extendedart+or+set:plist+or+set:sta)'
     end end
   return pack end
+Booster.INNISTRAD=function(qTbl)--wubrgDCCCCUUUDRD
+  local p=Booster('(s:isd+or+s:dka+or+s:avr+or+s:soi+or+s:emn+or+s:mid)+')
+  table.insert(p,p[#p]:gsub('r:%S+',rarity(8,1)))
+  p[11]=p[12]
+  for i,s in pairs(p)do
+    p[i]=s:gsub('s:%W','')
+    if i==6 or i==#p or i==#p-2 then
+      p[i]=p[i]..'+is:transform'
+    else p[i]=p[i]..'+-is:transform'end end
+  return p end
+Booster.RAVNICA=function(qTbl)--wubrgLmmmCCUUURL
+  local l,p='t:land+-t:basic',Booster('(s:rav+or+s:gpt+or+s:dis+or+s:rtr+or+s:gtc+or+s:dgm+or+s:grn+or+s:rna)+')
+  table.insert(p,p[#p])
+  for i=7,9 do p[i]=p[6]..'+id>=2'end
+  for i,s in pairs(p)do p[i]=s:gsub('s:%W','')
+    if i==6 or i==#p then
+      p[i]=p[i]:gsub('r:%S+',rarity(9,6,3))..'+'..l
+    else p[i]=p[i]..'+-'..l end end
+  return pack end
+  
 function spawnPack(qTbl,pack)
   qTbl.deck=#pack
   qTbl.mode='Deck'
@@ -952,7 +971,7 @@ function onChat(msg,p)
       printToAll(SMG..'Respawning Importer!',SMC)
       self.reload()
     elseif a=='clear back'then
-      self.script_state='{"76561198015252567":"https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/5/5c/Cardback_reimagined.png","76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198079063165":"https://external-preview.redd.it/QPaqxNBqLVUmR6OZTPpsdGd4MNuCMv91wky1SZdxqUc.png?s=006bfa2facd944596ff35301819a9517e6451084","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","76561198042114416":"https://gamepedia.cursecdn.com/mtgsalvation_gamepedia/f/f8/Magic_card_back.jpg","a":"Dummy"}'
+      self.script_state='{"76561198015252567":"https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/5/5c/Cardback_reimagined.png","76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","76561198042114416":"https://gamepedia.cursecdn.com/mtgsalvation_gamepedia/f/f8/Magic_card_back.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
     elseif a then
       --pieHere, allow using spaces instead of + when doing search syntax, also allow ( ) grouping
