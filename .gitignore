@@ -32,3 +32,11 @@ Tools/Shadows.lua
 Tools/GameEthnos.lua
 MonsterFamily.lua
 Magic/DeckSeeker.lua
+cameraAttachment.lua
+Magic/Impieter.lua
+EcosScripted.lua
+Magic/Decklister.lua
+Magic/ShandalarRules.txt
+Tools/Notecard.lua
+Tools/DoublerCalculator.lua
+Tools/CartographerShapeGen.lua

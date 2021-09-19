@@ -1,11 +1,11 @@
 --By Amuzet
 mod_name,version='Quick Importer',0.3
 local delete,fData,Data='','',{}
-local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,height=400,width=6500,font_size=350,scale={0.2,0.2,0.2},position={0,-0.1,0},rotation={0,0,180},font_color=self.getColorTint(),color={0,0,0}},
+local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,height=250,width=3500,font_size=130,scale={0.2,0.2,0.2},position={0,-0.2,0},rotation={0,0,180},font_color=self.getColorTint(),color={0,0,0}},
   {__call=function(t,l,data)
       --local inc,i,h=0.325,0,t.height
       --l:gsub('\n',function()t.height,inc,i=t.height+h,inc+0.1625,i+1 return'\n'end)
-      t.label,t.tooltip,t.click_function,t.position[3]=l,data,'cf_'..l:gsub('%s','_'),t.position[3]+0.15
+      t.label,t.tooltip,t.click_function,t.position[3]=l,data,'cf_'..l:gsub('%s','_'),t.position[3]+0.1
       local cf=t.click_function:gsub('cf_','')
       if data then
         Data[cf]=data
@@ -22,7 +22,7 @@ function input_func(o,c,v,s)if not s then
   elseif l>12 then Player[c].broadcast('Too many commands were found!\nOnly twelve commands can be saved per button.',{1,0,0})
   elseif fData==v then Player[c].broadcast('When you`re done just Right Click the black button to save.')
   else fData=v
-    self.editButton({index=0,height=800,label='Right Click: Create New Button\n'..v:match('[^\n]+')})
+    self.editButton({index=0,height=B.height*2,label='Right Click: Create New Button\n'..v:match('[^\n]+')})
     if #self.getButtons()<2 then Player[c].broadcast('The First Line will be the nickname of the button.\nIt will not be read as a command.',{0,1,1})end
 end end end
 function cf_How_To_Use_Quick_Importer(o,c,a)
@@ -53,14 +53,12 @@ function onLoad(ssd)
   self.createInput({
       label='Possible Commands\nrandom ?q=-t:creature+-t:land 10\nsearch set:lrw+command\nbooster lrw\nservo',
       input_function='input_func',function_owner=self,alignment=1,
-      scale=B.scale,position={0,-0.1,-0.7},rotation={0,0,180},
-      width=B.width,height=B.height*7,font_size=120,validation=1})
+      scale=B.scale,position={0,-0.1,-0.7},rotation=B.rotation,
+      width=6500,height=1800,font_size=120,validation=1})
   
   B('How To Use Quick Importer')
-  B.font_color={0,0,0}
-  B.color={1,1,1}
   B.rotation=nil
-  B.position={0,0.1,-1.5}
+  B.position={-0.6,0.1,-1.4}
   
   if ssd~=''then Data=JSON.decode(ssd)end
   log(Data)

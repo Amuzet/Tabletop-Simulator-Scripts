@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.959
+mod_name,version='Card Importer',1.96
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -556,6 +556,7 @@ local Booster=setmetatable({
     tsp='tsb',mb1='fmb1',mh2='h1r',bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2',stx='sta'
   },{__call=function(t,set,n)
     local pack,u={},apiSet..set..'+'
+    u=u:gsub('%+s:%(','+(')
     if not n and t[set]and type(t[set])=='function'then
       return t[set](t(set,true))
     else
@@ -568,7 +569,7 @@ local Booster=setmetatable({
       table.insert(pack,u..rarity(8,1))
       return pack end end})
 --ReplacementSlot
-function rSlot(p,s,a,b)for i,v in pairs(p)do if i==6 then p[i]=p[i]..a else p[i]=apiSet..s..'+'..rarity()..b end end return p end
+function rSlot(p,s,a,b)for i,v in pairs(p)do if i~=6 then p[i]=v..a else p[i]=apiSet..s..'+'..rarity()..b end end return p end
 --Weird Boosters
 Booster['2xm']=function(p)p[11]=p[#p]for i=9,10 do p[i]=apiSet..'2xm'..'+'..rarity()end return p end
 for s in('isd dka soi emn'):gmatch('%S+')do
@@ -596,25 +597,35 @@ Booster.STANDARD=function(qTbl)
       pack[i]=u..'(border:borderless+or+frame:showcase+or+frame:extendedart+or+set:plist+or+set:sta)'
     end end
   return pack end
+Booster.CONSPIRACY=function(qTbl)--wubrgCCCCCTUUURT
+  local p=Booster('(s:cns+or+s:cn2)')
+  local z=p[#p]:gsub('r:%S+',rarity(9,6,3))
+  table.insert(p,z)
+  p[6]=p[math.random(11,12)]
+  for i,s in pairs(p)do
+    if i==6 or i==#p then
+      p[i]=p[i]..'+wm:conspiracy'
+    else p[i]=p[i]..'+-wm:conspiracy'end end
+  return p end
 Booster.INNISTRAD=function(qTbl)--wubrgDCCCCUUUDRD
-  local p=Booster('(s:isd+or+s:dka+or+s:avr+or+s:soi+or+s:emn+or+s:mid)+')
-  table.insert(p,p[#p]:gsub('r:%S+',rarity(8,1)))
+  local p=Booster('(s:isd+or+s:dka+or+s:avr+or+s:soi+or+s:emn+or+s:mid)')
+  local z=p[#p]:gsub('r:%S+',rarity(8,1))
+  table.insert(p,z)
   p[11]=p[12]
   for i,s in pairs(p)do
-    p[i]=s:gsub('s:%W','')
     if i==6 or i==#p or i==#p-2 then
       p[i]=p[i]..'+is:transform'
     else p[i]=p[i]..'+-is:transform'end end
   return p end
 Booster.RAVNICA=function(qTbl)--wubrgLmmmCCUUURL
-  local l,p='t:land+-t:basic',Booster('(s:rav+or+s:gpt+or+s:dis+or+s:rtr+or+s:gtc+or+s:dgm+or+s:grn+or+s:rna)+')
+  local l,p='t:land+-t:basic',Booster('(s:rav+or+s:gpt+or+s:dis+or+s:rtr+or+s:gtc+or+s:dgm+or+s:grn+or+s:rna)')
   table.insert(p,p[#p])
   for i=7,9 do p[i]=p[6]..'+id>=2'end
-  for i,s in pairs(p)do p[i]=s:gsub('s:%W','')
+  for i,s in pairs(p)do
     if i==6 or i==#p then
       p[i]=p[i]:gsub('r:%S+',rarity(9,6,3))..'+'..l
     else p[i]=p[i]..'+-'..l end end
-  return pack end
+  return p end
   
 function spawnPack(qTbl,pack)
   qTbl.deck=#pack
@@ -771,8 +782,8 @@ Importer=setmetatable({
     end,
 
   Booster=function(qTbl)
+    qTbl.url='Booster '..qTbl.name
     if Booster[qTbl.name:upper()]then
-      qTbl.url='Booster '..qTbl.name
       spawnPack(qTbl,Booster[qTbl.name:upper()](qTbl))
     elseif #qTbl.name<5 then
       if qTbl.name==''then qTbl.name='ori'end
@@ -781,8 +792,12 @@ Importer=setmetatable({
         if j.object=='set'then
           qTbl.url='Booster '..j.name
           spawnPack(qTbl,Booster(qTbl.name))
-      else Player[qTbl.color].broadcast(j.details,{1,0,0})endLoop()
-      end end)
+      else Player[qTbl.color].broadcast(j.details,{1,0,0})endLoop()end end)
+    elseif qTbl.name:find('%W')then
+      Player[qTbl.color].broadcast('Attempting custom Booster:\n '..qTbl.name)
+      if qTbl.name:find('^%(')then else
+        qTbl.name='('..qTbl.name..')'end
+      spawnPack(qTbl,Booster(qTbl.name))
     else Player[qTbl.color].broadcast('No Booster found to make')endLoop()end end,
 
   Random=function(qTbl)
