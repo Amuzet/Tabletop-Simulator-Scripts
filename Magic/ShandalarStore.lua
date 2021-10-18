@@ -16,7 +16,7 @@ Amulets are traded at a rate of:
 5 per two Mythics
 ]]
 function Z()self.reload()end
-function onLoad()self.setPosition({-6.75,1,-1.73})
+function onLoad()self.addContextMenuItem('Reload',Z)
 self.createButton({label='[b]Shop Generator[/b]\n[i]Generate a shop by\npulling out of the bag[/i]',position={0,0.01,0},font_size=250,scale={0.4,1,0.4},rotation={0,-90,0},width=0,height=0,click_function='Z',function_owner=self})end
 function onObjectLeaveContainer(c,o)if c~=self then return end
   local price={[0]=RF(self,'_','9d9+9')}

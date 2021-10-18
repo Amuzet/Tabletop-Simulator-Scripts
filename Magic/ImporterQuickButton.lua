@@ -1,11 +1,11 @@
 --By Amuzet
 mod_name,version='Quick Importer',0.3
 local delete,fData,Data='','',{}
-local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,height=250,width=3500,font_size=130,scale={0.2,0.2,0.2},position={0,-0.2,0},rotation={0,0,180},font_color=self.getColorTint(),color={0,0,0}},
+local B=setmetatable({n=0,label='UNDEFINED',click_function='',function_owner=self,height=250,width=3200,font_size=130,scale={0.2,0.2,0.2},position={0,-0.2,0},rotation={0,0,180},font_color=self.getColorTint(),color={0,0,0}},
   {__call=function(t,l,data)
       --local inc,i,h=0.325,0,t.height
       --l:gsub('\n',function()t.height,inc,i=t.height+h,inc+0.1625,i+1 return'\n'end)
-      t.label,t.tooltip,t.click_function,t.position[3]=l,data,'cf_'..l:gsub('%s','_'),t.position[3]+0.1
+      t.label,t.tooltip,t.click_function,t.position[3]=l,data,'cf_'..l:gsub('%s','_'),t.position[3]+0.1*(t.n%2)
       local cf=t.click_function:gsub('cf_','')
       if data then
         Data[cf]=data
@@ -14,7 +14,15 @@ local B=setmetatable({label='UNDEFINED',click_function='',function_owner=self,he
               if delete~=cf then delete=cf else Data[cf]=nil end
               Player[c].broadcast('Now Editing: '..cf,{0.7,1,1})
               self.editInput({index=0,value=l..'\n'..data})return end
-          for d in data:gmatch('[^\n]+')do passToImporter(o,c,a,d)end end)log(Data)onSave()end self.createButton(t)end})
+          for d in data:gmatch('[^\n]+')do passToImporter(o,c,a,d)end end)log(Data)onSave()end
+        local clr=l:match('%a+$')
+        if clr=='White'then clr='Yellow'end
+        if Color[clr]then t.font_color=Color[clr]end
+        self.createButton(t)
+        t.font_color=Color.White
+        t.position[1]=-t.position[1]
+        t.n=t.n+1
+      end})
 
 function input_func(o,c,v,s)if not s then
   local _,l=v:gsub('\n','\n')
@@ -58,7 +66,7 @@ function onLoad(ssd)
   
   B('How To Use Quick Importer')
   B.rotation=nil
-  B.position={-0.6,0.1,-1.4}
+  B.position={-0.7,0.1,-1.4}
   
   if ssd~=''then Data=JSON.decode(ssd)end
   log(Data)
