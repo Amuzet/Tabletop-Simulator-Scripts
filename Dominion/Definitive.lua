@@ -1,6 +1,5 @@
 --DominionDefinitiveEditionModifiedByAmuzet2021_06_04_n
 VERSION,GITURL=2.9,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
-local Color={Blue={31/255,136/255,255/255},Green={49/255,179/255,43/255},Red={219/255,26/255,24/255},White={0.3,0.3,0.3},Orange={244/255,100/255,29/255},Yellow={231/255,229/255,44/255},Black=Color.Black}
 --[[
 Turn Tracker display the amount of turns
 Rules in the Empty area
@@ -29,19 +28,19 @@ end
 --Runs when the map is first loaded
 function onLoad(saved_data)
   objButton=getObjectFromGUID(ref.startButton)
+  if objButton==self then return end
   WebRequest.get(GITURL,function(wr)
     local v=wr.text:match('VERSION,GITURL=(%d+%p?%d+)')
     if v then v=tonumber(v)
-      if v<VERSION then     broadcastToAll('Oh look at you with a Testing Version\nPlease Report any bugs to Amuzet.',{0,1,1})
-      elseif v>VERSION then broadcastToAll('There is an UPDATE!\nAttempting Update.\nThe Code will be pasted onto the Invisible block above the Ducy pile.\nCopy and paste its script over Global.\nIf this does not work, find the discord.',{1,1,0})objButton.setLuaScript(wr.text)objButton.reload()
-      elseif objButton==self then broadcastToAll('THIS UPDATED FROM GITHUB!!\nIT WILL CRASH YOUR GAME!!\nPlease contact Amuzet to get the working save',{1,0,0.2})
-      else                  broadcastToAll('Up to Date!\nHave a nice time playing.',{0,1,0})end
-    else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
+      if v<VERSION then     bcast('Oh look at you with a Testing Version\nPlease Report any bugs to Amuzet.',{0,1,1})
+      elseif v>VERSION then bcast('There is an UPDATE!\nAttempting Update.\nThe Code will be pasted onto the Invisible block above the Ducy pile.\nCopy and paste its script over Global.\nIf this does not work, find the discord.',{1,1,0})objButton.setLuaScript(wr.text)objButton.reload()
+      else                  bcast('Up to Date!\nHave a nice time playing.',{0,1,0})end
+    else bcast('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
   sL={n=1,
   {'Official Sets','Currently only official sets are allowed.\nThis excludes first printings, promos and fan expansions.',14},
   {'Printed Cards','Currently only printed cards are allowed.\nThis excludes fan expansions.',14},
   {'Expansions','Currently only expansions are allowed.\nThis excludes promo and cut cards, Adamabrams, Xtras and Witches.',22},
-  {'Everyting','Currently cards from any set are allowed.\nThis excludes nothing.',#ref.cardSets-1}}
+  {'Everyting','Currently cards from any set are allowed.\nThis excludes Duplicate/Outdated cards.',#ref.cardSets-2}}
   if saved_data~=''then
     local loaded_data=JSON.decode(saved_data)
     gameState=loaded_data.gs
@@ -202,6 +201,7 @@ function scoreCoroutine()
       --coroutine.yield(0)
   end end
   wait(2,'cegscScore')
+  local totalCards={}
   for ___,cp in pairs(getSeatedPlayers())do
     if Player[cp].getHandCount() > 0 then
       local tracker={
@@ -255,17 +255,27 @@ function scoreCoroutine()
             local vp=getVP(obj2.getName())
             if type(vp)=='function'then vP[cp]=vP[cp]+vp(tracker,dT,cp)end end end end
       --VictoryDisplay
+      local clr=Color[cp]:lerp(Color.Grey,0.5)
       local pos={getObjectFromGUID(ref.players[currentPlayer].zone).getPosition()[1],1,-8}
-      getObjectFromGUID(newText(pos,vP[cp])).setColorTint(Color[cp])
+      getObjectFromGUID(newText(pos,vP[cp])).setColorTint(clr)
       for i,v in pairs(pos)do pos[i]=v-0.05 end
       getObjectFromGUID(newText(pos,vP[cp])).setColorTint(Color.Black)
       setNotes(getNotes()..'\n'..cp..' VP: '..vP[cp])
-      printToAll(cp..'\'s Deck:',Color[cp])
       for card,count in pairs(dT[cp])do
-        local s='0'
-        if count>9 then s=''end
-        printToAll(s..count..' '..card,{1,1,1})
-  end end end
+        local s=count
+        if count>9 then s='0'..count end
+        --printToAll(s..count..' '..card,{1,1,1})
+        if not totalCards[card]then totalCards[card]={[cp]=s}
+        else totalCards[card][cp]=s end
+      end
+  end end
+  printToAll('## ## :Card Name')
+  for name,amount in pairs(totalCards)do
+    local n=':'..name
+    for _,c in pairs(getSeatedPlayers())do
+      n=Color[c]:toHex(false)..amount..'[-] '..n end
+    printToAll(n)
+  end
   return 1
 end
 --Used in Button Callbacks
@@ -277,7 +287,7 @@ newText=setmetatable({type='3DText',position={},rotation={90,0,0}
       o.TextTool.setFontSize(f or 200)
       return o.getGUID()end})
 function cScale(o)o.setScale({1.88,1,1.88})end
-function rcs(a)return math.random(1,#ref.cardSets-(a or sL[sL.n][3]))end
+function rcs(a)return math.random(1,a or sL[sL.n][3])end
 function timerStart(t)click_StartGame(t[1],t[2])end
 function findCard(trg,r,p)
   log(trg)
@@ -374,7 +384,7 @@ function balanceSets(n,o,c)
         while s==t[i]do t[i]=rcs()
     end end end
     log(t)
-    for i,n in pairs(t)do useSets[i]=ref.cardSets[n].guid end
+    for i,j in pairs(t)do useSets[i]=ref.cardSets[j].guid end
   end
   
   for _,v in pairs(useSets)do getObjectFromGUID(v).shuffle()end
@@ -383,26 +393,24 @@ function balanceSets(n,o,c)
   for _,g in pairs(useSets)do for _,s in pairs(ref.cardSets)do if s.guid==g then
       if s.events then for _,v in pairs(s.events)do
       table.insert(events,ref.eventSets[v].guid)
-      end end break end end end
-  if #events==1 then for i=1,math.random(1,3)do
-      table.insert(events,events[1])end
-  elseif #events==2 then for i=1,2 do
-      local j=i
-      if getObjectFromGUID(events[i]).getName():find(' Ways')then j=(i%2)+1 end
-      if getObjectFromGUID(events[j]).getName():find(' Ways')then break end
-      table.insert(events,events[j])end
-  elseif #events==3 then
-    table.insert(events,events[math.random(1,3)])
-  elseif #events>4 then
-    while #events>4 do table.remove(events,math.random(1,#events))end
-  end
+    end end break end end end
+  while #events>eventMax do table.remove(events,math.random(1,#events))end
+  for i=#events,eventMax do
+    local r=math.random(1,#events)
+    while getObjectFromGUID(events[r]).getName():find(' Ways')do
+      r=math.random(1,#events)end
+    table.insert(events,events[r])end
   
   for _,v in pairs(events)do getObjectFromGUID(v).shuffle()end
   for i,v in pairs(ref.kingdomSlots)do
     if #getObjectFromGUID(v.zone).getObjects()==1 then
     getObjectFromGUID(useSets[(i%n)+1]).takeObject({
         position=v.pos,index=6-math.ceil(i/n),smooth=false,callback_function=cScale})end end
-  for i,v in pairs(events)do getObjectFromGUID(v).takeObject({position=ref.eventSlots[i].pos,index=2,smooth=false,callback_function=cScale})end
+  for i,v in pairs(events)do
+    local g=ref.eventSlots[i]
+    if #getObjectFromGUID(g.zone).getObjects()==1 then
+    getObjectFromGUID(v).takeObject({
+        position=g.pos,index=2,smooth=false,callback_function=cScale})end end
   click_StartGame(o,c)
 end
 function click_TutorialGame(obj, color)
@@ -474,7 +482,7 @@ function click_StartGame(obj, color)
     bcast('Only the host and promoted players can start the game.',{0.75,0.75,0.75},color)return end
   Turns.enable=false
   if getPlayerCount()>6 then
-    bcast('This game needs 2 to 6 players to start.',{0.75,0.75,0.75},color)return end
+    bcast('This table only hosts 6 players.',{0.75,0.75,0.75},color)return end
   
   local events={}
   for _,es in ipairs(ref.eventSlots)do
@@ -740,7 +748,7 @@ function setupKingdom()
     createPile()
     return 1
   end
-  startLuaCoroutine(self, 'setupKingdomCoroutine')
+  startLuaCoroutine(self,'setupKingdomCoroutine')
 end
 -- Function to reorder the Kingdom
 function reorderKingdom()
@@ -847,6 +855,7 @@ function cleanUp()
   f(Use('Doom'),'Hexes')
   f(Use('Doom')or Use('Fool'),'States')
   f(Use('Artifact'),'Artifacts')
+  --CustomCards
   f(Use('XHeir'),'Heir')
   f(Use('XLessor'),'Bogus Lands')
   f(Use('LTown'),'Road')
@@ -932,23 +941,17 @@ Spellcaster='Spell Tokens'}
     wait(4,'cutcSetup')
     log(Use[1])
     log(Use[2])
-    if Use('Landmark')or Use('Gathering')or Use('TradeRoute')or Use('Tax')or Use('CPanda/Gardener')then
-      obeliskPiles={}
-      local function slot(z)
-        for __,obj in ipairs(getObjectFromGUID(z).getObjects())do
-          if obj.type=='Deck'then
-            getSetup('Tax')(obj)
-            getSetup('Obelisk')(obj)
-            getSetup('Aqueduct')(obj)
-            getSetup('Trade Route')(obj)
-            getSetup('Defiled Shrine')(obj)
-            getSetup('C Panda / Gardener')(obj)
-            if getType(obj.getObjects()[obj.getQuantity()].name):find('Gathering')then tokenMake(obj,'vp')end
-            break end end end
-      for _,v in ipairs(ref.basicSlots)do slot(v.zone)end
-      for _,v in ipairs(ref.kingdomSlots)do slot(v.zone)end
-      slot(ref.baneSlot.zone)
-      
+    if Use('Obelisk')then obeliskPiles={}end
+    local function slot(z,f)
+      for __,obj in ipairs(getObjectFromGUID(z).getObjects())do
+        if obj.type=='Deck'then f(obj)break end end end
+    for name,setup in pairs(Setup)do
+      local n=name:gsub(' ','')
+      if Use(n)then
+        for _,v in ipairs(ref.basicSlots)do slot(v.zone,setup)end
+        for _,v in ipairs(ref.kingdomSlots)do slot(v.zone,setup)end
+        slot(ref.baneSlot.zone,setup)end end
+    if Use('Landmark')then
       for __,v in ipairs(ref.eventSlots)do
         for _,obj in ipairs(getObjectFromGUID(v.zone).getObjects())do
           if obj.type=='Card'then
@@ -988,16 +991,18 @@ Spellcaster='Spell Tokens'}
   end
   setupBaseCardCount()
 end
+
 function createHeirlooms(c)
   for n,h in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['C Magician']='Rabbit',['C Jinxed Jewel']='Jinxed Jewel',['C Burned Village']='Rescuers'})do
     if c==n then getPile('Heirlooms').takeObject({position=getObjectFromGUID(ref.storageZone.heirloom).getPosition(),guid=ref.heirlooms[h],flip=true})break end end end
 function placePile(v,p)local l=getPile(v.getName()..' pile');l.setPosition(p)v.destruct()return l end
 function makePile(v,p)local k,n=1,10--Card Kount
   --If we have a victory card and 2 players, we make 8 copies
-  if getPlayerCount()==2 and(getType(v.getName()):find('Victory')or v.getName()=='Dig')then n=8
+  if getPlayerCount()==2 and(getType(v.getName()):find('Victory')or v.getName()=='Q Dig')then n=8
   --If we have a victory card or the card is Port, we make 12 copies
-  elseif('PortDig'):find(v.getName())or getType(v.getName()):find('Victory')then n=12
+  elseif('PortQ Dig'):find(v.getName())or getType(v.getName()):find('Victory')then n=12
   elseif('Rats'):find(v.getName())then n=20 end
+
   if v.getName()=='Castles'then local l=placePile(v,p)
     if getPlayerCount()==2 then
       for _,n in pairs({'Humble Castle','Small Castle','Opulent Castle','King\'s Castle'})do
@@ -1008,7 +1013,7 @@ function makePile(v,p)local k,n=1,10--Card Kount
   elseif v.getName()=='Knights'then placePile(v,p).shuffle()
   elseif v.getName()=='X Stallions'then placePile(v,p)
   elseif v.getName():find(' / ')then placePile(v,p)
-  --All other cards get 10 copies
+  --All other cards get n copies
   else while k<n do v.clone({position=p})k=k+1 end
 end end
 function createPile()
@@ -1038,7 +1043,6 @@ function NO()end
 function getVP(n)if Victory[n]then return Victory[n]end for _,v in pairs(MasterData)do if n==v.name then return v.VP or 0 end end end
 function getCost(n)for _,v in pairs(MasterData)do if n==v.name then return v.c end end return'M0D0P0'end
 function getType(n)for _,v in pairs(MasterData)do if n==v.name then return v.t end end return'Event'end
-function getSetup(n)if Use(n:gsub(' ',''))and Setup[n]then return Setup[n]else return NO end end
 function getPile(pileName)for i,k in pairs({'replacementPiles','supplyPiles','sidePiles'})do for _,p in pairs(ref[k])do if pileName==p.name then return getObjectFromGUID(p.guid)end end end end
 --Function to set the correct count of base cards
 function setupBaseCardCount()
@@ -1175,25 +1179,17 @@ function drawCard(player)
 end end
 
 -- Function to get a count of players sitting at the table with hands to be dealt to.
-function getPlayerCount()local c=#getSeatedPlayers()for i=1,#getSeatedPlayers()do if Player[getSeatedPlayers()[i]].getHandCount()<1 then p=p-1 end end if c==1 then return 6 end return c end
+function getPlayerCount()local c=#getSeatedPlayers()if c==1 then return 6 end return c end
 -- Function to wait during coroutines
 function wait(time,key)local start=os.time()print(key or'Unknown')repeat coroutine.yield(0)until os.time()>start+time end
 --Shortcut broadcast function to shorten them when I call them in the code
 function bcast(m,c,p)if c==nil then c={1,1,1}end if p then Player[p].broadcast(m,c)else broadcastToAll(m,c)end end
-function tokenCallback(obj,m)
-  obj.setPosition(m[3])
-  obj.call('setOwner',m)end
---tokenMake(obj,'vp',getPlayerCount()*6)
-function tokenMake(obj,key,n,pos,name)
+function tokenCallback(obj,m)obj.setPosition(m[3])obj.call('setOwner',m)end
+function tokenMake(obj,key,n,post,name)
   local p=obj.getPosition()
-  if pos then p={p[1]+pos[1],p[2]+pos[2],p[3]+pos[3]}
-  elseif key=='vp'then
-    p={p[1]+0.9,p[2]+1,p[3]+1.25}
-  elseif key=='debt'then
-    p={p[1]-0.9,p[2]+1,p[3]-1.25}
-  else
-    p={p[1]-0.9,p[2]+1,p[3]-1.25}
-  end
+  local pos=post or{-0.9,1,-1.25}
+  if not post and key=='vp'then pos={0.9,1,1.25}end
+  p={p[1]+pos[1],p[2]+pos[2],p[3]+pos[3]}
   local t={position=p,rotation={0,180,0},callback='tokenCallback',callback_owner=self,params={name or obj.getName(),n or 0,p}}
   log(t.params)
   if not n then t.callback=nil end
@@ -1228,8 +1224,8 @@ function setUninteractible(t)
         ref[c][k].pos={p[1],1.3,p[3]}
   end end end end
 end
-function dv(t,s,d)local a=0;for c,n in pairs(t.deck)do if getType(c):find(s)then a=d and a+d or a+n end end return a end
 --VP Functions
+function dv(t,s,d)local a=0;for c,n in pairs(t.deck)do if getType(c):find(s)then a=d and a+d or a+n end end return a end
 Victory={
 Gardens      =function(t)return math.floor(t.amount/10)end,
 Duke         =function(t)return t.deck['Duchy']or 0 end,
@@ -1266,6 +1262,9 @@ Pasture=function(t)return t.estates*1 end,
       if getType(c):find('Knight')then for _,p in ipairs(ne)do if p=='Knights'then f=true end end end
       for _,bmCard in ipairs(bmDeck)do if c==bmCard then f=true end end--[[Blackmarket]]
       if not f then vp=vp+n end end return vp end,
+['V Sacred Hall']=function(t)
+  --Differntly Named in Trash
+  return 0 end,
 ['V Acreage']=function(t)
   local uniqueActions=dv(t,'Action',1)
   return 3*(uniqueActions-uniqueActions%2) end,
@@ -1286,14 +1285,15 @@ Pasture=function(t)return t.estates*1 end,
 ['V Yards']=function(t)return math.floor(t.amount/3)end,
 ['C Tulip Field']=function(t,dT,cp)end
 }
-Setup={
-['Trade Route']=function(o)if getType(o.getObjects()[1].name):find('Victory')and not getType(o.getObjects()[1].name):find('Knight')then tokenMake(o,'coin')end end,
-Tax=function(o)tokenMake(o,'debt',1)end,
+Setup={--(o):Deck
+['Trade Route']=function(o)if getType(o.getObjects()[1].name):find('Victory')and not getType(o.getObjects()[1].name):find('Knight')then tokenMake(o,'coin',0,{0,1,0},'Trade Route')end end,
+Tax=function(o)tokenMake(o,'debt',1,{0.9,1,-1.25})end,
+Gathering=function(o)if getType(o.getObjects()[1].name):find('Gathering')then tokenMake(obj,'vp')end end,
 Obelisk=function(o)if getType(o.getObjects()[o.getQuantity()].name):find('Action')then table.insert(obeliskPiles,o)end end,
 Aqueduct=function(o)local n=o.getName()if n=='Golds'or n=='Silvers'then tokenMake(o,'vp',8)end end,
 ['Defiled Shrine']=function(o)local t=getType(o.getObjects()[1].name);if t:find('Action')and not t:find('Gathering')then tokenMake(o,'vp',2)end end,
 ['Way of the Mouse']=function(o)end,
-['C Panda / Gardener']=function(o)if getType(o.getObjects()[1].name):find('Action')then tokenMake(o,'coin')tokenMake(o,'coin')end end,
+['C Panda / Gardener']=function(o)tokenMake(o,'coin',2,{0,1,0})end,
 }--Reference Tables
 ref={
 Board='7636a9',startButton='176e6a',tradeRoute='b853e8',
@@ -1428,9 +1428,9 @@ cardSets={
 {name='Legacy Feats'},
 {name='Legacy Teams'},
 {name='Promos',events={7}},
-{name='Witches'},
 {name='Co0kieL0rd'},
 {name='Adamabrams',events={8}},
+{name='Witches'},
 {name='Duplicate/Outdated'}},
 eventSets={
 {name='Adventures Events'},
@@ -2341,17 +2341,18 @@ MasterData={
 {c='M0DXPX',t='Event',name='V Lending',depend='Debt'},
 {c='M1DXPX',t='Event',name='V Burnish'},
 {c='M2DXPX',t='Event',name='V Footbridge'},
-{c='M4DXPX',t='Event',name='V Bride Wait',depend='Aside'},
+{c='MXD4PX',t='Event',name='V Bride Wait',depend='Aside'},
 {c='M4DXPX',t='Event',name='V Calmness',depend='MinusCard'},
-{c='M4DXPX',t='Event',name='V Divination',depend='Aside'},
-{c='M5DXPX',t='Event',name='V Tie to Ground'},
+{c='M5DXPX',t='Event',name='V Burning'},
+{c='M5DXPX',t='Event',name='V Restrain'},
 {c='M6DXPX',t='Event',name='V Cursed Land'},
+{c='M6DXPX',t='Event',name='V Pandora\'s Box'},
 {c='MXD7PX',t='Event',name='V Birth of Venus'},
+{c='M3DXPX',t='Project',name='V Veil of Protection'},
 {c='M3DXPX',t='Project',name='V Phoenix'},
-{c='M4DXPX',t='Project',name='V Alert'},
+{c='M4DXPX',t='Project',name='V Divination'},
 {c='M6DXPX',t='Project',name='V Seasons Grace',depend='Jorney'},
 {c='MXD8PX',t='Project',name='V Greate Cathedral',depend='Exile'},
-{c='MXD8PX',t='Project',name='V Touch of Life'},
 {c='MXD12PX',t='Project',name='V Land Grant'},
 {c='MXDXPX',t='Landmark',name='V Acreage'},
 {c='MXDXPX',t='Landmark',name='V Barony'},
@@ -2362,50 +2363,109 @@ MasterData={
 {c='MXDXPX',t='Landmark',name='V Grange'},
 {c='MXDXPX',t='Landmark',name='V Virgin Lands'},
 {c='MXDXPX',t='Landmark',name='V Yards'},
-{c='M2D0P0',name='V Maid',t='Action'},
+{c='M0D0P0',name='V Jane Doe',t='Action',depend='VP Coffers Villager Horse'},
+{c='M2D0P0',name='V Healer',t='Action - Reaction'},
+{c='M2D0P0',name='V Mirror',t='Action'},
+{c='M2D0P0',name='V Monk',t='Action',depend='VP Exile'},
 {c='M2D0P0',name='V Small Village',t='Action'},
 {c='M2D0P0',name='V Taverner',t='Action - Reserve'},
 {c='M2D0P0',name='V Wanderer',t='Action'},
+{c='M3D0P0',name='V Big Hall',t='Action',depend='VP'},
+{c='M3D0P0',name='V Flame Keeper',t='Action'},
+{c='M3D0P0',name='V Gambler',t='Action'},
 {c='M3D0P0',name='V Horse Lady',t='Action',depend='Horse Exile'},
+{c='M3D0P0',name='V Hoyden',t='Action'},
+{c='M3D0P0',name='V Maid',t='Action'},
 {c='M3D0P0',name='V Minstrel',t='Action'},
-{c='M3D0P0',name='V Money Trick',t='Treasure - Reaction',depend='Exile'},
-{c='M3D0P0',name='V Secret Place',t='Action',depend='Aside'},
+{c='M3D0P0',name='V Morning',t='Action'},
+{c='M3D0P0',name='V Native',t='Action'},
+{c='M3D0P0',name='V Nurse',t='Night'},
+{c='M3D0P0',name='V Nymphs',t='Action'},
+{c='M3D0P0',name='V Resistance',t='Action'},
+{c='M3D0P0',name='V Sisterhood',t='Action'},
 {c='M3D0P0',name='V Valkyries',t='Action - Reaction',depend='Horse'},
 {c='M3D0P0',name='V Workers',t='Action',depend='Villager'},
+{c='M4D0P0',name='V Amazon',t='Action',depend='Horse'},
+{c='M4D0P0',name='V Blind Bet',t='Action'},
+{c='M4D0P0',name='V Bootleg',t='Action',depend='BlackMarket'},
+{c='M4D0P0',name='V Clown',t='Action - Attack'},
+{c='M4D0P0',name='V Dame',t='Action',depend='Horse'},
+{c='M4D0P0',name='V Duplication',t='Action',depend='VP'},
 {c='M4D0P0',name='V Emissary',t='Action - Attack'},
+{c='M4D0P0',name='V Expectancy',t='Action',depend='Aside Exile'},
+{c='M4D0P0',name='V Expulsion',t='Action - Attack'},
 {c='M4D0P0',name='V Faithful Knight',t='Action',depend='VP Coffers Villager'},
-{c='M4D0P0',name='V Guildmaster',t='Action - Command'},
+{c='M4D0P0',name='V Fairy',t='Action'},
+{c='M4D0P0',name='V Four Seasons',t='Action'},
+{c='M4D0P0',name='V Ghost Pirate',t='Action - Attack'},
+{c='M4D0P0',name='V Gladiatrix',t='Action'},
+{c='M4D0P0',name='V Gravedigger',t='Night - Duration'},
+{c='M4D0P0',name='V Guildmaster',t='Action - Command',depend='Coffers'},--NoviceCards
+{c='M4D0P0',name='V Heiress',t='Action'},
 {c='M4D0P0',name='V Hidden Pond',t='Victory'},
-{c='M4D0P0',name='V Nurse',t='Night'},
+{c='M4D0P0',name='V Immolator',t='Action'},
+{c='M4D0P0',name='V Jewelry',t='Action - Treasure'},
+{c='M4D0P0',name='V Money Trick',t='Treasure - Reaction',depend='Coffers'},
+{c='M4D0P0',name='V Night Ranger',t='Night',depend='Journey'},
+{c='M4D0P0',name='V Privilege',t='Action'},
 {c='M4D0P0',name='V Sacred Hall',t='Action - Victory',depend='VP'},
-{c='M4D0P0',name='V Underworld Gate',t='Night'},
+{c='M4D0P0',name='V Secret Place',t='Action',depend='Aside'},
+{c='M4D0P0',name='V Succubus',t='Night - Reserve'},
+{c='M4D0P0',name='V Tavern Show',t='Action - Command',depend='Reserve'},
+{c='M4D0P0',name='V Tiara',t='Treasure'},
+{c='M4D0P0',name='V Voyage',t='Action'},
+{c='M4D0P0',name='V Warrioresses',t='Action - Attack - Duration',depend='Exile'},
+{c='M4D0P0',name='V Wishing Fountain',t='Action'},
+{c='M4D0P0',name='V Tale-Teller',t='Night'},
+{c='M5D0P0',name='V Archeologist',t='Action - Duration',depend='Looter'},
+{c='M5D0P0',name='V Banker',t='Action'},
 {c='M5D0P0',name='V Blessing',t='Action',depend='Wish'},
 {c='M5D0P0',name='V Buffoon',t='Action - Attack - Command'},
 {c='M5D0P0',name='V Circus Camp',t='Action'},
 {c='M5D0P0',name='V Crusader',t='Action'},
 {c='M5D0P0',name='V Dangerous Ground',t='Action'},
+{c='M5D0P0',name='V Dusk Warrior',t='Action - Duration'},
+{c='M5D0P0',name='V Fertility',t='Action'},
 {c='M5D0P0',name='V Golden Spoils',t='Treasure'},
-{c='M5D0P0',name='V Gravedigger',t='Night'},
 {c='M5D0P0',name='V Hands of Gold',t='Night',depend='Villager'},
-{c='M5D0P0',name='V Immolater',t='Action - Duration'},
+{c='M5D0P0',name='V Lanterns',t='Action'},
+{c='M5D0P0',name='V Librarian',t='Action - Duration'},
+{c='M5D0P0',name='V Magic Archive',t='Action - Duration'},
 {c='M5D0P0',name='V Magic Library',t='Action - Reaction'},
+{c='M5D0P0',name='V Maneuver',t='Action'},
 {c='M5D0P0',name='V Marketplace',t='Action'},
+{c='M5D0P0',name='V Nightmare',t='Action - Attack'},
+{c='M5D0P0',name='V Nomad',t='Action'},
+{c='M5D0P0',name='V Path',t='Action'},
+{c='M5D0P0',name='V Rebel',t='Action - Duration - Attack'},
+{c='M5D0P0',name='V Samurai',t='Action',depend='Coffers Villager'},
+{c='M5D0P0',name='V Shenanigans',t='Action - Attack'},
 {c='M5D0P0',name='V Shipmaster',t='Action - Duration'},
+{c='M5D0P0',name='V Swinehero',t='Action - Duration'},
 {c='M5D0P0',name='V Tavern Nights',t='Night - Reserve'},
-{c='M5D0P0',name='V Wishing Fountain',t='Action'},
-{c='M5D0P0',name='V Tale-Teller',t='Night'},
+{c='M5D0P0',name='V Janus',t='Action',depend='Journey'},
+{c='M5D0P0',name='V Councillor',t='Action'},
 {c='M6D0P0',name='V Distant Island',t='Victory',depend='Exile',VP=2},
 {c='M6D0P0',name='V Paladin',t='Action'},
-{c='M6D0P0',name='V Amazon',t='Action',depend='Horse'},
-{c='M4D0P0',name='V Fruits / V Fruit Mix',t='Treasure',depend='Coffers'},
+{c='M7D0P0',name='V Swamp',t='Action - Victory',VP=-1},
+{c='M4D0P0',name='V Fruits / Fruit Mix',t='Treasure',depend='Coffers'},
 {c='M4D0P0',name='V Fruits',t='Treasure',depend='Coffers'},
 {c='M6D0P0',name='V Fruit Mix',t='Treasure',depend='Coffers'},
+{c='M5D0P0',name='V Bewitch',t='Action',depend='SpellV'},
+{c='M4D0P0',name='V Witchcraft',t='Action - Duration - Attack',depend='SpellV'},
+{c='M4D0P0',name='V Spellbound',t='Night',depend='VP SpellV'},
+--NonSupplyVenus
+{c='M0D0P0',name='V Spell',t='Action - Victory',VP=-1},
 {c='M0D0P0',name='V Young Saboteur',t='Action - Novice'},
 {c='M0D0P0',name='V Young Sorceress',t='Action - Novice'},
 {c='M0D0P0',name='V Young Smith',t='Action - Novice'},
 {c='M0D0P0',name='V Young Trickster',t='Action - Novice',depend='Coffers'},
 {c='M2D0P0',name='V Coin of Honor',t='Treasure - Heirloom'},
 {c='M2D0P0',name='V Blessed Gems',t='Treasure - Heirloom'},
+{c='M6D0P0',name='V Spring',t='Action - Traveller - Season'},
+{c='M6D0P0',name='V Summer',t='Action - Traveller - Season'},
+{c='M6D0P0',name='V Fall',t='Action - Traveller - Season'},
+{c='M6D0P0',name='V Winter',t='Action - Traveller - Season'},
 {c='M2D0P0',name='V Harpy',t='Action - Attack'},
 {c='M2D0P0',name='V Medusa',t='Action - Attack'},
 {c='M2D0P0',name='V She-Wolf',t='Action - Attack - Doom'},
