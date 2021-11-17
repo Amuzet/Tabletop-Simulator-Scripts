@@ -15,11 +15,13 @@ local B=setmetatable({n=0,label='UNDEFINED',click_function='',function_owner=sel
               Player[c].broadcast('Now Editing: '..cf,{0.7,1,1})
               self.editInput({index=0,value=l..'\n'..data})return end
           for d in data:gmatch('[^\n]+')do passToImporter(o,c,a,d)end end)log(Data)onSave()end
-        local clr=l:match('%a+$')
+        local clr='Grey'
+        for _,k in pairs(Color.list)do
+          if l:match(k)then clr=k break end end
         if clr=='White'then clr='Yellow'end
+        if clr=='Black'then clr='Purple'end
         if Color[clr]then t.font_color=Color[clr]end
         self.createButton(t)
-        t.font_color=Color.White
         t.position[1]=-t.position[1]
         t.n=t.n+1
       end})

@@ -6,7 +6,7 @@ self.setName(mod_name..' '..version)
 Button = setmetatable({
     click_function='click',
     function_owner=self,
-    label='Place Deck',
+    label='Place on a Deck',
     position={0,0.5,-0.7},
     scale={0.2,0.2,0.2},
     width=4000,

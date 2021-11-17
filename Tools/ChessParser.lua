@@ -29,19 +29,27 @@ function B(o)
     scale={0.4,0.4,0.4},position={2.1,0,0},
     font_color={1,1,1},color={0,0,0},
     tooltip='Change current mat image!'})end
+MFUNC="\nfunction m%d(c)f('Moves%s',{{%s}},c)end\nself.addContextMenuItem('%s',m%d)"
 function setScript(obj,c)
-  local script,n=[[function N()self.clearButtons()end
-function f(a,b,c)N()for i,t in pairs(b)do
-  self.createButton({position={t[1]*4.5,0.2,-t[2]*4.5},tooltip=a,click_function='N',function_owner=self,width=700,height=700,color={0.5,0.5,0.5,0.7}})end
- Player[c].broadcast(a,self.getColorTint())end
-function onLoad()]],obj.getGMNotes()
-  local i=0
+  local script,n=[[function f(a,b,c)local l=self.getColorTint()N()for i,t in pairs(b)do
+self.createButton({position={t[1]*4.5,0.2,-t[2]*4.5},tooltip=a,click_function='N',function_owner=self,width=700,height=700,color=l})end
+Player[c].broadcast(a,l)end
+function onLoad()N=self.clearButtons]],obj.getGMNotes()
+  local i,allMoves,t,r=0,'','','},{'
   for move in n:gmatch('M.-=(%b{})')do
     i=i+1
-    script=script..parseMove(move,i)
+    local p,s=parseMove(move,i)
+    if i>1 then p=r..p end
+    allMoves=allMoves..p
+    t=t..s
   end
-  script=script..'\nend'
-  obj.setLuaScript(script)
+  if i>1 then
+    local name='\\n'..allMoves:gsub(r,' , ')
+    name=name:gsub(' ,  , ','\\n')
+    script=script..MFUNC:format(0,name,allMoves,'All Possible Moves',0)
+  end
+  script=script..t..'\nend'
+  obj.setLuaScript(script:gsub(',{}',''))
   obj.setDescription(n)
   Player[c].print(n)
 end
@@ -55,6 +63,10 @@ function createCopy(obj,c,a)
 end
 
 replacement={
+  hipogonally='P',
+  hippogonally='P',
+  forwardP='*>',
+  backwardP='*<',
   forwarddiagonally='X>',
   backwarddiagonally='X<',
   forwardorthogonally='>',
@@ -78,23 +90,23 @@ replacement={
   horizontally='=',
   sideways='=',
   vertically='<>',
-  outward='',
   vertical='<>',
-  hipogonally='',
-  hippogonally='',
   [';']='/',
   ['and']='.',
   ['then']='.',
   --NonStandardNotation
   wide='W',
   narrow='N',
+  outward='',
   inenemyterritory='E',
   infriendlyterritory='F',
   ['pastboard\'shalf']='H',
-  ['Xor+']='*',
-  ['+orX']='*',
+  P='',
+  ['Xor%+']='*',
+  ['%+orX']='*',
   ['<or>']='<>',
-  ['or']=''
+  ['or']='',
+  ['%*>%*<']='*<>',
 }
 
 function stringToMove(str,o)
@@ -104,7 +116,7 @@ function stringToMove(str,o)
     s=s:gsub(k,v)end
   if s:find('[aeiou]')then
     o.highlightOn(Color.Purple)end
-  return 'Move={'..s..'}' end
+  return'Move={'..s..'}'end
 
 doFunction={
   CURV=function(s,o)
@@ -162,67 +174,90 @@ function parseValues(s,o)
 end
 
 notationParlett={
-  [',']='or',
-  ['%.']='then',
-  ['>=']='forward or sideways',
-  ['<=']='backward or sideways',
-  ['=']='sideways',
-  ['X>']='diagonally forwards',
-  ['X<']='diagonally backwards',
-  ['X']='diagonally',
-  ['%*']='orthogonally or diagonally',
-  ['%+']='orthogonally',
-  ['<>']='forward or backwards',
-  ['>']='forwards',
-  ['<']='backwards',
-  ['~']='leaps',
-  ['%^']='hop',
-  ['C']='must capture',
-  ['O']='cannot capture',
-  ['I']='from starting position',
-  ['W']='wide',
-  ['N']='narrow',
-  ['E']='from enemy territory',
-  ['F']='from friendly territory',
-  ['H']='from past board`s half',
+[',']='or',
+['%.']='then',
+['>=']='forward or sideways',
+['<=']='backward or sideways',
+['=']='sideways',
+['X>']='diagonally forwards',
+['X<']='diagonally backwards',
+['X']='diagonally',
+['%*']='orthogonally or diagonally',
+['%+']='orthogonally',
+['<>']='forward or backwards',
+['>']='forwards',
+['<']='backwards',
+['~']='leaps',
+['%^']='hop',
+['C']='must capture',
+['O']='cannot capture',
+['I']='from starting position',
+['W']='wide',
+['N']='narrow',
+['E']='from enemy territory',
+['F']='from friendly territory',
+['H']='from past board`s half',
 }
 funcyParlett={
-  ['>=']='-1,0},{0,1},{1,0',
-  ['<=']='-1,0},{0,-1},{1,0',
-  ['='] ='-1,0},{1,0',
-  ['X>']='-1,1},{1,1',
-  ['X<']='-1,-1},{1,-1',
-  ['X'] ='-1,-1},{-1,1},{1,1},{1,-1',
-  ['%*']='-1,-1},{-1,0},{-1,1},{0,1},{1,1},{1,0},{1,-1},{0,-1',
-  ['%+']='-1,0},{0,1},{1,0},{0,-1',
-  ['<>']='0,1},{0,-1',
-  ['>'] ='0,1',
-  ['<'] ='0,-1'}
+['>=']='-1,0},{0,1},{1,0',
+['<=']='-1,0},{0,-1},{1,0',
+['='] ='-1,0},{1,0',
+['X>']='-1,1},{1,1',
+['X<']='-1,-1},{1,-1',
+['X'] ='-1,-1},{-1,1},{1,1},{1,-1',
+['%*<>']='-1,-1},{-1,1},{0,1},{1,1},{1,-1},{0,-1',
+['%*>']='-1,1},{0,1},{1,1',
+['%*<']='-1,-1},{1,-1},{0,-1',
+['%*']='-1,-1},{-1,0},{-1,1},{0,1},{1,1},{1,0},{1,-1},{0,-1',
+['%+']='-1,0},{0,1},{1,0},{0,-1',
+['<>']='0,1},{0,-1',
+['>'] ='0,1',
+['<'] ='0,-1'}
 knightParlett={
-  {'(%d)%-(%d)/(%d)','-a,-c},{-c,-a},{-c,a},{-a,c},{a,c},{c,a},{c,-a},{a,-c},{-b,-c},{-c,-b},{-c,b},{-b,c},{b,c},{c,b},{c,-b},{b,-c'},
-  {'(%d)/(%d)%-(%d)','-a,-b},{-b,-a},{-b,a},{-a,b},{a,b},{b,a},{b,-a},{a,-b},{-a,-c},{-c,-a},{-c,a},{-a,c},{a,c},{c,a},{c,-a},{a,-c'},
-  {'W%((%d)/(%d)'   ,'-b,-a},{-b,a},{b,a},{b,-a'},
-  {'N%((%d)/(%d)'   ,'-a,-b},{-a,b},{a,b},{a,-b'},
-  {'(%d)/(%d)'      ,'-a,-b},{-b,-a},{-b,a},{-a,b},{a,b},{b,a},{b,-a},{a,-b'}}
-function parseMove(m,i)
-  local n=m:match('%d+')or 1
-  local s=m:gsub('[}{]','')
+{'(%d)%-(%d)/(%d)','-a,-c},{-c,-a},{-c,a},{-a,c},{a,c},{c,a},{c,-a},{a,-c},{-b,-c},{-c,-b},{-c,b},{-b,c},{b,c},{c,b},{c,-b},{b,-c'},
+{'(%d)/(%d)%-(%d)','-a,-b},{-b,-a},{-b,a},{-a,b},{a,b},{b,a},{b,-a},{a,-b},{-a,-c},{-c,-a},{-c,a},{-a,c},{a,c},{c,a},{c,-a},{a,-c'},
+{'<W%((%d)/(%d)'  ,'-b,-a},{b,-a'},{'>W%((%d)/(%d)','-b,a},{b,a'},
+{'<N%((%d)/(%d)'  ,'-a,-b},{a,-b'},{'>N%((%d)/(%d)','-a,b},{a,b'},
+{'W%((%d)/(%d)'   ,'-b,-a},{-b,a},{b,a},{b,-a'},
+{'N%((%d)/(%d)'   ,'-a,-b},{-a,b},{a,b},{a,-b'},
+{'(%d)/(%d)'      ,'-a,-b},{-b,-a},{-b,a},{-a,b},{a,b},{b,a},{b,-a},{a,-b'}}
+--Need Exception N<> W= <>N =W
+function parseMove(h,i)
+  local n=h:match('%d+')or 1
+  local m=h:match('%(%d+%-(%d+)%)')or(h:match('∞')and 7)or n
+  local s=h:gsub('[}{]','')
   local p=''
   for k,v in pairs(notationParlett)do
     s=s:gsub(k,function(b)
         if funcyParlett[k]then
-          p=funcyParlett[k]:gsub('%d',function(c)return c*n end)
+          for i=n,m do
+            p=p..funcyParlett[k]:gsub('%d',function(c)return c*i end)
+            if n~=m then p=p..'},{'end
+          end
       end return' '..v end)end
   for _,v in pairs(knightParlett)do
-    local a,b,c=m:match(v[1])
-    if m:match(v[1])then
+    local a,b,c=h:match(v[1])
+    if h:match(v[1])then
       p=v[2]:gsub('a',a):gsub('b',b)
       if c then p=p:gsub('c',c)end break
   end end
-  if p==''then p='0,0'end
-  return("\nfunction m%d(c)f('Moves%s',{{%s}},c)end\nself.addContextMenuItem('%s',m%d)"):format(i,s,p,m,i)
+  if p==''then p='0.5,0.5'end
+  return p,MFUNC:format(i,s,p,h,i)
 end
-
+function onChat(m)if m:lower():find('customchess:')then
+  local t,d={},''
+  for s in m:gmatch(':([^:]+)')do
+    table.insert(t,s)end
+  t[2]='CURV: '..t[2]
+  for _,v in pairs(t)do
+    d=d..'- '..v..'\n'end
+  
+  local obj=spawnObject({
+    type='Custom_Token',position={0,3,0},scale={0.36,1,0.36},
+    callback_function=function(o)o.setName(t[1])parseValues(d,o)end})
+  obj.setCustomObject({thickness=0.19,merge_distance=15,stackable=false,
+image='http://cloud-3.steamusercontent.com/ugc/1628571207900218122/74A391A0E2668A3DF598683ADEF674F953E4700C/'})
+end end
 function onLoad()
   for _,o in pairs(getAllObjects())do
     if o.tag=='Tile'and o.getLock()then
