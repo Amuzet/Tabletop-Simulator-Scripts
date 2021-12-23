@@ -1,14 +1,12 @@
---DominionDefinitiveEditionModifiedByAmuzet2021_06_04_n
+--DominionDefinitiveEditionModifiedByAmuzet2021_10_18_o
 VERSION,GITURL=2.9,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
---[[
-Turn Tracker display the amount of turns
+--[[TODO:
+Find Crash after 'cutcSetup'
 Rules in the Empty area
 Expansion Description
 Description of what the buttons do
 Display what expansions are being used Above the Table
-Output Kingdom Set
-Custom Card Importer
-Change Balance StartGame to fill the kingdom before making randomizer]]
+Custom Card Importer]]
 function onSave()
   saved_data=JSON.encode({
     gs=gameState,
@@ -122,7 +120,7 @@ function onLoad(saved_data)
       btn('Include In Randomizer\nOfficial Expansions','These sets are all official expansions made by Donald X V of Rio Grande Games')
       put.width=5750
       btn('Balanced Setup','Random Kingdom made with a card from each selected sets')
-      btn('Tutorial Game','Kingdoms Known to be easy to introduce to new players.')
+      btn('Tutorial Game','Kingdoms Known to be easy to introduce to new players.\nRight Click for slightly more advanced games.')
       btn('All Sets\nQuick Setup','Just Play')
     end
   end
@@ -144,7 +142,7 @@ function click_ContactAmuzet()bcast('[b]Discord[/b]\nAmuzet#3078',{1,1,1})end
 function createEndButton()
   local obj=getObjectFromGUID(ref.startButton)
   if obj then
-    obj.createInput({value=Use[2],alignment=3,tooltip='Cards used in this Kingdom',input_function='input_kingdomOutput',function_owner=self,position={0,2,1},rotation={0,180,0},scale={0.6,1,0.6},font_size=1000,height=1030,width=80000,font_color={1,1,1},color={0,0,0}})
+    obj.createInput({value=Use[2],alignment=3,tooltip='Cards used in this Kingdom',input_function='input_kingdomOutput',function_owner=self,position={0,2,1},rotation={0,180,0},scale={0.6,1,0.6},font_size=1000,height=1030,width=80000})
     obj.createButton({label='End Game',click_function='click_endGame',function_owner=self,position={-60,0,-4},rotation={0,180,0},height=1500,width=4000,font_size=9000})
 end end
 function input_kingdomOutput(o,c,i,s)
@@ -169,7 +167,7 @@ function scoreCoroutine()
     if Player[currentPlayer].getHandCount()>0 then
       vP[currentPlayer],dT[currentPlayer]=0,{}
       
-      for i, obj in ipairs(gObjs('tavern'))do
+      for i, obj in ipairs(getObjectFromGUID(ref.players[currentPlayer].tavern).getObjects())do
         if obj.type=='Deck'then
           for j, card in ipairs(obj.getObjects())do
             if card.nickname=='Distant Lands'then
@@ -236,7 +234,7 @@ function scoreCoroutine()
       for k,v in pairs(tracker.deck)do
         local vp=getVP(k)
         if type(vp)=='function'then vp=vp(tracker,dT,cp)
-        elseif k=='Curse'then log(vp)end
+        elseif k=='Curse'then log(vp)end--Why are we loging Curse?
         
         if tracker.deck.Pyramid and getType(k):find('Victory')then
           vp=vp-tracker.deck.Pyramid
@@ -256,26 +254,30 @@ function scoreCoroutine()
             if type(vp)=='function'then vP[cp]=vP[cp]+vp(tracker,dT,cp)end end end end
       --VictoryDisplay
       local clr=Color[cp]:lerp(Color.Grey,0.5)
-      local pos={getObjectFromGUID(ref.players[currentPlayer].zone).getPosition()[1],1,-8}
-      getObjectFromGUID(newText(pos,vP[cp])).setColorTint(clr)
+      local pos=Player[cp].getHandTransform().position
+      local v=vP[cp]
+      pos[3]=-21.5
+      newText(pos,tostring(v),400).setColorTint(clr)
       for i,v in pairs(pos)do pos[i]=v-0.05 end
-      getObjectFromGUID(newText(pos,vP[cp])).setColorTint(Color.Black)
-      setNotes(getNotes()..'\n'..cp..' VP: '..vP[cp])
+      newText(pos,tostring(v),400).setColorTint(Color.Black)
+      setNotes(getNotes()..'\n'..cp..' VP: '..v)
       for card,count in pairs(dT[cp])do
         local s=count
-        if count>9 then s='0'..count end
+        if count<10 then s='0'..count end
         --printToAll(s..count..' '..card,{1,1,1})
         if not totalCards[card]then totalCards[card]={[cp]=s}
         else totalCards[card][cp]=s end
       end
   end end
-  printToAll('## ## :Card Name')
+  
+  local n=''
   for name,amount in pairs(totalCards)do
-    local n=':'..name
     for _,c in pairs(getSeatedPlayers())do
-      n=Color[c]:toHex(false)..amount..'[-] '..n end
-    printToAll(n)
+      local a=amount[c]or'00'
+      n=n..'['..Color[c]:toHex(false)..']'..a..'[-] ' end
+    n=n..':'..name..'\n'
   end
+  printToAll('## ## :Card Name\n'..n,Color.Grey)
   return 1
 end
 --Used in Button Callbacks
@@ -285,10 +287,10 @@ newText=setmetatable({type='3DText',position={},rotation={90,0,0}
       local o=spawnObject(t)
       o.TextTool.setValue(text)
       o.TextTool.setFontSize(f or 200)
-      return o.getGUID()end})
+      return o end})
 function cScale(o)o.setScale({1.88,1,1.88})end
 function rcs(a)return math.random(1,a or sL[sL.n][3])end
-function timerStart(t)click_StartGame(t[1],t[2])end
+function timerStart(t)click_StartGame(t[1],t[2],t[3])end
 function findCard(trg,r,p)
   log(trg)
   for _,set in ipairs(r)do
@@ -310,9 +312,8 @@ function kingdomList(str,par)
     else local j=i-10
       if s:find('Young Witch')then j=j+1 end
       findCard(t,ref.eventSets,ref.eventSlots[j].pos)end end
-  Timer.create({identifier='RW',function_name='timerStart',parameters=par,delay=2})
 end
-local Use=setmetatable({' ',' '},{__call=function(t,s)local _,n=t[1]:gsub(' '..s..' ',' '..s..' ');if n>0 then return n end return false end})
+Use=setmetatable({' ',' '},{__call=function(t,s)local _,n=t[1]:gsub(' '..s..' ',' '..s..' ');if n>0 then return n end return false end})
 function Use.Add(n)
   if Use(n:gsub(' ',''))then return end
   local x,s,c=0,' ',n
@@ -371,8 +372,8 @@ function click_AllSets(obj, color)useSets={}
     else break end end
   click_StartGame(obj, color)
 end
-function click_BalancedSetup(o,c)balanceSets(setsMax,o,c)end
-function balanceSets(n,o,c)
+function click_BalancedSetup(o,c,a)balanceSets(setsMax,o,c,a)end
+function balanceSets(n,o,c,a)
   if #useSets>n then
     while #useSets>n do table.remove(useSets,math.random(1,#useSets))end
   elseif #useSets<n then
@@ -383,7 +384,6 @@ function balanceSets(n,o,c)
       for j,s in pairs(t)do if j==i then break end
         while s==t[i]do t[i]=rcs()
     end end end
-    log(t)
     for i,j in pairs(t)do useSets[i]=ref.cardSets[j].guid end
   end
   
@@ -394,33 +394,41 @@ function balanceSets(n,o,c)
       if s.events then for _,v in pairs(s.events)do
       table.insert(events,ref.eventSets[v].guid)
     end end break end end end
-  while #events>eventMax do table.remove(events,math.random(1,#events))end
-  for i=#events,eventMax do
-    local r=math.random(1,#events)
-    while getObjectFromGUID(events[r]).getName():find(' Ways')do
-      r=math.random(1,#events)end
-    table.insert(events,events[r])end
-  
+  if #events>0 then
+    while #events>eventMax do table.remove(events,math.random(1,#events))end
+    local eT=eventTypes..''
+    while #events<eventMax do
+      local r=math.random(1,#events)
+      local b=true
+      while b do
+        local name=getObjectFromGUID(events[r]).getName()
+        eT:gsub(getType(name),
+          function(t)b,r=false,math.random(1,#events)return''end)
+        end
+      table.insert(events,events[r])end
+  end
   for _,v in pairs(events)do getObjectFromGUID(v).shuffle()end
   for i,v in pairs(ref.kingdomSlots)do
     if #getObjectFromGUID(v.zone).getObjects()==1 then
     getObjectFromGUID(useSets[(i%n)+1]).takeObject({
-        position=v.pos,index=6-math.ceil(i/n),smooth=false,callback_function=cScale})end end
+        position=v.pos,index=2,smooth=false,callback_function=cScale})end end
   for i,v in pairs(events)do
     local g=ref.eventSlots[i]
     if #getObjectFromGUID(g.zone).getObjects()==1 then
     getObjectFromGUID(v).takeObject({
-        position=g.pos,index=2,smooth=false,callback_function=cScale})end end
-  click_StartGame(o,c)
+        position=g.pos,rotation={0,90,0},index=2,smooth=false,callback_function=cScale})end end
+  getObjectFromGUID(ref.startButton).editButton({index=1,font_color=Color.Purple,label='Start Balanced',tooltip='Now you can edit the kingdom before actually setting up all the piles.\nIf you prefer not to play with some of these cards delet them now.\nClicking again will refil any newly empty slots again.\nRight-Click will actually start the game!'})
+  if a then Timer.create({identifier='cSG',function_name='timerStart',parameters={o,c,a},delay=1})end
 end
-function click_TutorialGame(obj, color)
+function click_TutorialGame(obj, color,a)
   bcast('Beginner Tutorial')
   newText({20,1,50},'THE GAME ENDS WHEN:\nAny 3 piles are empty or\nThe Province pile is empty.')
   newText({0,2,11},'On your turn you may play One ACTION.\nOnce you have finished playing actions you may play TREASURES.\nThen you may Buy One Card. ([i]Cards you play can change all these[/i])',100)
   local knd={
 'Cellar,Festival,Mine,Moat,Patrol,Poacher,Smithy,Village,Witch,Workshop',
 'Cellar,Market,Merchant,Militia,Mine,Moat,Remodel,Smithy,Village,Workshop',
-'Cellar,Festival,Library,Sentry,Vassal,Courtier,Diplomat,Minion,Nobles,Pawn',
+'Cellar,Festival,Library,Sentry,Vassal,Courtier,Diplomat,Minion,Nobles,Pawn'}
+  if a then knd={
 'Artisan,Council Room,Market,Militia,Workshop,Bridge,Mill,Mining Village,Patrol,Shanty Town',
 'Lurker,Village,Swindler,Throne Room,Remodel,Diplomat,Mine,Replace,Bandit,Harem',
 'Cellar,Village,Bureaucrat,Monument,Gardens,Contraband,Counting House,Mountebank,Artisan,Hoard',
@@ -430,12 +438,19 @@ function click_TutorialGame(obj, color)
 'Workshop,Remodel,Farming Village,Young Witch,Horse Traders,Jester,Market,Laboratory,Artisan,Fairgrounds,Merchant',
 'Fool\'s Gold,Crossroads,Vassal,Oracle,Spice Merchant,Remodel,Laboratory,Festival,Sentry,Farmland',
 'Squire,Rats,Remodel,Scavenger,Gardens,Knights,Laboratory,Festival,Library,Altar,Shelters',
-'Black Cat,Displace,Sanctuary,Scrap,Snowy Village,Bandit,Gardens,Harbinger,Merchant,Moat,Way of the Mole,Toil'}
+--'Black Cat,Displace,Sanctuary,Scrap,Snowy Village,Bandit,Gardens,Harbinger,Merchant,Moat,Way of the Mole,Toil'
+}end
+  getObjectFromGUID(ref.startButton).editButton({index=2,font_color=Color.Purple,label='Start Tutorial',tooltip='Now you can manually edit the kingdom before actually setting up all the piles.\nIf you prefer not to play with some of these cards delete them now.\nClicking again will [b]START[/b] the game and refil any newly empty slots again.'})
   kingdomList( knd[ math.random(1,#knd) ] , {obj,color} )
 end
 function click_RedditWeekly(obj, color)
   bcast('Reddit Weekly')
-  
+  local knd={}
+  if a then knd={
+'Fool\'s Gold,Gear,Fortune Teller,Baron,Trone Room,Falconer,Displace,Scepter,Barge,Vampire,Way of the Butterfly,Save,Academy,Training',
+
+}end
+  kingdomList( knd[ math.random(1,#knd) ] , {obj,color} )
 end
 function click_forcePile(obj, color)
   local guid,c=obj.getGUID(),{1,1,1}
@@ -483,22 +498,22 @@ function click_StartGame(obj, color)
   Turns.enable=false
   if getPlayerCount()>6 then
     bcast('This table only hosts 6 players.',{0.75,0.75,0.75},color)return end
-  
+  --CheckForEvents
   local events={}
   for _,es in ipairs(ref.eventSlots)do
     for i,v in ipairs(getObjectFromGUID(es.zone).getObjects())do
       if v.type=='Card'then
-        Use.Add(v.name)
-        table.insert(events,v)
+        eventTypes:gsub(getType(v.getName()),
+          function(t)Use.Add(v.getName())table.insert(events,v)return''end)
   end end end
-  for i in ipairs(events)do events[i].setPosition(ref.eventSlots[i].pos)end
+  --for i,o in ipairs(events)do o.setLock(true)o.setPosition(ref.eventSlots[i].pos)end
   eventCount=#events
   
   local cardCount=0
   for _,ks in ipairs(ref.kingdomSlots)do
     for i,v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
       if v.type=='Card'then
-        Use.Add(v.name)
+        Use.Add(v.getName())
         cardCount=cardCount+1
   end end end
   
@@ -581,7 +596,7 @@ function removeButtons()
   obj=getObjectFromGUID(ref.supplyPiles[6].guid)
   if obj then obj.clearButtons()end
 end
-eventTypes='EventLandmarkProjectWayEdict'
+eventTypes='EventEventEventEventLandmarkLandmarkProjectProjectWayEdict'
 function GrabCard(ks,deck)
   local card=false
   for j,v in ipairs(getObjectFromGUID(ks.zone).getObjects())do
@@ -591,6 +606,7 @@ function GrabCard(ks,deck)
       local tp=getType(v.name)
       if(eventTypes):find(tp)then
         if eventCount<eventMax then
+          
           if tp:find('Way')then eventTypes:gsub('Way','')end
           Use.Add(v.name)
           eventCount=eventCount+1
@@ -841,6 +857,10 @@ function cleanUp()
   f(Use('Peasant'),'Disciple')
   f(Use('Peasant'),'Fugitive')
   f(Use('Peasant'),'Soldier')
+  f(Use('V Four Seasons'),'V Spring')
+  f(Use('V Four Seasons'),'V Summer')
+  f(Use('V Four Seasons'),'V Fall')
+  f(Use('V Four Seasons'),'V Winter')
   f(Use('Spoils'),'Spoils')
   f(Use('Mercenary'),'Mercenary')
   f(Use('Madman'),'Madman')
@@ -856,6 +876,8 @@ function cleanUp()
   f(Use('Doom')or Use('Fool'),'States')
   f(Use('Artifact'),'Artifacts')
   --CustomCards
+  f(Use('SpellV'),'V Spell')
+  f(Use('Disaster'),'C Wastes')
   f(Use('XHeir'),'Heir')
   f(Use('XLessor'),'Bogus Lands')
   f(Use('LTown'),'Road')
@@ -870,6 +892,7 @@ function cleanUp()
   f(Use('TCharlatan'),'T Cursed Antique')
   f(Use('CCabal'),'Turncoat')
   f(Use('CJekyll'),'Hyde')
+  f(Use('VLandGrant'),'V Land Grant')
   f(Use('Spellcaster'),'Spellcasters Spells')
   
   local dC,eC=1,0
@@ -928,7 +951,13 @@ Trashing='Trashing Token',
 Estate='Estate Token',
 Journey='Journey Token',
 Project='Owns Project',
-Spellcaster='Spell Tokens'}
+Spellcaster='Spell Tokens',
+--VDFC
+VWayoftheBeast='V Beast pile',
+VGuildmaster='V Novice pile',
+--RuleCubes
+Team='TEAM',
+Edict='EDICT'}
   for k,v in pairs(temp)do if Use(k)then temp[k]=nil end end
   for _,obj in pairs(getAllObjects())do
     for k,v in pairs(temp)do
@@ -942,12 +971,13 @@ Spellcaster='Spell Tokens'}
     log(Use[1])
     log(Use[2])
     if Use('Obelisk')then obeliskPiles={}end
+    --Victory f() on z pile
     local function slot(z,f)
       for __,obj in ipairs(getObjectFromGUID(z).getObjects())do
         if obj.type=='Deck'then f(obj)break end end end
     for name,setup in pairs(Setup)do
       local n=name:gsub(' ','')
-      if Use(n)then
+      if Use(n)then--Set
         for _,v in ipairs(ref.basicSlots)do slot(v.zone,setup)end
         for _,v in ipairs(ref.kingdomSlots)do slot(v.zone,setup)end
         slot(ref.baneSlot.zone,setup)end end
@@ -977,24 +1007,40 @@ Spellcaster='Spell Tokens'}
           elseif g==2 then tokenMake(deckBM,'vp',0,{0.9,1,-1.25},card.nickname)
           else   tokenMake(deckBM,'vp',0,{-0.9,1,-1.25},card.nickname)
     end end end end
-    wait(1,'cutcDelete')
+    wait(1,'cutcDelete')--Crash before this call
     for _,v in pairs(ref.tokenBag)do getObjectFromGUID(v).destruct()end
     if getPile('Heirlooms')then getPile('Heirlooms').destruct()end
+    --SETUPSTARTING DECK
+    local tbl={position=ref.players.White.deck,flip=true}
+    local c,z=1,getObjectFromGUID(ref.players.White.deckZone).getObjects()
+    for _,o in pairs(z)do
+      if o.type=='Deck'then
+        c=1+#o.getObjects()end end
+    for i=c,7 do getPile('Coppers').takeObject(tbl)end
+    wait(1,'Coppers')
+    local shelters=getPile('Shelters')
+    local estate=getPile('Estates')
+    if useShelters~=1 then
+      shelters.destruct()
+      estate.takeObject(tbl)
+      estate.takeObject(tbl)
+      estate.takeObject(tbl)
+    else
+      estate.takeObject().destruct()
+      estate.takeObject().destruct()
+      estate.takeObject().destruct()
+      shelters.flip()
+      shelters.setPosition(tbl.position)
+    end
+    Timer.create({identifier='cSD',function_name='copyStartingDecks',delay=1})
     return 1
   end
   startLuaCoroutine(self, 'tokenCoroutine')
-  if useShelters~=1 and getPile('Shelters')then
-    getPile('Shelters').destruct()
-    getPile('Estates').takeObject({position=getObjectFromGUID(ref.storageZone.heirloom).getPosition(),flip=true})
-  else
-    getPile('Shelters').flip()
-  end
-  setupBaseCardCount()
 end
 
 function createHeirlooms(c)
-  for n,h in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['C Magician']='Rabbit',['C Jinxed Jewel']='Jinxed Jewel',['C Burned Village']='Rescuers'})do
-    if c==n then getPile('Heirlooms').takeObject({position=getObjectFromGUID(ref.storageZone.heirloom).getPosition(),guid=ref.heirlooms[h],flip=true})break end end end
+  for n,h in pairs({['Secret Cave']='Magic Lamp',['Cemetery']='Haunted Mirror',['Shepherd']='Pasture',['Tracker']='Pouch',['Pooka']='Cursed Gold',['Pixie']='Goat',['Fool']='Lucky Coin',['C Magician']='Rabbit',['C Jinxed Jewel']='Jinxed Jewel',['C Burned Village']='Rescuers',['V Emissary']='V Coin of Honor',['V Blessing']='V Blessed Gems'})do
+    if c==n then getPile('Heirlooms').takeObject({position=ref.players.White.deck,guid=ref.heirlooms[h],flip=true})break end end end
 function placePile(v,p)local l=getPile(v.getName()..' pile');l.setPosition(p)v.destruct()return l end
 function makePile(v,p)local k,n=1,10--Card Kount
   --If we have a victory card and 2 players, we make 8 copies
@@ -1048,52 +1094,44 @@ function getPile(pileName)for i,k in pairs({'replacementPiles','supplyPiles','si
 function setupBaseCardCount()
   local pCount=getPlayerCount()
   --Starting Curses
-  setPileAmount(getPile('Curses'),(pCount-1)*10)
+  setPileAmount('Curses',(pCount-1)*10)
   if getPile('Ruins pile')then
     getPile('Ruins pile').shuffle()
-    setPileAmount(getPile('Ruins pile'),(pCount-1)*10)
+    setPileAmount('Ruins pile',(pCount-1)*10)
   end
   --Starting Treasures
   if pCount<5 then
-    setPileAmount(getPile('Coppers'),60)
-    setPileAmount(getPile('Silvers'),40)
-    setPileAmount(getPile('Golds'),30)
+    setPileAmount('Provinces',12)
+    setPileAmount('Coppers',60)
+    setPileAmount('Silvers',40)
+    setPileAmount('Golds',30)
+  else
+    setPileAmount('Coppers',120)
   end
   --Starting Provinces
   if pCount==5 then
-    setPileAmount(getPile('Provinces'),15)
-  elseif pCount<5 then
-    setPileAmount(getPile('Provinces'),12)
+    setPileAmount('Provinces',15)
   end
   --2 Player Victory Card Setup
   if pCount==2 then
-    setPileAmount(getPile('Estates'),8)
-    setPileAmount(getPile('Duchies'),8)
-    setPileAmount(getPile('Provinces'),8)
+    setPileAmount('Estates',8)
+    setPileAmount('Duchies',8)
+    setPileAmount('Provinces',8)
     if usePlatinum==1 then
-      setPileAmount(getPile('Colonies'),8)
+      setPileAmount('Colonies',8)
     end
   else
-    setPileAmount(getPile('Estates'),12)
+    setPileAmount('Estates',12)
   end
-  setupStartingDecks()
 end
 -- Function to setup starting Decks
-function setupStartingDecks()
-  --make a pile with used Heirlooms to copy
-  local c,z,h=1,getObjectFromGUID(ref.storageZone.heirloom).getObjects(),false
-  for _,obj in pairs(z)do if obj.type=='Deck'then c,h=1+obj.getQuantity(),obj elseif obj.type=='Card'then c,h=2,obj end end
-  --Creating the starting decks
-  --if Use('Delegate')then getPile('Loyal Subjects pile').takeObject()
-  for p,v in pairs(ref.players)do
-    local d=v.deck
-    if h then h.clone({position=d})end
-    for j=c,7 do getPile('Coppers').takeObject({position=d,flip=true})end
-    if useShelters and getPile('Shelters')then
-      getPile('Shelters').clone({position=d,rotation={0,180,180}})
-    else for j=1,3 do getPile('Estates').takeObject({position=v.deck,flip=true})
-  end end end
-  if useShelters and getPile('Shelters')then getPile('Shelters').destruct()end
+function copyStartingDecks()
+  local deck=false
+  for _,o in pairs(getObjectFromGUID(ref.players.White.deckZone).getObjects())do
+    if o.type=='Deck'then deck=o end end
+  --Copy the deck for each player
+  for p,v in pairs(ref.players)do if p~='White'then
+    deck.clone({position=v.deck})end end
   
   Timer.create({identifier='dSH',function_name='dealStartingHands',delay=2})
 end
@@ -1125,9 +1163,11 @@ function dealStartingHands()
     Turns.enable=true
     return 1
   end
-  startLuaCoroutine(self, 'dealStartingHandsCoroutine')
+  startLuaCoroutine(self,'dealStartingHandsCoroutine')
+  Timer.create({identifier='sBCC',function_name='setupBaseCardCount',delay=1})
 end
-function setPileAmount(pile,total)
+function setPileAmount(pileName,total)
+  local pile=getPile(pileName)
   while pile.getQuantity()>total do pile.takeObject({}).destruct()
 end end
 --XML UI Buttons
@@ -1190,8 +1230,7 @@ function tokenMake(obj,key,n,post,name)
   local pos=post or{-0.9,1,-1.25}
   if not post and key=='vp'then pos={0.9,1,1.25}end
   p={p[1]+pos[1],p[2]+pos[2],p[3]+pos[3]}
-  local t={position=p,rotation={0,180,0},callback='tokenCallback',callback_owner=self,params={name or obj.getName(),n or 0,p}}
-  log(t.params)
+  local t={position=p,rotation={0,180,0},callback='tokenCallback',callback_owner=self,params={name or obj.getName(),n or 0}}
   if not n then t.callback=nil end
   getObjectFromGUID(ref.tokenBag[key]).takeObject(t)
 end
@@ -1283,17 +1322,18 @@ Pasture=function(t)return t.estates*1 end,
 ['V Gold Mine']=function(t)return(t.deck.Gold or 0)end,
 ['V Grange']=function(t)--[[1Per action card you have from an empty supply pile]]return 0 end,
 ['V Yards']=function(t)return math.floor(t.amount/3)end,
-['C Tulip Field']=function(t,dT,cp)end
+['C Tulip Field']=function(t,dT,cp)end,
+['C Panorama']=function(t)return dv(t,'Victory',1)end
 }
 Setup={--(o):Deck
-['Trade Route']=function(o)if getType(o.getObjects()[1].name):find('Victory')and not getType(o.getObjects()[1].name):find('Knight')then tokenMake(o,'coin',0,{0,1,0},'Trade Route')end end,
+['Trade Route']=function(o)if getType(o.getObjects()[1].name):find('Victory')and not getType(o.getObjects()[1].name):find('Knight')then tokenMake(o,'coin',1,{-1,1,0},'Trade Route')end end,
 Tax=function(o)tokenMake(o,'debt',1,{0.9,1,-1.25})end,
-Gathering=function(o)if getType(o.getObjects()[1].name):find('Gathering')then tokenMake(obj,'vp')end end,
+Gathering=function(o)if getType(o.getObjects()[1].name):find('Gathering')then tokenMake(o,'vp',nil,nil,o.getName())end end,
 Obelisk=function(o)if getType(o.getObjects()[o.getQuantity()].name):find('Action')then table.insert(obeliskPiles,o)end end,
 Aqueduct=function(o)local n=o.getName()if n=='Golds'or n=='Silvers'then tokenMake(o,'vp',8)end end,
 ['Defiled Shrine']=function(o)local t=getType(o.getObjects()[1].name);if t:find('Action')and not t:find('Gathering')then tokenMake(o,'vp',2)end end,
 ['Way of the Mouse']=function(o)end,
-['C Panda / Gardener']=function(o)tokenMake(o,'coin',2,{0,1,0})end,
+['C Panda / Gardener']=function(o)tokenMake(o,'coin',2,{1,1,0})end,
 }--Reference Tables
 ref={
 Board='7636a9',startButton='176e6a',tradeRoute='b853e8',
@@ -1336,6 +1376,16 @@ supplyPiles={
 {name='Trash'}},
 sidePiles={
 {name='Heirlooms'},
+{name='V Land Grant pile'},
+{name='V Spring pile'},
+{name='V Summer pile'},
+{name='V Fall pile'},
+{name='V Winter pile'},
+{name='V Spell pile'},
+{name='V Novice pile'},
+{name='V Beast pile'},
+{name='Heirlooms'},
+{name='C Wastes pile'},
 {name='Spellcasters Spells pile'},
 {name='W Cursed Bargain pile'},
 {name='W Cursed Beverage pile'},
@@ -1364,6 +1414,10 @@ sidePiles={
 {name='Madman pile'},
 {name='Mercenary pile'},
 {name='Spoils pile'},
+{name='V Spring'},
+{name='V Summer'},
+{name='V Fall'},
+{name='V Winter'},
 {name='Treasure Hunter pile'},
 {name='Warrior pile'},
 {name='Hero pile'},
@@ -1383,6 +1437,7 @@ replacementPiles={
 {name='Settlers / Bustling Village pile'},
 {name='X Stallions pile'},
 {name='C Panda / Gardener pile'},
+{name='V Fruits / Fruit Mix pile'},
 {name='W Invoking Witch / W Summoned Fiend pile'}},
 kingdomSlots={
 {guid='ea57b1',zone='987e4a'},
@@ -1430,6 +1485,8 @@ cardSets={
 {name='Promos',events={7}},
 {name='Co0kieL0rd'},
 {name='Adamabrams',events={8}},
+{name='Disasters'},
+{name='Venus',events={11,12}},
 {name='Witches'},
 {name='Duplicate/Outdated'}},
 eventSets={
@@ -1442,7 +1499,10 @@ eventSets={
 {name='Summon'},
 {name='Adamabrams Extras'},
 {name='Legacy Events'},
-{name='Legacy Edicts'}}}
+{name='Legacy Edicts'},
+{name='Venus Events'},
+{name='Venus Ways Projects'},
+}}
 --Name of all cards along with costs, used for sorting
 MasterData={
 {c='M0D0P0',name='Copper',t='Treasure'},
@@ -1671,7 +1731,7 @@ MasterData={
 {c='M1D0P0',name='Necropolis',t='Action - Shelter'},
 {c='M1D0P0',name='Overgrown Estate',t='Victory - Shelter'},
 {c='M4D0P0',name='Advisor',t='Action'},--Guilds
-{c='M5D0P0',name='Baker',t='Action',depend='Baker Coffers'},
+{c='M5D0P0',name='Baker',t='Action',depend='Coffers'},
 {c='M5D0P0',name='Butcher',t='Action',depend='Coffers'},
 {c='M2D0P0',name='Candlestick Maker',t='Action',depend='Coffers'},
 {c='M3D0P0',name='Doctor',t='Action'},
@@ -2107,7 +2167,7 @@ MasterData={
 {c='M0D0P0',t='Edict',name='L Tyranny',depend='MinusCoin'},
 {c='M0D0P0',t='Edict',name='L Urbanisation'},--Replace estate/shelter with copper
 {c='M3D0P0',t='Event',name='L Exodus'},
-{c='M6D0P0',t='Event',name='L Contest'},--Makes a Contest pile of 10 5Costs
+{c='M6D0P0',t='Event',name='L Contest',depend='BlackMarket'},--Makes a Contest pile of 10 5Costs
 {c='M0D0P0',t='Event',name='L Blessing'},
 {c='M5D0P0',t='Event',name='L Bureaucracy'},--token on Province pile
 {c='M6D0P0',t='Event',name='L Bargain',depend='Coffers'},
@@ -2470,10 +2530,34 @@ MasterData={
 {c='M2D0P0',name='V Medusa',t='Action - Attack'},
 {c='M2D0P0',name='V She-Wolf',t='Action - Attack - Doom'},
 --Custom https://www.reddit.com/r/dominion/comments/hrx0rb/original_new_cards_i_made_hope_you_enjoy1_lol/
+--Landscapes https://www.reddit.com/r/dominion/comments/pp62rq/custom_set_dominion_landscapes/
+{c='M3D0P0',name='C Cloakmaker',t='Action'},
+{c='M3D0P0',name='C Drought',t='Action - Attack - Duration - Disaster'},
+{c='M2D0P0',name='C Recovery',t='Event',depend='Disaster'},
+{c='M3D0P0',name='C Early Frost',t='Action - Attack Disaster'},
+{c='M3D0P0',name='C Earthquake',t='Action - Attack Disaster'},
+{c='M2D0P0',name='C Emergency Fund',t='Treasure - Reaction'},
+{c='M4D0P0',name='C Flood Plains',t='Action - Victory'},
+{c='M5D0P0',name='C Field Researcher',t='Action - Duration'},
+{c='M5D0P0',name='C Flood',t='Action - Attack Disaster'},
+{c='M5D0P0',name='C Forester',t='Action'},
+{c='M5D0P0',name='C Hysteric',t='Action - Attack Disaster'},
+{c='M2D0P0',name='C Meteorologist',t='Action'},
+{c='M9D0P0',name='C Panorama',t='Action - Victory - Command'},
+{c='M4D0P0',name='C Profiteer',t='Action'},
+{c='M3D0P0',name='C Prospector',t='Action',depend='Coffers'},
+{c='M4D0P0',name='C Twister',t='Action - Attack Disaster'},
+{c='M3D0P0',name='C Wayfarer',t='Action'},
+{c='M1D0P0',name='C Wildfire',t='Action - Disaster'},
+{c='M6D0P0',name='C Wreckage Broker',t='Action - Duration',depend='Coffers'},
+{c='M0D0P0',name='C Wastes',t='Victory'},
+--RandomCustoms
 {c='MXDXPX',t='Artifact',name='Letter'},
 {c='MXDXPX',t='Artifact',name='Statue'},
 {c='MXDXPX',t='Artifact',name='Torch'},
 {c='MXDXPX',t='Artifact',name='Champion\'s Belt'},
+{c='M5D0P0',name='C Evil Lair',depend='Artifact'},
+{c='MXDXPX',t='Artifact',name='Haunted Crown'},
 {c='M5D0P0',name='C Burned Village',t='Action - Night'},
 {c='M4D0P0',name='C Rescuers',t='Treasure - Heirloom'},
 {c='M5D0P0',name='C Ancient Coin',t='Treasure - Duration'},
