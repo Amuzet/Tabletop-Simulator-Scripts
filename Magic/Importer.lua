@@ -180,8 +180,17 @@ function setCard(wr,qTbl,originalData)
   if wr.text then
     local json=JSON.decode(wr.text)
     if json.object=='card' then
-      if json.lang=='en' then
-        Card(json,qTbl)
+      if json.lang==lang then
+        Card(json, qTbl)
+      elseif json.lang=='en' then
+        WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/'..lang,function(request)
+          local locale_json = JSON.decode(request.text)
+          if locale_json.object=='error' then
+            Card(json,qTbl)
+          else
+            setCard(request, qTbl, originalData)
+          end
+        end)
       else
         WebRequest.get('https://api.scryfall.com/cards/'..json.set..'/'..json.collector_number..'/en',function(a)setCard(a,qTbl,json)end)
       end
@@ -988,6 +997,13 @@ function onChat(msg,p)
     elseif a=='clear back'then
       self.script_state='{"76561198015252567":"https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/5/5c/Cardback_reimagined.png","76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","76561198042114416":"https://gamepedia.cursecdn.com/mtgsalvation_gamepedia/f/f8/Magic_card_back.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
+    elseif string.find(a, 'lang') then
+      lang=string.match(a, "lang (.*)")or false
+      if lang then
+        p.print("Change the language to "..lang,{0.9,0.9,0.9})return false
+      else
+        p.print("Please type specific language",{0.9,0.9,0.9})return false
+      end
     elseif a then
       --pieHere, allow using spaces instead of + when doing search syntax, also allow ( ) grouping
       local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''),full=a}
