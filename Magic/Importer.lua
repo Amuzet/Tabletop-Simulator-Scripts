@@ -1,8 +1,14 @@
 --By Amuzet
-mod_name,version='Card Importer',1.96
+mod_name,version='Card Importer',1.97   --pieHere, don't forget to update the number here too
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
+
+--pieHere:
+--the laguage update from 28.01.22 broke the importer
+--the importer ONLY works if the user manually sets a language with the new command
+--the following line seems to fix it for now.. but I fear more problems might come up
+lang='en'
 
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
