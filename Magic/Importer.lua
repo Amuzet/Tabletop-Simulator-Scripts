@@ -1,9 +1,9 @@
 --By Amuzet
-mod_name,version='Card Importer',1.96
+mod_name,version='Card Importer',1.961
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
-
+lang='en'
 --[[Classes]]
 local TBL={__call=function(t,k)if k then return t[k] end return t.___ end,__index=function(t,k)if type(t.___)=='table'then rawset(t,k,t.___())else rawset(t,k,t.___)end return t[k] end}
 function TBL.new(d,t)if t then t.___=d return setmetatable(t,TBL)else return setmetatable(d,TBL)end end
@@ -490,24 +490,6 @@ local DeckSites={
             function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end
     if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
     uNotebook(json.name,board)end end end,
-  cubetutor=function(a)return a,function(wr,qTbl)
-    local cube,html={},wr.text:sub(100000)
-    html:gsub('class="cardPreview ([^>]*>[^<]*)<',function(b)
-        local s,c=b:match('cloudfront.net/([^/]+)/[^>]+>(.+)')
-        if s then s=s:gsub('_.+','')
-          if s:len()>3 and s:find('DDA...')then s=s:sub(4)end
-        else c=b:match('>(.+)');s='pgru' end
-        table.insert(cube,'https://api.scryfall.com/cards/named?fuzzy='..c..'&set='..s)
-        return''end)
-    qTbl.deck=#cube
-    for i,u in ipairs(cube)do
-      Wait.time(function()
-          WebRequest.get(u,function(c)
-              local t=JSON.decode(c.text)
-              if t.object~='card'then
-                WebRequest.get(u:gsub('&.+',''),function(c)setCard(c,qTbl)end)
-              else setCard(c,qTbl)end end)end,i*Tick*2)
-    end end end,
   cubecobra=function(a)return a:gsub('list','download/csv')..'?showother=false',function(wr,qTbl)
     local cube,list={},wr.text:gsub('[^\r\n]+','',1)
     if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
@@ -583,7 +565,7 @@ function rSlot(p,s,a,b)for i,v in pairs(p)do if i~=6 then p[i]=v..a else p[i]=ap
 Booster['2xm']=function(p)p[11]=p[#p]for i=9,10 do p[i]=apiSet..'2xm'..'+'..rarity()end return p end
 for s in('isd dka soi emn'):gmatch('%S+')do
   Booster[s]=function(p)return rSlot(p,s,'+-is:transform','+is:transform')end end
-for s in('mid'):gmatch('%S+')do--Crimson Moon
+for s in('mid vow'):gmatch('%S+')do--Crimson Moon
   Booster[s]=function(p)local n=math.random(#p-1,#p)for i,v in pairs(p)do if i==6 or i==n then p[i]=p[i]..'+is:transform'else p[i]=p[i]..'+-is:transform'end end return p end end
 for s in('cns cn2'):gmatch('%S+')do
   Booster[s]=function(p)return rSlot(p,s,'+-wm:conspiracy','+wm:conspiracy')end end
@@ -616,25 +598,57 @@ Booster.CONSPIRACY=function(qTbl)--wubrgCCCCCTUUURT
       p[i]=p[i]..'+wm:conspiracy'
     else p[i]=p[i]..'+-wm:conspiracy'end end
   return p end
-Booster.INNISTRAD=function(qTbl)--wubrgDCCCCUUUDRD
-  local p=Booster('(s:isd+or+s:dka+or+s:avr+or+s:soi+or+s:emn+or+s:mid)')
+Booster.INNISTRAD=function(qTbl)--wubrgDCCCCDUUURD
+  local p=Booster('(s:isd+or+s:dka+or+s:avr+or+s:soi+or+s:emn+or+s:mid+s:vow)')
   local z=p[#p]:gsub('r:%S+',rarity(8,1))
   table.insert(p,z)
   p[11]=p[12]
   for i,s in pairs(p)do
-    if i==6 or i==#p or i==#p-2 then
+    if i==6 or i==11 or i==#p then
       p[i]=p[i]..'+is:transform'
     else p[i]=p[i]..'+-is:transform'end end
   return p end
-Booster.RAVNICA=function(qTbl)--wubrgLmmmCCUUURL
+Booster.RAVNICA=function(qTbl)--wubrgmmm???UUURL
   local l,p='t:land+-t:basic',Booster('(s:rav+or+s:gpt+or+s:dis+or+s:rtr+or+s:gtc+or+s:dgm+or+s:grn+or+s:rna)')
   table.insert(p,p[#p])
-  for i=7,9 do p[i]=p[6]..'+id>=2'end
+  for i=6,8 do p[i]=p[8]..'+id>=2'end
+  for i=9,math.random(9,11)do p[i]=p[11]..'+id<=1'end
   for i,s in pairs(p)do
-    if i==6 or i==#p then
+    if i==#p then
       p[i]=p[i]:gsub('r:%S+',rarity(9,6,3))..'+'..l
     else p[i]=p[i]..'+-'..l end end
   return p end
+Booster.KAMIGAWA=function(qTbl)--wubrgCCCCCCUUURN
+  local p=Booster('(s:chk+s:bok+s:sok+s:neo)')
+  local z=p[#p]:gsub('r:%S+',rarity(8,4,1)..'+t:legendary')
+  table.insert(p,z)
+  return p end
+Booster.MIRRODIN=function(qTbl)
+  local p=Booster('(s:mrd+s:dst+s:5dn+s:som+s:mbs+s:nph)')
+  
+  return p end
+Booster.ZENDIKAR=function(qTbl)
+  local p=Booster('(s:zen+s:wwk+s:roe+s:bfz+s:ogw+s:znr)')
+  --Masterpiece
+  local mSlot='(s:exp+s:zne)'
+  if math.random(144)~=1 then
+    p[6]=p[6]:gsub('%(.+',mSlot)end
+  return p end
+Booster.HELP=function(qTbl)
+  local s=''
+  for k,_ in pairs(Booster)do
+    if k==k:upper()then
+      s=s..'[i][ff7700]'..k..'[/i] , '
+    end
+  end
+--NotWorking[b][0077ff]Scryfall booster[/b] [i](t:artifact)[/i]  [-][Spawn a Booster with all cards matching that search querry, in this case only Artifacts]
+  Player[qTbl.color].broadcast([[
+[b][0077ff]Scryfall booster[/b] [i]xln[/i]  [-][Spawns Ixalan Booster]
+[b][0077ff]Scryfall booster[/b] [i]SET[/i]  [-][Spawns a Booster with that [i]SET[/i] code as defined by Scryfall.com]
+
+[b]Custom Masters Packs[/b] [The following list are Double Master like packs made by Amuzet and friends]
+ > ]]..s)
+  return Booster('plist')end
   
 function spawnPack(qTbl,pack)
   qTbl.deck=#pack
