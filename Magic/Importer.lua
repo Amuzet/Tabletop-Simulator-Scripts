@@ -474,20 +474,21 @@ local DeckSites={
   archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/?format=json',function(wr,qTbl)
     qTbl.deck=0
     local json=wr.text
-    for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
-    json=json:gsub(',"ckNormalId[^}]+},','},')
-    json=json:gsub(',"viewCount":.+]}','}')
-    uNotebook('archidekt',json)
+    --for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
+    --json=json:gsub(',"ckNormalId[^}]+},','},')
+    --json=json:gsub(',"viewCount":.+]}','}')
+    --uNotebook('archidekt',json)
     json=JSON.decode(json)
     local board=''
     for _,v in pairs(json.cards)do
-      if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
-        board=board..v.quantity..' '..v.card.uid
-      else for i=1,v.quantity do
+      --if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
+      --  board=board..v.quantity..' '..v.card.uid
+      --else for i=1,v.quantity do
+      for i=1,v.quantity do
         qTbl.deck=qTbl.deck+1
         Wait.time(function()
           WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
-            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end
+            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end
     if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
     uNotebook(json.name,board)end end end,
   cubecobra=function(a)return a:gsub('list','download/csv')..'?showother=false',function(wr,qTbl)
@@ -1103,7 +1104,7 @@ function registerModule()
     local prop={name=pID,funcOwner=self,activateFunc='toggleMenu'}
     local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
-    if v and(type(v)=='string'and tonumber(v:match('%d+%.%d+'))or v)<4.4then
+    if v and(type(v)=='string'and tonumber(v:match('%d+%.%d+'))or v)<4.4 then
       prop.toolID=pID
       prop.display=true
       enc.call('APIregisterTool',prop)
