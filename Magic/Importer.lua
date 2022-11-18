@@ -484,7 +484,6 @@ local DeckSites={
     for _,v in pairs(json.cards)do
 --    if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
 --      board=board..v.quantity..' '..v.card.uid
-=======
     --for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
     --json=json:gsub(',"ckNormalId[^}]+},','},')
     --json=json:gsub(',"viewCount":.+]}','}')
@@ -495,7 +494,6 @@ local DeckSites={
       --if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
       --  board=board..v.quantity..' '..v.card.uid
       --else for i=1,v.quantity do
->>>>>>> 3cc287f7521f6ceef43b679dcd461c73055287c9
       for i=1,v.quantity do
         qTbl.deck=qTbl.deck+1
         Wait.time(function()
