@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.961
+mod_name,version='Card Importer',1.962
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -55,18 +55,18 @@ local Card=setmetatable({n=1,image=false},
       t.n=n+1
       --Check for card's spoiler image quality
       if c.image_status~='highres_scan' then
-        imgSuffix='?spoiler'
+        imgSuffix='?'..tostring(os.date('%x')):gsub('/', '')
       end
       --Oracle text Handling for Split then DFC then Normal
       if c.card_faces and c.image_uris then
         for i,f in ipairs(c.card_faces)do
-          f.name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC'
+          f.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC'
           if i==1 then c.name=f.name end
           c.oracle=c.oracle..f.name..'\n'..setOracle(f)..(i==#c.card_faces and''or'\n')end
         elseif c.card_faces then local f=c.card_faces[1]
-        c.name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC DFC'
+        c.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC DFC'
         c.oracle=setOracle(f)else
-        c.name=c.name:gsub('"','')..'\n'..c.type_line..' '..c.cmc..'CMC'
+        c.name=c.name:gsub('"','')..'\n'..c.type_line..'\n'..c.cmc..'CMC'
         c.oracle=setOracle(c)
       end
       local backDat=nil
@@ -81,7 +81,7 @@ local Card=setmetatable({n=1,image=false},
         if t.image then faceAddress,backAddress=t.image,t.image end
         c.face=faceAddress
         local f=c.card_faces[2]
-        local name=f.name:gsub('"','')..'\n'..f.type_line..' '..c.cmc..'CMC DFC'
+        local name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC DFC'
         local oracle=setOracle(f)
         local b=n
         if qTbl.deck then b=qTbl.deck+n end
@@ -474,20 +474,20 @@ local DeckSites={
   archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/?format=json',function(wr,qTbl)
     qTbl.deck=0
     local json=wr.text
-    for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
-    json=json:gsub(',"ckNormalId[^}]+},','},')
-    json=json:gsub(',"viewCount":.+]}','}')
-    uNotebook('archidekt',json)
+--  for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
+--  json=json:gsub(',"ckNormalId[^}]+},','},')
+--  json=json:gsub(',"viewCount":.+]}','}')
+--  uNotebook('archidekt',json)
     json=JSON.decode(json)
     local board=''
     for _,v in pairs(json.cards)do
-      if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
-        board=board..v.quantity..' '..v.card.uid
-      else for i=1,v.quantity do
+--    if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
+--      board=board..v.quantity..' '..v.card.uid
+      for i=1,v.quantity do
         qTbl.deck=qTbl.deck+1
         Wait.time(function()
           WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
-            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end end
+            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end
     if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
     uNotebook(json.name,board)end end end,
   cubecobra=function(a)return a:gsub('list','download/csv')..'?showother=false',function(wr,qTbl)
@@ -533,7 +533,8 @@ local DeckSites={
           WebRequest.get(url,function(c)
               setCard(c,qTbl)end)end,i*Tick*2)end
     end end}
-local apiSet='http://api.scryfall.com/cards/random?q=is:booster+s:'
+local apiRnd='http://api.scryfall.com/cards/random?q='
+local apiSet=apiRnd..'is:booster+s:'
 function rarity(m,r,u)
   if math.random(1,m or 36)==1 then return'r:mythic'
   elseif math.random(1,r or 8)==1 then return'r:rare'
@@ -543,8 +544,9 @@ function typeCo(p,t)local n=math.random(#p-1,#p)for i=13,#p do if n==i then p[i]
 local Booster=setmetatable({
     dom=function(p)return typeCo(p,'t:legendary')end,
     war=function(p)return typeCo(p,'t:planeswalker')end,
-    znr=function(p)return typeCo(p,'t:land+(is:spell+or+pathway)')end,
-    tsp='tsb',mb1='fmb1',mh2='h1r',bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2',stx='sta'
+    znr=function(p)return typeCo(p,'t:land+is:mdfc')end,
+    tsp='tsb',mb1='fmb1',mh2='h1r',stx='sta',--Garenteed
+    bfz='exp',ogw='exp',kld='mps',aer='mps',akh='mp2',hou='mp2'--Masterpiece
   },{__call=function(t,set,n)
     local pack,u={},apiSet..set..'+'
     u=u:gsub('%+s:%(','+(')
@@ -553,8 +555,8 @@ local Booster=setmetatable({
     else
       for c in('wubrg'):gmatch('.')do table.insert(pack,u..'r:common+c>='..c)end
       for i=1,6 do table.insert(pack,u..'r:common+-t:basic')end
-      --masterpiece math
-      if not n and((t[set]and math.random(1,144)==1)or('tsp mb1 mh2'):find(set))then
+      --masterpiece math replaces 11th Common
+      if not n and((t[set]and math.random(1,144)==1)or('tsp mb1 mh2 sta'):find(set))then
         pack[#pack]=apiSet..t[set]end
       for i=1,3 do table.insert(pack,u..'r:uncommon')end
       table.insert(pack,u..rarity(8,1))
@@ -562,7 +564,24 @@ local Booster=setmetatable({
 --ReplacementSlot
 function rSlot(p,s,a,b)for i,v in pairs(p)do if i~=6 then p[i]=v..a else p[i]=apiSet..s..'+'..rarity()..b end end return p end
 --Weird Boosters
-Booster['2xm']=function(p)p[11]=p[#p]for i=9,10 do p[i]=apiSet..'2xm'..'+'..rarity()end return p end
+Booster['tsr']=function(p)p[11]=p[9]:gsub('is:booster+r:common','r:special')return p end
+Booster['unf']=function(p)local j=rSlot(p,'unf','+-t:Attraction','+t:Attraction')
+  table.insert(j,j[6])return j end
+Booster['ust']=function(p)local j=rSlot(p,'ust','+-t:Contraption','+t:Contraption')
+  table.insert(j,j[6])return j end
+for s in('clb cmr'):gmatch('%S+')do
+  Booster[s]=function(p)--wubrgCCCCCCCUUUURLLF
+    local u=apiSet..s..'+t:legendary+'
+    p[#p]=p[#p]..'+-t:legendary'
+    table.insert(p,12,p[12])
+    table.insert(p,6,p[6])
+    table.insert(p,u..rarity(8,1))
+    table.insert(p,u..rarity(8,1))
+    table.insert(p,apiSet..s..'+is:etched')
+    return p end end
+for s in('2xm 2x2'):gmatch('%S+')do
+  Booster[s]=function(p)p[11]=p[12];table.insert(p,apiSet..s..'+'..rarity(8,1))return p end end
+--Booster['2xm']=function(p)p[11]=p[#p]for i=9,10 do p[i]=apiSet..'2xm'..'+'..rarity()end return p end
 for s in('isd dka soi emn'):gmatch('%S+')do
   Booster[s]=function(p)return rSlot(p,s,'+-is:transform','+is:transform')end end
 for s in('mid vow'):gmatch('%S+')do--Crimson Moon
@@ -574,7 +593,29 @@ for s in('rav gpt dis rtr gtc dgm grn rna'):gmatch('%S+')do
 for s in('ice all csp mh1 khm'):gmatch('%S+')do
   Booster[s]=function(p)p[6]=apiSet..s..'+t:basic+t:snow'return p end end
 --Custom Booster Packs
+Booster.ADAMS=function(qTbl)
+  local pack,u={},'http://api.scryfall.com/cards/random?q=f:standard+'
+  for c in ('wubrg'):gmatch('.')do
+    table.insert(pack,u..'r:common+c:'..c)end
+  for i=1,5 do table.insert(pack,u..'r:common+-t:basic')end
+  for i=1,3 do table.insert(pack,u..'r:uncommon')end
+  table.insert(pack,u..rarity(8,1))
+  table.insert(pack,u..'t:basic')
+  table.insert(pack,u:sub(1,39)..'(border:borderless+or+frame:showcase+or+set:plist)')
+  if math.random(1,2)==1 then pack[#pack-1]=pack[#pack]end
+  return pack end
 Booster.STANDARD=function(qTbl)
+  local pack,u={},'http://api.scryfall.com/cards/random?q=f:standard+'
+  for c in ('wubrg'):gmatch('.')do
+    table.insert(pack,u..'r:common+c:'..c)end
+  for i=1,5 do table.insert(pack,u..'r:common+-t:basic')end
+  for i=1,3 do table.insert(pack,u..'r:uncommon')end
+  table.insert(pack,u..rarity(8,1))
+  table.insert(pack,u..'t:basic')
+  table.insert(pack,u:sub(1,39)..'(border:borderless+or+frame:showcase+or+set:plist)')
+  if math.random(1,2)==1 then pack[#pack-1]=pack[#pack]end
+  return pack end
+Booster.MANAMARKET=function(qTbl)
   local pack,u={},'http://api.scryfall.com/cards/random?q=f:standard+'
   for c in ('wubrg'):gmatch('.')do
     table.insert(pack,u..'r:common+c:'..c)end
@@ -592,7 +633,7 @@ Booster.CONSPIRACY=function(qTbl)--wubrgCCCCCTUUURT
   local p=Booster('(s:cns+or+s:cn2)')
   local z=p[#p]:gsub('r:%S+',rarity(9,6,3))
   table.insert(p,z)
-  p[6]=p[math.random(11,12)]
+  p[6]=p[math.random(10,12)]
   for i,s in pairs(p)do
     if i==6 or i==#p then
       p[i]=p[i]..'+wm:conspiracy'
@@ -619,18 +660,26 @@ Booster.RAVNICA=function(qTbl)--wubrgmmm???UUURL
     else p[i]=p[i]..'+-'..l end end
   return p end
 Booster.KAMIGAWA=function(qTbl)--wubrgCCCCCCUUURN
-  local p=Booster('(s:chk+s:bok+s:sok+s:neo)')
+  local p=Booster('(s:chk+or+s:bok+or+s:sok+or+s:neo)')
   local z=p[#p]:gsub('r:%S+',rarity(8,4,1)..'+t:legendary')
   table.insert(p,z)
+  --{'t:creature','t:creature','-t:creature','t:equipment','t:artifact -t:equipment','(t:saga or t:shrine or t:aura)','t:enchantment -(t:saga or t:shrine or t:aura)'}
   return p end
 Booster.MIRRODIN=function(qTbl)
-  local p=Booster('(s:mrd+s:dst+s:5dn+s:som+s:mbs+s:nph)')
-  
+  local p=Booster('(s:mrd+or+s:dst+or+s:5dn+or+s:som+or+s:mbs+or+s:nph)')
+  return p end
+Booster.PHYREXIA=function(qTbl)
+  local p=Booster.MIRRODIN(qTbl)
+  table.insert(p,[#p])
+  p[11]=p[12]
+  local s='(wm:phyrexian+or+ft:phyrex+or+phyrex+or+yawgmoth+or+is:phyrexian+or+ft:yawgmoth+or+art:phyrexian)+(is:spell+or+t:land)'
+  for _,i in pairs({6,11,#p})do
+    p[i]=p[i]:gsub('%b()',s)end
   return p end
 Booster.ZENDIKAR=function(qTbl)
-  local p=Booster('(s:zen+s:wwk+s:roe+s:bfz+s:ogw+s:znr)')
+  local p=Booster('(s:zen+or+s:wwk+or+s:roe+or+s:bfz+or+s:ogw+or+s:znr)')
   --Masterpiece
-  local mSlot='(s:exp+s:zne)'
+  local mSlot='(s:exp+or+s:zne)'
   if math.random(144)~=1 then
     p[6]=p[6]:gsub('%(.+',mSlot)end
   return p end
@@ -856,6 +905,15 @@ Importer=setmetatable({
     endLoop()
   end,
 
+  Lang=function(qTbl)
+    lang=qTbl.name
+    if lang and lang~=''then
+      p.print('Change the language to '..lang,{0.9,0.9,0.9})return false
+    else
+      p.print('Please type specific language',{0.9,0.9,0.9})return false
+    end endLoop()
+  end,
+
   Deck=function(qTbl)
     if qTbl.url then
       for k,v in pairs(DeckSites) do
@@ -952,7 +1010,7 @@ end
 --[[Tabletop Callbacks]]
 function onSave()self.script_state=JSON.encode(Back)end
 function onLoad(data)
-  for _,o in pairs(getAllObjects())do
+  for _,o in pairs(getObjects())do
     if o.getName():find(mod_name)and o~=self then
       if version<o.getVar('version')then
         self.destruct()
@@ -1011,13 +1069,6 @@ function onChat(msg,p)
     elseif a=='clear back'then
       self.script_state='{"76561198015252567":"https://static.wikia.nocookie.net/mtgsalvation_gamepedia/images/5/5c/Cardback_reimagined.png","76561198237455552":"https://i.imgur.com/FhwK9CX.jpg","76561198041801580":"https://earthsky.org/upl/2015/01/pillars-of-creation-2151.jpg","76561198052971595":"http://cloud-3.steamusercontent.com/ugc/1653343413892121432/2F5D3759EEB5109D019E2C318819DEF399CD69F9/","76561198053151808":"http://cloud-3.steamusercontent.com/ugc/1289668517476690629/0D8EB10F5D7351435C31352F013538B4701668D5/","76561197984192849":"https://i.imgur.com/JygQFRA.png","76561197975480678":"http://cloud-3.steamusercontent.com/ugc/772861785996967901/6E85CE1D18660E60849EF5CEE08E818F7400A63D/","76561198000043097":"https://i.imgur.com/rfQsgTL.png","76561198025014348":"https://i.imgur.com/pPnIKhy.png","76561198045241564":"http://i.imgur.com/P7qYTcI.png","76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg","76561198069287630":"http://i.imgur.com/OCOGzLH.jpg","76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg","76561198042114416":"https://gamepedia.cursecdn.com/mtgsalvation_gamepedia/f/f8/Magic_card_back.jpg","a":"Dummy"}'
       Back=TBL.new('https://i.stack.imgur.com/787gj.png',JSON.decode(self.script_state))
-    elseif string.find(a, 'lang') then
-      lang=string.match(a, "lang (.*)")or false
-      if lang then
-        p.print("Change the language to "..lang,{0.9,0.9,0.9})return false
-      else
-        p.print("Please type specific language",{0.9,0.9,0.9})return false
-      end
     elseif a then
       --pieHere, allow using spaces instead of + when doing search syntax, also allow ( ) grouping
       local tbl={position=p.getPointerPosition(),player=p.steam_id,color=p.color,url=a:match('(http%S+)'),mode=a:gsub('(http%S+)',''):match('(%S+)'),name=a:gsub('(http%S+)',''),full=a}
@@ -1103,7 +1154,7 @@ function registerModule()
     local prop={name=pID,funcOwner=self,activateFunc='toggleMenu'}
     local v=enc.getVar('version')
     buttons={'Respawn','Oracle','Rulings','Emblem\nAnd Tokens','Printings','Set Sleeve','Reverse Card'}
-    if v and(type(v)=='string'and tonumber(v:match('%d+%.%d+'))or v)<4.4then
+    if v and(type(v)=='string'and tonumber(v:match('%d+%.%d+'))or v)<4.4 then
       prop.toolID=pID
       prop.display=true
       enc.call('APIregisterTool',prop)
