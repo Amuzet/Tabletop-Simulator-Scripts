@@ -24,6 +24,8 @@ end
 
 function printDiceFace()
  local value = self.getValue()
+ --append steam name to text
+ text = Player[plr].steam_name
  --You can customize the message per Value
  if value == 6 then
   side = ' Is a HIGH ROLLER!'
@@ -31,7 +33,7 @@ function printDiceFace()
  --Or Remove the If block to make a generic message about what value they rolled
   side = ' rolled '..value
  end
- text = plr..side
+ text = text..side
  printToAll(text, self.getColorTint())
  --For if you need to know how many times a player has rolled the dice (optional)
  timesRolled = timesRolled + 1

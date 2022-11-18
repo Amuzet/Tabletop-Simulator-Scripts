@@ -41,3 +41,14 @@ Tools/Notecard.lua
 Tools/DoublerCalculator.lua
 Tools/CartographerShapeGen.lua
 CompetativeTimer.lua
+Magic/Alchemy.lua
+Dominion/Cleaner.lua
+Dominion/Definitive.lua
+Magic/Decklister.lua
+Magic/DiscordTable.lua
+Magic/DraftPiles.lua
+Magic/DynamicCustom.lua
+Magic/DynCustom.lua
+*.txt
+MysticVale/DefinitiveScript.lua
+Tools/CardDynamic.lua

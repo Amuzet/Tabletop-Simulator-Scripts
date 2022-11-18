@@ -46,6 +46,8 @@ function cf_How_To_Use_Quick_Importer(o,c,a)
   else
     Player[c].broadcast('The First Line is what The Button will be named.\nThe Following lines seperated with the `enter` key are what is passed to the Card Importer 1.82+!\nRight click will submit and save all these commands as a new Button')
 end end
+function cf_Card_Importer_Is_Not_Found(o,c,a)
+  if findImporter()then self.reload()else Player[c].broadcast('Importer Still Not Found!\nThis Button Will Respawn If Importer is found.')end end
 function onDrop()self.setRotation({0,(self.getRotation()[2]+45)-((self.getRotation()[2]+45)%180),0})end
 function onSave()self.script_state=JSON.encode(Data)end
 function onCollisionEnter(t)
@@ -60,25 +62,30 @@ function onCollisionEnter(t)
       self.reload()
 end end end
 function onLoad(ssd)
-  self.createInput({
-      label='Possible Commands\nrandom ?q=-t:creature+-t:land 10\nsearch set:lrw+command\nbooster lrw\nservo',
-      input_function='input_func',function_owner=self,alignment=1,
-      scale=B.scale,position={0,-0.1,-0.7},rotation=B.rotation,
-      width=6500,height=1800,font_size=120,validation=1})
-  
-  B('How To Use Quick Importer')
-  B.rotation=nil
-  B.position={-0.7,0.1,-1.4}
-  
-  if ssd~=''then Data=JSON.decode(ssd)end
-  log(Data)
-  for k,d in pairs(Data)do B(k:gsub('_',' '),d)end
-end
+  if findImporter()then
+    self.createInput({
+        label='Possible Commands\nrandom ?q=-t:creature+-t:land 10\nsearch set:lrw+command\nbooster lrw\nservo',
+        input_function='input_func',function_owner=self,alignment=1,
+        scale=B.scale,position={0,-0.1,-0.7},rotation=B.rotation,
+        width=6500,height=1800,font_size=120,validation=1})
+    
+    B('How To Use Quick Importer')
+    B.rotation=nil
+    B.position={-0.7,0.1,-1.4}
+    
+    if ssd~=''then Data=JSON.decode(ssd)end
+    log(Data)
+    for k,d in pairs(Data)do B(k:gsub('_',' '),d)end
+  else
+    B.rotation=nil
+    B.position[2]=0.1
+    B('Card Importer Is Not Found')
+end end
 local lastKnownImporter,POS,Offset=nil,1,{{3.45,-3.2},{3.45,0},{3.45,3.2},{1.15,-3.2},{1.15,0},{1.15,3.2},{-1.15,-3.2},{-1.15,0},{-1.15,3.2},{-3.45,-3.2},{-3.45,0},{-3.45,3.2}}
 function findImporter()
   if lastKnownImporter then return lastKnownImporter end
-  for _,o in pairs(getAllObjects())do
-    if o.getName():find('Card Importer')then
+  for _,o in pairs(getObjects())do
+    if o.getVar('mod_name')=='Card Importer'and o.getVar('MODES')then
       lastKnownImporter=o return o end end return false end
 function passToImporter(o,c,a,data)
   local Importer=findImporter()
