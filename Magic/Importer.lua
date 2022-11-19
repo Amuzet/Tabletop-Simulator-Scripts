@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.962
+mod_name,version='Card Importer',1.963
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -474,26 +474,9 @@ local DeckSites={
   archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/?format=json',function(wr,qTbl)
     qTbl.deck=0
     local json=wr.text
-<<<<<<< HEAD
---  for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
---  json=json:gsub(',"ckNormalId[^}]+},','},')
---  json=json:gsub(',"viewCount":.+]}','}')
---  uNotebook('archidekt',json)
     json=JSON.decode(json)
     local board=''
     for _,v in pairs(json.cards)do
---    if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
---      board=board..v.quantity..' '..v.card.uid
-    --for _,s in pairs({'types','legalities','oracleCard','prices','edition'})do json=json:gsub('"'..s..'"[^}]+},','')end
-    --json=json:gsub(',"ckNormalId[^}]+},','},')
-    --json=json:gsub(',"viewCount":.+]}','}')
-    --uNotebook('archidekt',json)
-    json=JSON.decode(json)
-    local board=''
-    for _,v in pairs(json.cards)do
-      --if #v.categories > 0 and ('SideboardMaybeboard'):find(v.categories[1]) then
-      --  board=board..v.quantity..' '..v.card.uid
-      --else for i=1,v.quantity do
       for i=1,v.quantity do
         qTbl.deck=qTbl.deck+1
         Wait.time(function()
@@ -681,7 +664,7 @@ Booster.MIRRODIN=function(qTbl)
   return p end
 Booster.PHYREXIA=function(qTbl)
   local p=Booster.MIRRODIN(qTbl)
-  table.insert(p,[#p])
+  table.insert(p,p[#p])
   p[11]=p[12]
   local s='(wm:phyrexian+or+ft:phyrex+or+phyrex+or+yawgmoth+or+is:phyrexian+or+ft:yawgmoth+or+art:phyrexian)+(is:spell+or+t:land)'
   for _,i in pairs({6,11,#p})do
