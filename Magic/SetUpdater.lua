@@ -4,20 +4,19 @@ version = 1.1
 author = '76561198045776458'
 self.setName(mod_name..' '..version)
 
-local Sets = {}
-function Set( c , s , x , y )
-  local nilout = {}
-  local tbl = s
+local Sets={}
+function Set(c,s,x,y)
+  local nilout={}
+  local tbl=s
   if type(tbl)=='string'then tbl={s}end
-  local xml='\n <VerticalScrollView id="%s" offsetXY="%d %d"><VerticalLayout color="#%s" height="%d">'
+  local xml="\n <VerticalScrollView id='%s' offsetXY='%d %d'><VerticalLayout color='#%s' height='%d'>"
   for _,st in ipairs(tbl)do
     for k,set in pairs(Sets)do
       if set.set_type == st then
         table.insert(nilout,1,k)
-        xml = xml .. string.format(
-          '\n  <Button class="%s" id="%s" tooltip="%s">%s</Button>',
-          set.set_type,set.code,set.card_count,set.name)
-  end end end
+        xml = xml..string.format(
+"\n  <Button class='%s' id='%s' tooltip='%s'>%s</Button>",
+set.set_type,set.code,set.card_count,set.name)end end end
   xml = xml:format(tbl[1],270*x,270*y,c,#nilout*100)
   for _,v in ipairs(nilout)do table.remove(Sets,v)end
   return xml .. '\n </VerticalLayout></VerticalScrollView>'
@@ -27,16 +26,21 @@ function parseList(url,tbl,check,keep)
   WebRequest.get(url,function(wr)
       if not wr.text:find('"object":"list"')then
         return printToAll('Scryfall returned: '..wr.text:match('"details":.+'))end
-      local text=wr.text:sub(2,-1)
-      for set in text:gmatch('%b{}') do
-        for s in check:gmatch('%S+') do
-          if set:find('"'..s..'"')then
+      local text=wr.text:sub(2)
+      local previousSet=''
+      for set in text:gmatch('%b{}')do
+        if set:find('parent_set_code:"'..previousSet)and set:find('Token')then
+          
+        end
+        for s in check:gmatch('%S+')do
+        --check='Un%a+ Jumpstart core expansion masters draft_innovation'
+          if set:find('"'..s)or set:find(s..'"')then
             --ElementsToKeep
             local t={}
-            for f in keep:gmatch('%S+') do
-              t[f]=set:match('"'..f..'":"?([^",]+)"?,')
+            for f in keep:gmatch('%S+')do
+              --'code name set_type card_count icon_svg_uri'
+              t[f]=set:match('"'..f..'":.+,')
             end
-            table.insert(tbl,t)
             break
           end
         end
@@ -48,33 +52,28 @@ end
 --[[What is needed for this to work for card list?
 parseList('https://scryfall.com/search?order=set&q=set%3A'..SETCODE..'+is%3Abooster&unique=cards',
   CARDS,'common uncommon rare mythic',
-  'name cmc rarity highres_image small normal type_line colors oracle_text power toughness loyalty')]]
+  'name cmc rarity highres_image small normal type_line colors oracle_text power toughness loyalty')
+  ]]
 function updateSets()
   parseList('https://api.scryfall.com/sets',Sets,
-    'core expansion masters draft_innovation Un%a+',
+    'Un%a+ Jumpstart core expansion masters draft_innovation',
     'code name set_type card_count icon_svg_uri')
   local XML = [[<!-- By Amuzet -->
 <Defaults>
- <Button onClick="onChoice" resizeTextForBestFit="true" fontSize="30" fontStyle="Bold"/>
- <!-- Purple,Green,Red,Pink,Yellow -->
- <Button class="draft_innovation" color="#56458E"/>
- <Button class="expansion" color="#45A545"/>
- <Button class="masters" color="#CFBA56"/>
- <Button class="funny" color="#F570CE"/>
- <Button class="core" color="#CF5656"/>
- <VerticalScrollView scrollSensitivity="25" hight="520" width="520"/>
+ <Button onClick='onChoice' color='#AAAAAA33' resizeTextForBestFit='true' fontSize='30' fontStyle='Bold'/>
+ <VerticalScrollView scrollSensitivity='45' hight='620' width='520'/>
 </Defaults>
-<Panel scale="1 1" position="0 0 -50">]]..
-Set('CFBA56','masters',1,-1)..
-Set('CF5656','core',-1,1)..
-Set('56458E',{'draft_innovation','funny'},-1,-1)..
-Set('45A545','expansion',1,1)..'</Panel>'
+<Panel rotation='0 0 0' position='-777 -700'>]]..
+Set('CFBA56','masters')..
+Set('CF5656','core')..
+Set('56458E',{'draft_innovation','funny'})..
+Set('45A545','expansion')..'</Panel>'
   editNotebookTab({index=1,title='DraftXML',body=XML})
   printToAll('New XML pasted into NotebookTab: DraftXML\nCopy and paste it onto this object`s UI tab in `Modding>Scripting`')
   self.reload()
 end
 function context()
-  if #Player>1 then return printToAll('Update is restricted to single player only. Otherwise it would crash the ')
+  if #getSeatedPlayers()>1 then return printToAll('Update is restricted to single player only. It Will crash connected players.')end
   updateSets()
 end
 function onLoad()
@@ -120,7 +119,7 @@ function onChoice(p, _, id)
     end
     TAG = id
     Count = self.UI.getAttribute(id, 'tooltip'):match('%d+')
-    broadcastToAll('Type "Load '..id..' Draft" to Load '..name..'\n[dc143c]Warning: [4682b4]Server may Lag loading [ffffff]'..Count..' Cards')
+    broadcastToAll('Type `Load '..id..' Draft` to Load '..name..'\n[dc143c]Warning: [4682b4]Server may Lag loading [ffffff]'..Count..' Cards')
   else
     printToAll(p.steam_name .. ' Voted for ' .. name)
   end end
@@ -155,14 +154,19 @@ function zonePos(a)
 end
 
 function cardPosition(b)
+  local tx=b.text:gsub(',"prices":.*','}')
   local card = JSON.decode(b.text)
   if card.type_line:find('Basic') then --Basic
     zonePos('LANDS')
     Basic = true
-  elseif not card.booster then --ESCAPES cards not in boosters
-    INC() return false
   elseif card.type_line:find('Token') then
     zonePos('TOKENS')
+  elseif not card.booster then --ESCAPES cards not in boosters
+    --check if user wants foil
+    if false then
+      
+    end
+    INC() return false
   elseif card.rarity == 'common'   then
     local color = card.colors or false
     
@@ -192,9 +196,8 @@ function cardPosition(b)
     end
   else
     oracle = setOracle(card)
-    if card.oracle_text:match('Draft ')
-    or card.oracle_text:match(' draft')
-    or card.type_line == 'Conspiracy'
+    if (card.watermark and card.watermark=='conspiracy')
+    -- (card.frame_effects and card.frame_effects[1]=='draft')
     or (TAG == 'war' and card.type_line == 'Planeswalker') then
       zonePos('SPECIAL')
     end
