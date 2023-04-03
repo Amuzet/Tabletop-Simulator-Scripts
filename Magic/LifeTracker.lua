@@ -21,8 +21,8 @@ function click_changeValue(obj, color, val)
     if C2 and C1==count then
       local gl='lost'
       if C1>C2 then gl='gained'end
-      if C1~=C2 then sL(count)local t=txt:format(gl,math.abs(count-C2),count)
-        printToSome(t,self.getColorTint())log(t)end
+      sL(count)local t=txt:format(gl,math.abs(count-C2),count)
+      printToSome(t,self.getColorTint())log(t)
       C2=nil end return 1 end
   startLuaCoroutine(self,'clickCoroutine')
   updateSave()
