@@ -549,15 +549,12 @@ local DeckSites={
 
   cubecobra=function(a)return a:gsub('list','api/cubeJSON')..'?showother=false',function(wr,qTbl)
     local cube,list={},JSON.decod(wr.text)
-		
     if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
-    
 		for i,c in pairs(json.cards.mainboard)do
 			table.insert(cube,
-				'https://api.scryfall.com/cards/'..c.details.oracle_id)
+				'https://api.scryfall.com/cards/'..c.details.set..'/'..c.details.collector_number)
 			qTbl.image[i]=c.details.image_normal --CC should have this filled with An image Default if not Alter/Custom
 		end
-		
     qTbl.deck=#cube
     for i,url in ipairs(cube)do
       Wait.time(function()
