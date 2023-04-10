@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.965
+mod_name,version='Card Importer',1.966
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -58,33 +58,39 @@ local Card=setmetatable({n=1,image=false},
         imgSuffix='?'..tostring(os.date('%x')):gsub('/', '')
       end
 
-			local orientation={
-				('planar'):find(c.layout)and true}--Tabletop Card Sideways
+			local orientation={false}--Tabletop Card Sideways
 			--Oracle text Handling for Split then DFC then Normal
-      if c.card_faces and c.image_uris then
+      if c.card_faces and c.image_uris then--Adventure/Split
 				local instantSorcery=0
         for i,f in ipairs(c.card_faces)do
-					--[[
-					if ('InstantSorcery'):find(f.type_line)and
-						not f.oracle:find('Aftermath')then
-						instantSorcery=1+instantSorcery
-					end]]
-          f.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC'
+					f.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC'
           if i==1 then c.name=f.name end
           c.oracle=c.oracle..f.name..'\n'..setOracle(f)..(i==#c.card_faces and''or'\n')
+					
+					--Count nonPermanent text boxes, exclude Aftermath
+					if not c.oracle:find('Aftermath')and
+					('InstantSorcery'):find(f.type_line)then
+						instantSorcery=1+instantSorcery end
 				end
-				--if instantSorcery==2 then orientation[1]=true end
-			elseif c.card_faces then
+				if instantSorcery==2 then--Split/Fuse
+					orientation[1]=true end
+
+			elseif c.card_faces then--DFC
 				local f=c.card_faces[1]
         c.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC DFC'
         c.oracle=setOracle(f)
 				for i,face in ipairs(c.card_faces)do
-					--When drawn is noticeable to the other players!
-					--orientation[i]=('battle'):find(face.type_line)and true
+					if face.type_line:find('Battle')then
+						orientation[i]=true
+					else
+						orientation[i]=false
+					end
+					print(i..' '..tostring(orientation[i]))
 				end
 			else--NORMAL
         c.name=c.name:gsub('"','')..'\n'..c.type_line..'\n'..c.cmc..'CMC'
         c.oracle=setOracle(c)
+				if('planar'):find(c.layout)then orientation[1]=true end
       end
 
       local backDat=nil
@@ -114,7 +120,6 @@ local Card=setmetatable({n=1,image=false},
           CustomDeck={[b]={
 							FaceURL=backAddress,
 							BackURL=c.back,
-							--Sideways=orientation[2],
 							NumWidth=1,NumHeight=1,Type=0,
 							BackIsHidden=true,UniqueBack=false}},
         }
@@ -136,13 +141,17 @@ local Card=setmetatable({n=1,image=false},
         CustomDeck={[n]={
 						FaceURL=c.face,
 						BackURL=c.back,
-						--Sideways=orientation[1],--When drawn it will be noticable to opponent
 						NumWidth=1,NumHeight=1,Type=0,
 						BackIsHidden=true,UniqueBack=false}},
       }
-      if backDat then
-        cardDat.States={[2]=backDat}    -- pieHere, make backface be state#2
-      end
+			
+      if backDat then --backface is state#2
+        cardDat.States={[2]=backDat}end
+			
+			local landscapeView={0,180,270}
+			--AltView
+			if orientation[1]then cardDat.AltLookAngle=landscapeView end
+			if orientation[2]then cardDat.States[2].AltLookAngle=landscapeView end
 
       -- Spawn
       if not(qTbl.deck) or qTbl.deck==1 then        --Spawn solo card
