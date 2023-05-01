@@ -556,20 +556,28 @@ local DeckSites={
     if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
     uNotebook(json.name,board)end end end,
 
-  cubecobra=function(a)return a:gsub('list','api/cubeJSON')..'?showother=false',function(wr,qTbl)
-    local cube,list={},JSON.decod(wr.text)
+  cubecobra=function(a)return a:gsub('list','download/csv')..'?showother=false',function(wr,qTbl)
+    local cube,list={},wr.text:gsub('[^\r\n]+','',1)
     if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
-		for i,c in pairs(json.cards.mainboard)do
-			table.insert(cube,
-				'https://api.scryfall.com/cards/'..c.details.set..'/'..c.details.collector_number)
-			qTbl.image[i]=c.details.image_normal --CC should have this filled with An image Default if not Alter/Custom
-		end
-    qTbl.deck=#cube
-    for i,url in ipairs(cube)do
-      Wait.time(function()
-          WebRequest.get(url,function(c)
-              setCard(c,qTbl)end)end,i*Tick*2)end
-    end end}
+    local c = 0
+    for line in list:gmatch('([^\r\n]+)')do
+      local tbl,n,l={},0,line:gsub('.-"','',2)
+      --Grab all non-empty strings surrounded by quotes, will include set and cn
+      for obj in line:gmatch('([^"]+)') do
+          table.insert(tbl,obj)
+      end
+      --Only include cards that aren't on the maybeboard
+      if line:match(',false,') then
+        local b='https://api.scryfall.com/cards/'..tbl[5]..'/'..tbl[7]
+        c=c+1
+        if tbl[9]:match('http') then
+            qTbl.image[c]=tbl[9]
+        end
+        Wait.time(function() WebRequest.get(b,function(c)setCard(c,qTbl)end) end,c*Tick)
+      end
+    end
+    qTbl.deck = c
+  end end}
 local apiRnd='http://api.scryfall.com/cards/random?q='
 local apiSet=apiRnd..'is:booster+s:'
 function rarity(m,r,u)
