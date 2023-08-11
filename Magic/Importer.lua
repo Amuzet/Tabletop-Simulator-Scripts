@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.966
+mod_name,version='Card Importer',1.967
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -638,7 +638,24 @@ for s in('rav gpt dis rtr gtc dgm grn rna'):gmatch('%S+')do
   Booster[s]=function(p)return rSlot(p,s,'+-t:land','+t:land+-t:basic')end end
 for s in('ice all csp mh1 khm'):gmatch('%S+')do
   Booster[s]=function(p)p[6]=apiSet..s..'+t:basic+t:snow'return p end end
+--wubrg CCCCC CUUUR LLYUF
+Booster['cmm']=function(p)
+	for i=12,15 do p[i]=p[i]..'+-t:legendary'end
+	local sL=apiSet..'cmm+t:legendary'
+	--2 Legendaries
+	table.insert(p,sL)
+	table.insert(p,sL)
+	--1 Rare+ Legendary
+	table.insert(p,sL..'+'..rarity(8,1))
+	--1 more Uncommon
+	table.insert(p,apiSet..'cmm+r:uncommon+-t:legendary')
+	--1 any Foil
+	table.insert(p,apiSet..'cmm+'..rarity())
+	--20 Total
+	return p end
+
 --Custom Booster Packs
+Booster.CMMDRAFT=function(qTbl)return Booster('cmm',true)end
 Booster.ADAMS=function(qTbl)
   local pack,u={},'http://api.scryfall.com/cards/random?q=f:standard+'
   for c in ('wubrg'):gmatch('.')do
@@ -675,6 +692,30 @@ Booster.MANAMARKET=function(qTbl)
       pack[i]=u..'(border:borderless+or+frame:showcase+or+frame:extendedart+or+set:plist+or+set:sta)'
     end end
   return pack end
+Booster.PLANAR=function(qTbl)
+	--((t:plane or t:phenomenon) o:planeswalk) or 
+	local u='http://api.scryfall.com/cards/random?q='
+	local additional="+or+o:'planar+di'+or+o:'will+of+the+planeswalker'"
+	
+	local pack={
+	u..'frame:2015+c=w',
+	u..'frame:2015+c=u',
+	u..'frame:2015+c=b',
+	u..'frame:2015+c=r',
+	u..'frame:2015+c=g',
+	u..'frame:2015+c=c',
+	u..'frame:2015+c>1',
+	u..'frame:2015+c<2+id>1',
+	u..'frame:2015+-is:permanent',
+	u..'frame:2015+-t:creature',
+	u..'frame:2015+is:french_vanilla',
+	u..'((t:plane+or+t:phenomenon)+o:planeswalk)',
+	u..'((t:plane+or+t:phenomenon)+-o:planeswalk)',
+	u..'((t:plane+or+t:phenomenon)'..additional,
+	u..'t:planeswalker'}
+	
+	return pack end
+--PLANES
 Booster.CONSPIRACY=function(qTbl)--wubrgCCCCCTUUURT
   local p=Booster('(s:cns+or+s:cn2)')
   local z=p[#p]:gsub('r:%S+',rarity(9,6,3))
@@ -749,9 +790,15 @@ function spawnPack(qTbl,pack)
   qTbl.deck=#pack
   qTbl.mode='Deck'
   log(pack)
+	--TODO: prevent dups, divert to a seperate function before setCard()
   for i,u in pairs(pack)do
     Wait.time(function()WebRequest.get(u,function(wr)
+					if wr.text:find('object:"error"')then log(u)end
+					--Divert here
           setCard(wr,qTbl)end)end,i*Tick)end
+	--Store the returned pack check for dups
+	--Rerun pack if dups 3 of same or more than a pair
+	--Exclude Multiverse ID
 end
 --[[Importer Data Structure]]
 Importer=setmetatable({

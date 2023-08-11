@@ -2,6 +2,7 @@ local mats={}
 local K='UNINTERACTABLE'
 
 function changeState(o,c,a)
+  --ChessBoard States
   local name=o.getName()
   local n=mats[name]
   if a then n=n-1 else n=n+1 end
@@ -29,8 +30,10 @@ function B(o)
     scale={0.4,0.4,0.4},position={2.1,0,0},
     font_color={1,1,1},color={0,0,0},
     tooltip='Change current mat image!'})end
+
 MFUNC="\nfunction m%d(c)f('Moves%s',{{%s}},c)end\nself.addContextMenuItem('%s',m%d)"
 function setScript(obj,c)
+--Name,TblOfMoves,colorPlayer
   local script,n=[[function f(a,b,c)local l=self.getColorTint():lerp(Color(0,0,0,0),0.2)N()for i,t in pairs(b)do
 self.createButton({position={t[1]*4.5,0.2,-t[2]*4.5},tooltip=a,click_function='N',function_owner=self,width=700,height=700,color=l})end
 Player[c].broadcast(a,l)end
@@ -51,7 +54,7 @@ function onLoad()N=self.clearButtons]],obj.getGMNotes()
   end
   script=script..t..'\nend'
   obj.setLuaScript(script:gsub(',{}',''))
-  obj.setDescription(n..'\nMoves'..allMovesDescribed)
+  obj.setDescription(n..'\nMoves'..allMovesDescribed:gsub('\\nMoves','\nMoves'))
   Player[c].print(n)
 end
 function createCopy(obj,r,a)
@@ -99,9 +102,11 @@ replacement={
   ['and']='.',
   ['then']='.',
   --NonStandardNotation
+  ['Coup.againstRoyalunit.:']='R',
   wide='W',
   narrow='N',
   outward='',
+  repeatedly='',
   inenemyterritory='E',
   infriendlyterritory='F',
   ['pastboard\'shalf']='H',
@@ -121,6 +126,10 @@ function stringToMove(str,o)
     s=s:gsub(k,v)end
   if s:find('[aeiou]')then
     o.highlightOn(Color.Purple)end
+  --reformat NarrowWide modifier to end
+  if s:find('[NW][^(]')then
+    s=s:gsub('([NW])([^(]+)','%2%1')end
+  
   return'Move={'..s..'}'end
 
 doFunction={
@@ -170,24 +179,27 @@ function parseValues(s,o)
       end
     end
   end
+  
   o.setGMNotes(info)
   o.clearButtons()
+  if self.getDescription():find('CreateAll')then
+    createCopy(o)else
   o.createButton({
       function_owner=self,click_function='createCopy',
       color={0,0,0,0},width=900,height=900,
       tooltip='Right Click to get Descriptive moveset for '..info})
-end
+end end
 
 notationParlett={
 {',','or'},
-{'%.','\n  then'},
+{'%.','\\n  then'},
 {'>=','forward or sideways','-1,0},{0,1},{1,0'},
 {'<=','backward or sideways','-1,0},{0,-1},{1,0'},
 {'=','sideways','-1,0},{1,0'},
 {'X>','diagonally forwards','-1,1},{1,1'},
 {'X<','diagonally backwards','-1,-1},{1,-1'},
 {'X','diagonally','-1,-1},{-1,1},{1,1},{1,-1'},
-{'%*<>','any way but sideways','-1,-1},{-1,1},{0,1},{1,1},{1,-1},{0,-1'},
+{'%*<>','forward, backward and diagonally','-1,-1},{-1,1},{0,1},{1,1},{1,-1},{0,-1'},
 {'%*>','forward including diagonally','-1,1},{0,1},{1,1'},
 {'%*<','backward including diagonally','-1,-1},{1,-1},{0,-1'},
 {'%*','orthogonally or diagonally','-1,-1},{-1,0},{-1,1},{0,1},{1,1},{1,0},{1,-1},{0,-1'},
@@ -200,13 +212,16 @@ notationParlett={
 {'C','must capture'},
 {'O','cannot capture'},
 {'I','from starting position'},
+{'R','must capture a Royal unit'},
 {'W','wide'},
 {'N','narrow'},
 {'E','from enemy territory'},
 {'F','from friendly territory'},
 {'H','from past board`s half'}}
+
 Q='%d,%d},{%d,%d},{'
 function Z(i,j)return(Q..Q):format(i,j,-i,-j, -i,j,i,-j)end
+
 knightParlett={--x,y,a,b
 {'%((%d)%-(%d)/(%d)%-(%d)%)',function(t)local s=''
   for i=t.x,t.y do for j=t.a,t.b do s=s..Z(i,j)end end return s end},
@@ -214,7 +229,7 @@ knightParlett={--x,y,a,b
  function(t)local s=''for i=t.x,t.y do s=s..Z(i,t.a)end return s end},
 {'(%d)/(%d)%-(%d)',
  function(t)local s=''for i=t.y,t.a do s=s..Z(t.x,i)end return s end},
-{'[^<]+([<>])([WN])%((%d)/(%d)%)',
+{'[^<]+([<>])([WN])%((%d)/(%d)%)', --This is Either ><
  function(t)local n=1 if t.x=='<'then n=-1 end
   if t.y=='N'then
     return Q:format(t.a,n*t.b,-t.a,n*t.b)else
@@ -224,19 +239,24 @@ knightParlett={--x,y,a,b
 {'[^<]*([<>])%((%d)/(%d)%)',function(t)local n=1 if t.x=='<'then n=-1 end
  return(Q..Q):format(t.y,n*t.a,t.a,n*t.y,-t.y,n*t.a,-t.a,n*t.y)end},
 {'%((%d)/(%d)%)',function(t)return Z(t.x,t.y)..Z(t.y,t.x)end}}
+
 function parseMove(h,i)
   local n=h:match('%d+')or 1
   local m=h:match('%(%d+%-(%d+)%)')or(h:match('∞')and 7)or n
   local s=h:gsub('[}{]','')
   local p=''
+  
   for _,v in pairs(notationParlett)do
     s=s:gsub(v[1],function(b)
-        if v[3]then
-          for i=n,m do
-            p=p..v[3]:gsub('%d',function(c)return c*i end)
-            if n~=m then p=p..'},{'end
-          end
-      end return' '..v[2] end)end
+      if v[3]then
+        for i=n,m do
+          p=p..v[3]:gsub('%d',function(c)return c*i end)
+          if n~=m then p=p..'},{'end
+        end
+      end return' '..v[2]
+    end)
+  end
+  
   for _,v in pairs(knightParlett)do
     if h:match(v[1])then local t={}
       t.x,t.y,t.a,t.b=h:match(v[1])
@@ -246,21 +266,29 @@ function parseMove(h,i)
   if p==''then p='0.5,0.5'end
   return p,s,MFUNC:format(i,s,p,h,i)
 end
+
+
 function onChat(m)if m:lower():find('customchess:')then
   local t,d={},''
+  --customchess:New Pawn:2:
   for s in m:gmatch(':([^:]+)')do
     table.insert(t,s)end
+  
   t[2]='CURV: '..t[2]
+  
   for _,v in pairs(t)do
     d=d..'- '..v..'\n'end
   
   local obj=spawnObject({
     type='Custom_Token',position={0,3,0},scale={0.36,1,0.36},
     callback_function=function(o)o.setDescription(d)o.setName(t[1])parseValues(d,o)end})
-  obj.setCustomObject({thickness=0.19,merge_distance=15,stackable=false,
+  obj.setCustomObject({thickness=0.1,merge_distance=15,stackable=false,
 image='http://cloud-3.steamusercontent.com/ugc/1628571207900218122/74A391A0E2668A3DF598683ADEF674F953E4700C/'})
 end end
+
 function onLoad()
+  if not self.getDescription():find('%WON%W')then
+    print('Chess parser is off, type :ON: into descrption then respawn it for it to do things onLoad.')return end
   for _,o in pairs(getAllObjects())do
     if o.tag=='Tile'and o.getLock()then
       o.clearButtons()

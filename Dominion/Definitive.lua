@@ -1,4 +1,4 @@
---DominionDefinitiveEditionModifiedByAmuzet2022_11_10_a
+--DominionDefinitiveEditionModifiedByAmuzet2023_07_15
 VERSION,GITURL=2.9,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
 --[[TODO:
 Program Rotate for Allies Split Piles
@@ -76,6 +76,7 @@ function onLoad(saved_data)
     bmDeck={}
     obeliskTarget=nil
   end
+  useBoulderTrap=0
   setUninteractible()
   math.randomseed(os.time())
   
@@ -250,7 +251,7 @@ function scoreCoroutine()
           vp=vp-tracker.deck.Pyramid
           if vp<0 then vp=0 end
         end
-        vP[cp]=vP[cp] + vp*v
+        vP[cp]=vP[cp] + vp*v  --TODO:ERROR nil value
       end
       -- Score VP tokens
       if getObjectFromGUID(ref.players[cp].vp)then
@@ -311,6 +312,10 @@ function findCard(trg,r,p)
           deck.takeObject({position=p,index=card.index,smooth=false,callback_function=cScale})
           break end end end end end
 function kingdomList(str,par)
+  
+  if #getObjectFromGUID(ref.kingdomSlots[1].zone).getObjects()~=1 then
+    return end
+  
   local s=str
   if s:find('Shelters')then useShelters,s=1,s:gsub(',Shelters','')else useShelters=2 end
   if s:find('Platinum')then usePlatinum,s=1,s:gsub(',Platinum','')else usePlatinum=2 end
@@ -923,6 +928,7 @@ function cleanUp()
   if Use('Druid')then dC=dC+3 end
   if Use('XHandler')then dC=dC+3 end
   if Use('Spellcaster')then eC=eC+2 end
+  --Move remaining non supply piles
   for i,v in ipairs(sideSlots)do
     local obj=getPile(v..' pile')
     obj.setPosition(ref.sideSlots[i].pos)
@@ -946,11 +952,14 @@ function cleanUp()
     if i>eventCount+eC then obj.destruct()end
   end
   
-  for k,v in pairs(Suppliment)do if Use(k)then Suppliment[k]=nil end end
+  for k,v in pairs(Suppliment)do
+    if Use(k)then Suppliment[k]=nil end end
   for _,obj in pairs(getAllObjects())do
     for k,v in pairs(Suppliment)do
       if obj.getName()==v or obj.getName()=='Rules '..k then
         obj.destruct()
+      elseif obj.getName():find(' Token')then
+        obj.setLock(false)
   end end end
   getObjectFromGUID(ref.Board).destruct()
   
@@ -997,7 +1006,7 @@ function cleanUp()
           elseif g==2 then tokenMake(deckBM,'vp',0,{0.9,1,-1.25},card.nickname)
           else   tokenMake(deckBM,'vp',0,{-0.9,1,-1.25},card.nickname)
     end end end end
-    wait(2,'cutcDelete')--Crash before this call
+    wait(2,'cutcDelete')--No longer Crashes before this call Why was it happening
     for _,v in pairs(ref.tokenBag)do getObjectFromGUID(v).destruct()end
     if getPile('Heirlooms')then getPile('Heirlooms').destruct()end
     --SETUPSTARTING DECK
@@ -1008,8 +1017,6 @@ function cleanUp()
         c=c+1
       elseif o.type=='Deck'then
         c=1+#o.getObjects()end end
-    for i=c,7 do getPile('Coppers').takeObject(tbl)end
-    wait(1,'Coppers')
     local shelters=getPile('Shelters')
     local estate=getPile('Estates')
     if useShelters~=1 then
@@ -1018,13 +1025,15 @@ function cleanUp()
       estate.takeObject(tbl)
       estate.takeObject(tbl)
     else
-      estate.takeObject().destruct()
-      estate.takeObject().destruct()
-      estate.takeObject().destruct()
-      shelters.flip()
       shelters.setPosition(tbl.position)
+      estate.takeObject().destruct()
+      estate.takeObject().destruct()
+      estate.takeObject().destruct()
+      --shelters.flip()
     end
-    Timer.create({identifier='cSD',function_name='copyStartingDecks',delay=3})
+    for i=c,7 do getPile('Coppers').takeObject(tbl)end
+    wait(1,'DecksSetup')
+    Timer.create({identifier='cSD',function_name='copyStartingDecks',delay=1})
     return 1
   end
   startLuaCoroutine(self, 'tokenCoroutine')
@@ -1168,11 +1177,14 @@ function setPileAmount(pileName,total)
   while pile.getQuantity()>total do pile.takeObject({}).destruct()
 end end
 --XML UI Buttons
-function playHand(player)
-  local objects = player.getHandObjects()
-  local start = -2-#objects*2
-  for i,o in ipairs(objects) do
-  o.setPosition({start+i*4,1.2,-1})
+function playHand(color)
+  if color==Turns.color then
+    local objects = player.getHandObjects()
+    local start = -2-#objects*2
+    for i,o in ipairs(objects) do
+      o.setPosition({start+i*4,1.3,-1})
+    end
+  else Player[color].broadcast('Wait Your Turn.')
 end end
 function drawCard(player)
   local t = ref.players[player.color]
@@ -1355,17 +1367,17 @@ TradeRoute='Trade Route Mat',
 BlackMarket='Black Market Mat',
 NativeVillage='Native Village Mat',
 --Tokens
-TwoCost='-2 Cost Token',
-PlusBuy='+1 Buy Token',
-PlusCoin='+1 Coin Token',
-PlusCard='+1 Card Token',
-PlusAction='+1 Action Token',
-MinusCoin='-1 Coin Token',
-MinusCard='-1 Card Token',
+TwoCost='%-2 Cost Token',
+PlusBuy='%+1 Buy Token',
+PlusCoin='%+1 Coin Token',
+PlusCard='%+1 Card Token',
+PlusAction='%+1 Action Token',
+MinusCoin='%-1 Coin Token',
+MinusCard='%-1 Card Token',
 Trashing='Trashing Token',
 Estate='Estate Token',
 Journey='Journey Token',
-Project='Owns Project',
+Project='Project Token',
 Spellcaster='Spell Tokens',
 --VDFC
 VWayoftheBeast='V Beast pile',
@@ -1513,7 +1525,8 @@ cardSets={
 {name='Renaissance',events={4}},
 {name='Menagerie',events={5,6}},
 {name='Antiquities'},
-{name='Xtras'},
+{name='Venus',events={11,12}},
+--{name='Xtras'},
 {name='Tools'},
 {name='Spellcasters'},
 {name='Seasons'},
@@ -1524,8 +1537,8 @@ cardSets={
 {name='Promos',events={7}},
 {name='Co0kieL0rd'},
 {name='Adamabrams',events={8}},
+{name='Venus Mundane',events={11,12}},
 {name='Disasters'},
-{name='Venus',events={11,12}},
 {name='Witches'},
 {name='Duplicate/Outdated'}},
 eventSets={
@@ -2127,6 +2140,93 @@ MasterData={
 ['Highwayman']={c='M5D0P0',t='Action - Duration - Attack'},
 ['Modify']={c='M5D0P0',t='Action'},
 ['Swap']={c='M5D0P0',t='Action'},
+--Plunder
+['Cheap']={c='MXDXPX',t='Trait'},
+['Cursed']={c='MXDXPX',t='Trait',depend='Loot'},
+['Fated']={c='MXDXPX',t='Trait'},
+['Fawning']={c='MXDXPX',t='Trait'},
+['Friendly']={c='MXDXPX',t='Trait'},
+['Hasty']={c='MXDXPX',t='Trait'},
+['Inherited']={c='MXDXPX',t='Trait'},
+['Inspiring']={c='MXDXPX',t='Trait'},
+['Nearby']={c='MXDXPX',t='Trait'},
+['Patient']={c='MXDXPX',t='Trait'},
+['Pious']={c='MXDXPX',t='Trait'},
+['Reckless']={c='MXDXPX',t='Trait'},
+['Rich']={c='MXDXPX',t='Trait'},
+['Shy']={c='MXDXPX',t='Trait'},
+['Tireless']={c='MXDXPX',t='Trait'},
+['Bury']={c='M1D0P0',t='Event'},
+['Avoid']={c='M2D0P0',t='Event'},
+['Deliver']={c='M2D0P0',t='Event'},
+['Peril']={c='M2D0P0',t='Event',depend='Loot'},
+['Rush']={c='M2D0P0',t='Event'},
+['Foray']={c='M3D0P0',t='Event',depend='Loot'},
+['Launch']={c='M3D0P0',t='Event'},
+['Mirror']={c='M3D0P0',t='Event'},
+['Prepare']={c='M3D0P0',t='Event'},
+['Scrounge']={c='M3D0P0',t='Event'},
+['Journey']={c='M4D0P0',t='Event'},
+['Maelstrom']={c='M4D0P0',t='Event'},
+['Looting']={c='M6D0P0',t='Event',depend='Loot'},
+['Invasion']={c='M10D0P0',t='Event',depend='Loot'},
+['Prosper']={c='M10D0P0',t='Event',depend='Loot'},
+['Amphora']={c='M7D0P0',t='Treasure - Loot'},
+['Doubloons']={c='M7D0P0',t='Treasure - Loot'},
+['Endless Chalice']={c='M7D0P0',t='Treasure - Duration - Loot'},
+['Figurehead']={c='M7D0P0',t='Treasure - Duration - Loot'},
+['Hammer']={c='M7D0P0',t='Treasure - Loot'},
+['Insignia']={c='M7D0P0',t='Treasure - Loot'},
+['Jewels']={c='M7D0P0',t='Treasure - Duration - Loot'},
+['Orb']={c='M7D0P0',t='Treasure - Loot'},
+['Prize Goat']={c='M7D0P0',t='Treasure - Loot'},
+['Puzzle Box']={c='M7D0P0',t='Treasure - Loot'},
+['Sextant']={c='M7D0P0',t='Treasure - Loot'},
+['Shield']={c='M7D0P0',t='Treasure - Reaction - Loot'},
+['Spell Scroll']={c='M7D0P0',t='Treasure - Loot'},
+['Staff']={c='M7D0P0',t='Treasure - Loot'},
+['Sword']={c='M7D0P0',t='Treasure - Attack - Loot'},
+--PlunderKingdomCards
+['Cage']={c='M2D0P0',t='Treasure - Duration'},
+['Grotto']={c='M2D0P0',t='Action - Duration'},
+['Jewelled Egg']={c='M2D0P0',t='Treasure',depend='Loot'},
+['Search']={c='M2D0P0',t='Action - Duration',depend='Loot'},
+['Shaman']={c='M2D0P0',t='Action'},
+['Secluded Shrine']={c='M3D0P0',t='Action - Duration'},
+['Siren']={c='M3D0P0',t='Action - Duration - Attack'},
+['Stowaway']={c='M3D0P0',t='Action - Duration - Reaction'},
+['Taskmaster']={c='M3D0P0',t='Action - Duration'},
+['Abundance']={c='M4D0P0',t='Treasure - Duration'},
+['Cabin Boy']={c='M4D0P0',t='Action - Duration'},
+['Crucible']={c='M4D0P0',t='Treasure'},
+['Flagship']={c='M4D0P0',t='Action - Duration - Command'},
+['Fortune Hunter']={c='M4D0P0',t='Action'},
+['Gondola']={c='M4D0P0',t='Treasure - Duration'},
+['Harbor Village']={c='M4D0P0',t='Action'},
+['Landing Party']={c='M4D0P0',t='Action - Duration'},
+['Mapmaker']={c='M4D0P0',t='Action - Reaction'},
+['Maroon']={c='M4D0P0',t='Action'},
+['Rope']={c='M4D0P0',t='Treasure - Duration'},
+['Swamp Shacks']={c='M4D0P0',t='Action'},
+['Tools']={c='M4D0P0',t='Treasure'},
+['Buried Treasure']={c='M5D0P0',t='Treasure - Duration'},
+['Crew']={c='M5D0P0',t='Action - Duration'},
+['Cutthroat']={c='M5D0P0',t='Action - Duration - Attack',depend='Loot'},
+['Enlarge']={c='M5D0P0',t='Action - Duration'},
+['Figurine']={c='M5D0P0',t='Treasure'},
+['First Mate']={c='M5D0P0',t='Action'},
+['Frigate']={c='M5D0P0',t='Action - Duration - Attack'},
+['Longship']={c='M5D0P0',t='Action - Duration'},
+['Mining Road']={c='M5D0P0',t='Action'},
+['Pendant']={c='M5D0P0',t='Treasure'},
+['Pickaxe']={c='M5D0P0',t='Treasure',depend='Loot'},
+['Pilgrim']={c='M5D0P0',t='Action'},
+['Quartermaster']={c='M5D0P0',t='Action - Duration'},
+['Silver Mine']={c='M5D0P0',t='Treasure'},
+['Trickster']={c='M5D0P0',t='Action - Attack'},
+['Wealthy Village']={c='M5D0P0',t='Action',depend='Loot'},
+['Sack of Loot']={c='M6D0P0',t='Treasure',depend='Loot'},
+['King\'s Cache']={c='M7D0P0',t='Treasure'},
 --PromoSummonFirstPrintings
 ['Black Market']={c='M3D0P0',t='Action'},
 ['Church']={c='M3D0P0',t='Action - Duration'},
