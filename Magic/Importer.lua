@@ -711,7 +711,7 @@ Booster.PLANAR=function(qTbl)
 	u..'frame:2015+is:french_vanilla',
 	u..'((t:plane+or+t:phenomenon)+o:planeswalk)',
 	u..'((t:plane+or+t:phenomenon)+-o:planeswalk)',
-	u..'((t:plane+or+t:phenomenon)'..additional,
+	u..'(t:plane+or+t:phenomenon)'..additional,
 	u..'t:planeswalker'}
 	
 	return pack end

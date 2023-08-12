@@ -1177,14 +1177,14 @@ function setPileAmount(pileName,total)
   while pile.getQuantity()>total do pile.takeObject({}).destruct()
 end end
 --XML UI Buttons
-function playHand(color)
-  if color==Turns.color then
+function playHand(player,alt)
+  if player.color==Turns.turn_color then
     local objects = player.getHandObjects()
     local start = -2-#objects*2
     for i,o in ipairs(objects) do
       o.setPosition({start+i*4,1.3,-1})
     end
-  else Player[color].broadcast('Wait Your Turn.')
+  else player.broadcast('Wait Your Turn.')
 end end
 function drawCard(player)
   local t = ref.players[player.color]
