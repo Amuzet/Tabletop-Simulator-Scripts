@@ -1,11 +1,4 @@
---[[ToolImages
-W 1835788265945475567/A604CDD9CB11FD4B278F78C257F27A36BF63A1C9/
-R 1835788265945475304/AB09553FC2C8C157BBEB0610205992543B8F8B64/
-G 1835788265945475385/3B67F9A52B2A45D7F587E95F9344093F122830AD/
-B 1835788265945475656/E0FC911269DE2B638750C39C3503DC641C417669/
-Y 1835788265945475478/1BBE8F3A7BCFE09100996B1CF797421826EEDEEF/
-P 1835788265945475203/2C978CD2D1AB2438916C39E622CAEC7234EB4627/
-]]
+--MysticValeLeaderTool
 
 function onLoad()
 self.createButton({tooltip='Your Color Back',width=150*7,height=250,position={0,0,1.98},click_function = 'Clicked',function_owner=self})
@@ -35,12 +28,14 @@ function Clicked(o,c,a)
       if CardName==''then print('Failed')break end
       --Images
       local Front=LeaderSTAUrls[CardName]
-      if Front==nil then print('UndifinedSTA')break end
+      if Front==nil then print('Undifined STA for Card in GLOBAL')break end
       if Upgrade then Front=LeaderUPUrls[CardName]
-        if Front==nil then print('UndifinedLUP')break end
+        if Front==nil then
+        --Unsleaved Leaders
+          Player[c].braodcast('Leader becomes Unsleaved and stays out of deck. Copy a New Blank in your deck to replace it.')break end
       end
       Front=URL..Front
       
-      Card.setCustomObject({type=0,face=Front,back=URL..Back[c]})
+      Card.clone().setCustomObject({type=0,face=Front,back=URL..Back[c]})
 end end end 
 --EOF

@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.967
+mod_name,version='Card Importer',1.968
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -77,7 +77,8 @@ local Card=setmetatable({n=1,image=false},
 
 			elseif c.card_faces then--DFC
 				local f=c.card_faces[1]
-        c.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC DFC'
+				local cmc=c.cmc or f.cmc or 0
+        c.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..cmc..'CMC DFC'
         c.oracle=setOracle(f)
 				for i,face in ipairs(c.card_faces)do
 					if face.type_line:find('Battle')then
@@ -105,7 +106,8 @@ local Card=setmetatable({n=1,image=false},
         if t.image then faceAddress,backAddress=t.image,t.image end
         c.face=faceAddress
         local f=c.card_faces[2]
-        local name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC DFC'
+				local cmc=c.cmc or f.cmc or 0
+        local name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..cmc..'CMC DFC'
         local oracle=setOracle(f)
         local b=n
 				
@@ -707,12 +709,16 @@ Booster.PLANAR=function(qTbl)
 	u..'frame:2015+c>1',
 	u..'frame:2015+c<2+id>1',
 	u..'frame:2015+-is:permanent',
-	u..'frame:2015+-t:creature',
-	u..'frame:2015+is:french_vanilla',
+	u..'frame:2015+-t:creature'..additional,
+	--u..'frame:2015+is:french_vanilla',
+	--u..'is:vanilla',
+	u..'t:planeswalker',
+	u..'(t:plane+or+t:phenomenon)'..additional,
 	u..'((t:plane+or+t:phenomenon)+o:planeswalk)',
 	u..'((t:plane+or+t:phenomenon)+-o:planeswalk)',
-	u..'(t:plane+or+t:phenomenon)'..additional,
-	u..'t:planeswalker'}
+	u..'(t:plane+or+t:phenomenon)',
+	u..'frame:2015'
+	}
 	
 	return pack end
 --PLANES
