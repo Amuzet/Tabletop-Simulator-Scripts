@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.968
+mod_name,version='Card Importer',1.969
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -420,11 +420,44 @@ function spawnDeck(wr,qTbl)
     qTbl.deck=#deck
 
     for i,url in ipairs(deck) do
-      Wait.time(function()
-                  WebRequest.get(url,function(c) setCard(c,qTbl) end)
-                end,i*Tick)
+      Wait.time(function()WebRequest.get(url,function(c) setCard(c,qTbl) end)end,i*Tick)
     end
   end
+end
+
+function convertQuotedValues(str)
+	local a,b= str:gsub('%b""',function(g)return g:gsub(',',''):gsub('"','')end)
+	return a
+end
+
+function spawnDeckFromScryfall(wr,qTbl)
+	local side,deck,list='',{},wr.text
+	
+	for line in list:gmatch('[^\r\n]+')do
+		if ('SideboardMaybeboard'):find(line:match('%w+'))then
+			side=side..convertQuotedValues(line):match('%d+,[^,]+'):gsub(',',' ')..'\n'
+		elseif line:find(',(%d+),')then
+			for i=1,line:match(',(%d+),')do
+				table.insert(deck, line:match('https://scryfall.com/card/([^/]+/[^/]+)') )
+			end
+		end
+	end
+	
+  if side~=''then
+    Player[qTbl.color].broadcast('Sideboard Found and pasted into Notebook\n"Scryfall deck" to spawn most recent Notebook Tab')
+    uNotebook(qTbl.url,side)
+  end
+	
+  qTbl.deck=#deck
+  for i,u in ipairs(deck)do
+    Wait.time(function()WebRequest.get('https://api.scryfall.com/cards/'..u,function(c)
+
+					local t=JSON.decode(c.text)
+					if t.object~='card'then
+						WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard',function(c)setCard(c,qTbl)end)
+					else setCard(c,qTbl) end end)end,i*Tick)
+  end
+	
 end
 
 setCSV=4
@@ -473,7 +506,7 @@ function spawnCSV(wr,qTbl)
                                      setCard(c,qTbl)
                                    end
                 end)
-    end,i*Tick*2)
+    end,i*Tick)
   end
 end
 
@@ -534,7 +567,7 @@ local DeckSites={
     wr.text=r.text:match('%Wbody%W(.+)%W%Wbody%W'):gsub('<br.?>','\n')
     spawnDeck(wr,qTbl)end end,
 --scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
-  scryfall=function(a)setCSV=7 return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/csv',spawnCSV end,
+  scryfall=function(a)setCSV=7 return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/csv',spawnDeckFromScryfall end,
   --https://tappedout.net/users/i_am_moonman/lists/15-11-20-temp-cube/?cat=type&sort=&fmt=csv
   tappedout=function(a)if a:find('/lists/')then setCSV=3 else setCSV=4 end
     return a:gsub('.cb=%d+','')..'?fmt=csv',spawnCSV end,
