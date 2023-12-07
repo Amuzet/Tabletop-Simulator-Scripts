@@ -1215,7 +1215,6 @@ function onChat(msg,p)
 "76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg",
 "76561198069287630":"http://i.imgur.com/OCOGzLH.jpg",
 "76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg",
-"76561198067119699":"https://i.imgur.com/TyC0LWj.jpg",
 "76561198317076000":"https://i.imgur.com/vh8IeEn.jpeg"}]],'\n','')
 
 			Back=TBL.new('https://gamepedia.cursecdn.com/mtgsalvation_gamepedia/f/f8/Magic_card_back.jpg',JSON.decode(self.script_state))
