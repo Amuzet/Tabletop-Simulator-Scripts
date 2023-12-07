@@ -114,7 +114,8 @@ local Card = setmetatable({ n = 1, image = false },
           end
         elseif cardInformation.card_faces then --DFC
           local f = cardInformation.card_faces[1]
-          cardInformation.name = f.name:gsub('"', '') .. '\n' .. f.type_line .. '\n' .. cardInformation.cmc .. 'CMC DFC'
+          local cmc = cardInformation.cmc or f.cmc or 0
+          cardInformation.name = f.name:gsub('"', '') .. '\n' .. f.type_line .. '\n' .. cmc .. 'CMC DFC'
           cardInformation.oracle = setOracle(f)
           for i, face in ipairs(cardInformation.card_faces) do
             if face.type_line:find('Battle') then
@@ -143,7 +144,8 @@ local Card = setmetatable({ n = 1, image = false },
           if this.image then faceAddress, backAddress = this.image, this.image end
           cardInformation.face = faceAddress
           local back_face = cardInformation.card_faces[2]
-          local name = back_face.name:gsub('"', '') .. '\n' .. back_face.type_line .. '\n' .. cardInformation.cmc .. 'CMC DFC'
+          local cmc = cardInformation.cmc or back_face.cmc or 0
+          local name = back_face.name:gsub('"', '') .. '\n' .. back_face.type_line .. '\n' .. cmc .. 'CMC DFC'
           local oracle = setOracle(back_face)
           local b = n
 
@@ -520,6 +522,47 @@ function spawnDeck(webRequest, qTbl)
   end
 end
 
+---@param str string
+function convertQuotedValues(str)
+  local a, b = str:gsub('%b""', function(g) return g:gsub(',', ''):gsub('"', '') end)
+  return a
+end
+
+---@param wr any
+---@param qTbl qTbl
+function spawnDeckFromScryfall(wr, qTbl)
+  local side, deck, list = '', {}, wr.text
+
+  for line in list:gmatch('[^\r\n]+') do
+    if ('SideboardMaybeboard'):find(line:match('%w+')) then
+      side = side .. convertQuotedValues(line):match('%d+,[^,]+'):gsub(',', ' ') .. '\n'
+    elseif line:find(',(%d+),') then
+      for i = 1, line:match(',(%d+),') do
+        table.insert(deck, line:match('https://scryfall.com/card/([^/]+/[^/]+)'))
+      end
+    end
+  end
+
+  if side ~= '' then
+    Player[qTbl.color].broadcast('Sideboard Found and pasted into Notebook\n"Scryfall deck" to spawn most recent Notebook Tab')
+    uNotebook(qTbl.url, side)
+  end
+
+  qTbl.deck = #deck
+  for i, u in ipairs(deck) do
+    Wait.time(function()
+      WebRequest.get('https://api.scryfall.com/cards/' .. u, function(c)
+        local t = JSON.decode(c.text)
+        if t.object ~= 'card' then
+          WebRequest.get('https://api.scryfall.com/cards/named?fuzzy=blankcard', function(c) setCard(c, qTbl) end)
+        else
+          setCard(c, qTbl)
+        end
+      end)
+    end, i * TickConstant)
+  end
+end
+
 setCSV = 4
 ---@param webRequest any
 ---@param qTbl qTbl
@@ -644,7 +687,7 @@ local DeckSites = {
   --scryfall=function(a)return'https://api.scryfall.com'..a:match('(/decks/.*)')..'/export/text',spawnDeck end,
   scryfall = function(a)
     setCSV = 7
-    return 'https://api.scryfall.com' .. a:match('(/decks/.*)') .. '/export/csv', spawnCSV
+    return 'https://api.scryfall.com' .. a:match('(/decks/.*)') .. '/export/csv', spawnDeckFromScryfall
   end,
   --https://tappedout.net/users/i_am_moonman/lists/15-11-20-temp-cube/?cat=type&sort=&fmt=csv
   tappedout = function(a)
@@ -992,6 +1035,7 @@ local Booster = setmetatable({
   end
 })
 
+---@param qTbl qTbl
 function spawnPack(qTbl, pack)
   qTbl.deck = #pack
   qTbl.mode = 'Deck'
@@ -999,6 +1043,7 @@ function spawnPack(qTbl, pack)
   for i, u in pairs(pack) do
     Wait.time(function()
       WebRequest.get(u, function(wr)
+        if wr.text:find('object:"error"') then log(u) end
         setCard(wr, qTbl)
       end)
     end, i * TickConstant)
