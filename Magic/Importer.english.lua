@@ -1289,8 +1289,8 @@ Importer = setmetatable({
     if qTbl.name:find('q=') then
       url = url .. qTbl.full:match('%s(%S+)')
     else
-      for _, tbl in ipairs({ { w = 'c%3Aw', u = 'c%3Au', b = 'c%3Ab', r = 'c%3Ar',       g = 'c%3Ag' },
-        { i = 't%3Ainstant', s = 't%3Asorcery', e = 't%3Aenchantment', c = 't%3Acreature', a = 't%3Aartifact', l = 't%3Aland', p = 't%Aplaneswalker' } }) do
+      for _, tbl in ipairs({ { w = 'c%3Aw', u = 'c%3Au', b = 'c%3Ab', r = 'c%3Ar',       g = 'c%3Ag',        n = 'c%3Ac' },
+        { i = 't%3Ainstant', s = 't%3Asorcery', e = 't%3Aenchantment', c = 't%3Acreature', a = 't%3Aartifact', l = 't%3Aland', p = 't%Aplaneswalker', o = 't%3Acontraption' } }) do
         local t, q2 = 0, ''
         for k, m in pairs(tbl) do
           if string.match(qTbl.name:lower(), k) then
