@@ -1009,8 +1009,8 @@ Importer=setmetatable({
   Random=function(qTbl)
     local url,q1='https://api.scryfall.com/cards/random','?q=is:hires'
     if qTbl.name:find('q=')then url=url..qTbl.full:match('%s(%S+)')else
-      for _,tbl in ipairs({{w='c%3Aw',u='c%3Au',b='c%3Ab',r='c%3Ar',g='c%3Ag'},
-          {i='t%3Ainstant',s='t%3Asorcery',e='t%3Aenchantment',c='t%3Acreature',a='t%3Aartifact',l='t%3Aland',p='t%Aplaneswalker'}})do
+      for _,tbl in ipairs({{w='c%3Aw',u='c%3Au',b='c%3Ab',r='c%3Ar',g='c%3Ag',n='c%3Ac'},
+          {i='t%3Ainstant',s='t%3Asorcery',e='t%3Aenchantment',c='t%3Acreature',a='t%3Aartifact',l='t%3Aland',p='t%Aplaneswalker',o='t%3Acontraption'}})do
         local t,q2=0,''
         for k,m in pairs(tbl) do
           if string.match(qTbl.name:lower(),k)then
@@ -1215,6 +1215,7 @@ function onChat(msg,p)
 "76561198045776458":"https://cdnb.artstation.com/p/assets/images/images/009/160/199/medium/gui-ramalho-air-compass.jpg",
 "76561198069287630":"http://i.imgur.com/OCOGzLH.jpg",
 "76561198005479600":"https://images-na.ssl-images-amazon.com/images/I/61AGZ37D7eL._SL1039_.jpg",
+"76561198067119699":"https://i.imgur.com/TyC0LWj.jpg",
 "76561198317076000":"https://i.imgur.com/vh8IeEn.jpeg"}]],'\n','')
 
 			Back=TBL.new('https://gamepedia.cursecdn.com/mtgsalvation_gamepedia/f/f8/Magic_card_back.jpg',JSON.decode(self.script_state))
