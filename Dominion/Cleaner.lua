@@ -1,7 +1,13 @@
---By Amuzet
+--By Amuzet: make Turn Tracker display the amount of turns
 version,mod_name=2,'Dominion Play Area'
 GITURL='https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Cleaner.lua'
-local Script,DISCONNECT,playArea,currDebt,option=false,false,false,false,{Flag=false,Horn=false,autoHorn=false}
+local Script,DISCONNECT,playArea,currDebt,option=false,false,false,false,{Flag=false,autoHorn=false}
+
+function toggleAutoHorn()
+  option.autoHorn=not option.autoHorn;broadcastToAll('Auto Horn '..tostring(option.autoHorn))end
+
+
+
 function onLoad(sData)
   if not Script then
     Script=getObjectFromGUID('176e6a')
@@ -13,6 +19,9 @@ function onLoad(sData)
     if v then v=tonumber(v)
       if v>version then self.setLuaScript(wr.text)self.reload()end
     else broadcastToAll('Problems have occured! Attempt to contact Amuzet on TTSClub',{1,0,0.2})end end)
+  
+  addContextMenuItem('Toggle Auto Horn',toggleAutoHorn)
+  
   if sData~=''then
     local o=sData:match('(w+)')
     o=getObjectFromGUID(o)
@@ -35,11 +44,14 @@ function onObjectEnterScriptingZone(z,o)
       if n>0 then currDebt=n
         broadcastToAll(Player[Turns.turn_color].steam_name..' has [ee1111]'..n..' Debt',stringColorToRGB(Turns.turn_color))
 end end end end
+
 function onPlayerDisconnect(player)
   DISCONNECT=player.color
   delay('dc',{color=DISCONNECT})
 end function dc()DISCONNECT=false end
+
 function wait(time)local start=os.time()repeat coroutine.yield(0)until os.time()>start+time end
+
 function onPlayerTurn(player)
   local gs=Script.getVar('gameState')
   if gs==3 then
@@ -71,17 +83,19 @@ function onPlayerTurn(player)
           v.setPosition({p[1],p[2],p[3]+5})end end
       for _,v in pairs(getObjectFromGUID(t.zone).getObjects())do
         if v.getName()=='Flag'then t.draw=t.draw+1
-        elseif v.getName()=='Horn'and option.autoHorn then
-          local tbl={position=t.deck,rotation={0,0,0},1}
-          for _,o in pairs(playArea.getObjects())do
-            if o.type=='Card'and o.getName()=='Border Guard'then
-              o.putObject(getDeck(t.zoneDeck.getObjects()))break
-            elseif o.type=='Deck'then
-              for d,c in pairs(o.getObjects())do
-                if c.nickname=='Border Guard'then
-                  tbl.index,tbl.bool=d,true
-                  o.takeObject(tbl)break end end end
-            if tbl.bool then break end end end end
+        elseif v.getName()=='Horn'then
+          v.addContextMenuItem('Toggle Auto Horn',toggleAutoHorn)
+          if option.autoHorn then
+            local tbl={position=t.deck,rotation={0,0,0},1}
+            for _,o in pairs(playArea.getObjects())do
+              if o.type=='Card'and o.getName()=='Border Guard'then
+                o.putObject(getDeck(t.zoneDeck.getObjects()))break
+              elseif o.type=='Deck'then
+                for d,c in pairs(o.getObjects())do
+                  if c.nickname=='Border Guard'then
+                    tbl.index,tbl.bool=d,true
+                    o.takeObject(tbl)break end end end
+              if tbl.bool then break end end end end end
       --Put play area and hand in discard pile
       putDiscard(playArea.getObjects(),t.discard)
       putDiscard(Player[Turns.getPreviousTurnColor()].getHandObjects(),t.discard,true)

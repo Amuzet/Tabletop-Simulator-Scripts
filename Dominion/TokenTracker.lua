@@ -8,7 +8,7 @@ B=setmetatable({click_function='click',function_owner=self,label=count,font_colo
  t.label,t.tooltip=count,rT..'\nClick to Increase\nRight Click to Decrease'
  t.scale,t.position[2]={0.8,1,0.8},0.1
  if ('Pirate Ship CoinsVillagers'):find(rT)then
- elseif rT=='Owns Project'then t.position[2]=0.7
+ elseif rT=='Project Token'then t.position[2],t.scale=1.1,{0.6,1,0.6}
  else t.scale={1.1,1.1,1.1}end
  self.createButton(t)end})
 function r()self.reload()end

@@ -13,6 +13,8 @@ Bag={
 ['1f75bb']='Orange',
 }
 STORAGE='c5027a'
+--rDeck is Runtime Object
+
 
 function onLoad()
 	print('onLoad!')
@@ -33,6 +35,101 @@ function onLoad()
 	addContextMenuItem('Start Game',Setup)
 end
 
+function onObjectDrop(color,obj)
+	
+	if obj.type=='Card'then
+		obj.setLock(true)
+		shiftGridCards(obj)
+		
+--TODO: raycast card to shift all the other objects in that row which are further Right of it to the right.
+		obj.setLock(false)
+	end
+--TODO:add colider check to detect market to marker collision
+--TODO: ONLY DO SO WHEN MARKER IS NOT MERGED
+--MERGE WHEN COLLISION FUNCTION
+--HAVE BUTTON TO UN MERGE
+--should be fine when 
+end
+
+function bellowThis(pos)
+	return Physics.cast({ origin=pos, debug=true, direction={0,-1,0} })
+end
+
+function shiftGridCards(obj)
+	local inGrid=false
+	
+	for _,z in pairs(obj.getZones())do
+		if z.guid==RAND_ZONE then
+			inGrid=true break end end
+	
+	if not inGrid then return end
+	
+	local cardBellow=false
+	
+	for _,o in pairs(bellowThis(obj.getPosition()))do
+		if o.type=='Card'then
+			cardBellow=o break end end
+	
+	if not cardBellow then return end
+	
+	local bound=cardBellow.getBoundsNormalized().size
+	local min=cardBellow.x-bound.x/2
+	local z={
+		cardBellow.getPosition().z-bound.z/2,
+		cardBellow.getPosition().z+bound.z/2}
+	
+	for _,o in pairs(getObjectFromGUID(RAND_ZONE).getObjects())do
+		
+		if min < o.position.x and
+			z[1] < o.position.z and
+			z[2] > o.position.z then
+			
+			o.translate({-5,0,0})
+			
+		end
+	end
+	
+end
+
+
+function onPlayerTurn(player,current)
+	
+	if #Player['Orange'].getHandObjects()<3 then
+		
+		if draw2 then
+			
+		end
+	end
+end
+
+
+
+function onObjectEnterZone(z,o)updateSupplyUI(z,o)end
+function onObjectLeaveZone(z,o)updateSupplyUI(z,o)end
+
+function onObjectEnterContainer(container, obj)
+  if container.type=='Deck'then return true end
+
+  if Bag[container.guid]then
+    updateBagUI(container)
+		container.shuffle()
+  end
+end
+
+
+--[[
+A #TT to #TT
+A #TT and #TT
+A #TT and A #TT
+A #TT then A #TT
+A #TT or #TT to #TT
+A #TT or A #TT to #TT
+
+A #TT L A? #TT
+]]
+
+
+--
 function Setup()
   local deckZone=getObjectFromGUID(DECK_ZONE)
   local decks=deckZone.getObjects()
@@ -59,29 +156,7 @@ function DealCards()
 	end
 end
 
-function onObjectEnterZone(z,o)updateSupplyUI(z,o)end
-function onObjectLeaveZone(z,o)updateSupplyUI(z,o)end
 
-function onObjectEnterContainer(container, obj)
-  if container.type=='Deck'then return true end
-
-  if Bag[container.guid]then
-    updateBagUI(container)
-		container.shuffle()
-  end
-end
-
-function grabRC(c,pos,o)grabCube(o,c,'red')end
-function grabUC(c,pos,o)grabCube(o,c,'blue')end
-function grabYC(c,pos,o)grabCube(o,c,'yellow')end
-function grabBC(c,pos,o)grabCube(o,c,'black')end
-
-function grabCube(o,c,cube)
-	if not Bag[o.guid]==c then
-		broadcastToAll(Player[c].steam_name..' Attempted to take from another`s bag!')
-  end
-	
-end
 
 function NA()end
 ButtonBag={font_size=400,click_function='NA',function_owner=self,label='',width=0,height=0}
@@ -136,6 +211,9 @@ function Player5(deck)
 	if #getSeatedPlayers()>5 then return end
 	deck.takeObject({flip=true, position=getObjectFromGUID(PLY5_ZONE).getPosition()})
 end
+
+
+--[[MODULES]]
 function InstantModule(deck)
 	local instant={}
 	for _,o in ipairs(getObjectFromGUID(EXTR_ZONE).getObjects())do
@@ -174,6 +252,88 @@ function InstantModule(deck)
 	
 		
 	end
+end
+
+---------------------------------------------------
+-- During Play Automations
+---------------------------------------------------
+
+function grabRC(c,pos,o)grabCube(o,c,'red')end
+function grabUC(c,pos,o)grabCube(o,c,'blue')end
+function grabYC(c,pos,o)grabCube(o,c,'yellow')end
+function grabBC(c,pos,o)grabCube(o,c,'black')end
+function grabCube(o,c,cube)
+	if not Bag[o.guid]==c then
+		broadcastToAll(Player[c].steam_name..' Attempted to take from another`s bag!')
+  end
+end
+
+--[[Actions to be done by act function to automate the resource generation process]]
+ACTIONS={  --DESTINATION ORIGINATE
+STEAL='YourSupply OpponentSupply', TAKE='YourSupply TheSupply',
+GIVE ='OpponentSupply YourSupply', LOSE='TheSupply YourSupply',
+
+DRAW='YourSupply YourBag', PICK ='YourBag TheSupply', INSERT='YourSupply MainPool',
+PUT ='YourBag YourSupply', ASDF2='TheSupply YourBag', REMOVE='MainPool YourSupply',
+}
+SWAPING={
+TRADE  ='YourSupply OpponentSupply',
+SWAP   ='YourSupply TheSupply',
+CONVERT='YourSupply YourBag',
+SWAP   ='YourSupply MainPool',
+ASDF   ='YourBag TheSupply',
+}
+
+
+
+function gottenObjects(t) --{target='RED CUBE',n=2,z='De Or'}
+	local origin=t.z:match('%S+ (%S+)')
+	
+	local foundObjects={}
+	
+--	if SearchZone[origin]then
+--		return SearchZone[origin](foundObjects)
+	
+	if origin=='OpponentSupply'then
+		
+		local min,max,plyN,plyM=0,0,Turns.turn_color,Turns.turn_color
+	--for players other than you count up min and max
+		for color,guid in pairs(PLYR_ZONE)do
+			if Player[color] and color~=Turns.turn_color then
+				
+				local n=0
+				
+				for _,o in pairs(getObjectFromGUID(guid).getObjects() )do
+					if o.getName():upper()==t.target then
+						if t.n<n then
+							table.insert(foundObjects,o)
+						end
+						n=n+1
+					end
+				end
+				
+			end
+		end
+		
+		return foundObjects
+	end
+	
+	
+	
+end
+
+function determineValidAction(tbd)
+	local str=tbd:upper()
+	
+	local possibilites={}
+	
+	for act,zones in pairs(ACTIONS)do
+		for amount, tokens in str:gmatch(act..'(\?%d+) (%S+ %S+)')do
+			table.insert(possibilites, gottenObjects({ target=tokens, n=amount, z=zones })
+		end
+	end
+	
+	
 end
 
 

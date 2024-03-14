@@ -122,6 +122,11 @@ function onLoad(saved_data)
       put('Sets In Randomizer: '..setsMax,'The amount of sets that will be included in the randomizer')
       put('Event Cards To Use: '..eventMax,'The amount of Event type cards that will be used')
       put('Black Market Cards: '..blackMarketMax,'The amount of cards that will be used for Black Market card on top of Promos\n10 Card Minimum; Card Maximum based on 20 cards per set, minus 10.')
+      --Number of Attacks/reactions/durations/treasures
+      --put('Guaranteed Attacks: '..guaranteeAttack,'Amount of Attack cards to guarantee in the Kingdom')
+      --put('Guaranteed Reactions: '..guaranteeAttack,'Amount of Reaction cards to guarantee in the Kingdom')
+      --put('Guaranteed : '..guaranteeAttack,'Amount of  cards to guarantee in the Kingdom')
+      --put('Guaranteed : '..guaranteeAttack,'Amount of  cards to guarantee in the Kingdom')
       put.d=-3
       put.scale={0.7,1,0.7}
       put.height=2000
@@ -328,7 +333,11 @@ function kingdomList(str,par)
       if s:find('Young Witch')then j=j+1 end
       findCard(t,ref.eventSets,ref.eventSlots[j].pos)end end
 end
+
+ActionableTypes={'Looter','Reserve','Doom','Fate','Project','Liaison','Loot','Gathering','Fame','Season','Spellcaster'}
+
 Use=setmetatable({' ',' '},{__call=function(t,s)local _,n=t[1]:gsub(' '..s..' ',' '..s..' ');if n>0 then return n end return false end})
+
 function Use.Add(n)
   if Use(n:gsub(' ',''))then return end
   local x,s,c=0,' ',n
@@ -339,31 +348,58 @@ function Use.Add(n)
   if not getCost(c):find('DX')then
     local d=tonumber(getCost(c):match('D(%d+)'))
     if d>0 then s=s..'Debt 'end end
-  for _,t in pairs({'Looter','Reserve','Doom','Fate','Project','Liaison','Gathering','Fame','Season','Spellcaster'})do if getType(c):find(t)then s=s..t..' 'end end
-  for i,v in pairs(MasterData)do if c==v.name then x=i;if v.depend then s=s..v.depend..' 'end break end end
+  for _,t in pairs(ActionableTypes)do if getType(c):find(t)then s=s..t..' 'end end
+  log(getDepend(c))
+  s=s..getDepend(c)..' '
   if 100<x and x<126 then s=s..'Platinum 'elseif 175<x and x<225 then s=s..'Shelters 'end
   createHeirlooms(c)
   log(s)
   Use[1]=Use[1]..c:gsub(' ','')..s
 end
 --Input Callbacks
-function put_SetsInRandomizer(o,c,i,s)if not s then
-  setsMax=tonumber(i:match('%d+'))
-  if setsMax>15 then setsMax=15 end
-  Wait.time(function()objButton.editInput({index=0,value='Sets In Randomizer: '..setsMax})end,0.1)
-end end
-function put_EventCardsToUse(o,c,i,s)if not s then
-  eventMax=tonumber(i:match('%d+'))
+function updatePutInput(id,text)
+  Wait.time(function()objButton.editInput({
+    index=id,value=text})end,0.1)end
+
+--[[function put_TextWithoutSpaces(object,colorPlayer,totalInput,stillEditing?)end]]
+function put_SetsInRandomizer(o,c,i,s)
+  if not s then setsMax=tonumber(i:match('%d+'))
+  if setsMax>16 then setsMax=16 end
+  updatePutInput(0,'Sets In Randomizer: '..setsMax)end end
+
+function put_EventCardsToUse(o,c,i,s)
+  if not s then eventMax=tonumber(i:match('%d+'))
   if eventMax>4 then eventMax=4 end
-  Wait.time(function()objButton.editInput({index=1,value='Event Cards To Use: '..eventMax})end,0.1)
-end end
-function put_BlackMarketCards(o,c,i,s)if not s then
-  blackMarketMax=tonumber(i:match('%d+'))
-  local d=(setsMax*20)-10
-  if blackMarketMax>d then blackMarketMax=d
+  updatePutInput(1,'Event Cards To Use: '..eventMax)end end
+
+function put_BlackMarketCards(o,c,i,s)
+  if not s then blackMarketMax=tonumber(i:match('%d+'))
+  local m=(setsMax*20)-10
+  if blackMarketMax>m then blackMarketMax=m
   elseif blackMarketMax<10 then blackMarketMax=10 end
-  Wait.time(function()objButton.editInput({index=2,value='Black Market Cards: '..blackMarketMax})end,0.1)
-end end
+  updatePutInput(2,'Black Market Cards: '..blackMarketMax)end end
+
+--[[TODO:Kingdom Setup Inputs
+function inputType(nptID, typeString, max , i )
+  local n=tonumber(i:match('%d+'))
+  if n>max then n=max
+  elseif n<0 then n=0 end
+  --global.setVar('typeMax'..typeString,n)
+  updatePutInput(nptID ,'Guarantee '..typeString..': '..n)end
+
+for id,typeString in pairs({
+'Attack','Treasure','Reaction','Liason'})do
+  
+  global.setVar('put_Guarantee_'..typeString,function(o,c,i,s)
+    
+    if s then return end
+    inputType(2+i,typeString,5,i)
+    
+  end)end
+
+function put_Guarantee_Attack(o,c,i,s)if s then return end
+  inputType(3,'Attack',5,i)end
+]]
 --Button Callbacks
 function click_selectDeck(obj, color)
   local guid,inUse,a=obj.getGUID(),true,{1,1,1}
@@ -707,12 +743,15 @@ function setupKingdom()
           cleanDeck=true
           for i, v in ipairs(deck.getObjects())do
             local tp=getType(v.name)
-            if('EventLandmarkProjectWayEdictSpell'):find(tp)then
+            if type(tp)~='string'then log(tp,v.name)end
+            --TODO:ERROR Bad arguemnt to find, string expected
+            if('EventLandmarkProjectWayEdictSpellAllyTraveller'):find(tp)then
               coroutine.yield(0)
               deck.takeObject({index=v.index}).destruct()
               cleanDeck=false
               break
-            elseif('KnightsCastlesX Stallions'):find(v.nickname)or v.nickname:find(' / ')then
+            elseif('KnightsCastlesX StallionsClashesFortsAugursTownsfolkOdysseysWizards'):find(v.nickname)or
+                v.nickname:find(' / ')then
               coroutine.yield(0)
               local p=getPile(v.nickname..' pile')
               deck.takeObject({index=v.index}).destruct()
@@ -732,6 +771,23 @@ function setupKingdom()
         for i, v in ipairs(deck.getObjects())do Use.Add(v.name)end
         if not Use('YoungWitch')then deck.takeObject({index=1}).destruct()end
       end
+      
+      
+  --[[
+  
+  function ChooseUnusedKingdomPile( StringNameNoSpace , CostMin , CostMax )
+    if not Use( StringNameNoSpace )then return end
+    for i,v in ipairs(
+      getObjectFromGUID(ref.)
+    )
+    
+    end
+  end
+  
+  
+  
+  ]]
+  
       local baneSet, blackMarket2Check=false, false
       if Use('YoungWitch')then
         for i,v in ipairs(getObjectFromGUID(ref.baneSlot.zone).getObjects())do
@@ -873,10 +929,11 @@ function cleanUp()
   end end
   local sideSlots={}
   local f=function(a,p)if a then table.insert(sideSlots,p)else
-    if getPile(p..' pile') then
-    getPile(p..' pile').destruct()
+    local l=getPile(p..' pile')
+    if l then l.destruct()
     else print('Does Not Exist! ',p)
-    end end end
+  end end end
+  --Checking Use, Deletion
   f(Use('Page'),'Champion')
   f(Use('Page'),'Hero')
   f(Use('Page'),'Warrior')
@@ -903,7 +960,8 @@ function cleanUp()
   f(Use('Doom'),'Hexes')
   f(Use('Doom')or Use('Fool'),'States')
   f(Use('Artifact'),'Artifacts')
-  --f(Use('Liaison'),'Allies')
+  f(Use('Liaison'),'Ally')
+  f(Use('Loot'),'Loot')
   --CustomCards
   f(Use('SpellV'),'V Spell')
   f(Use('Disaster'),'C Wastes')
@@ -956,7 +1014,7 @@ function cleanUp()
     if Use(k)then Suppliment[k]=nil end end
   for _,obj in pairs(getAllObjects())do
     for k,v in pairs(Suppliment)do
-      if obj.getName()==v or obj.getName()=='Rules '..k then
+      if obj.getName():find(v) then
         obj.destruct()
       elseif obj.getName():find(' Token')then
         obj.setLock(false)
@@ -1087,9 +1145,10 @@ function createPile()
     end end end cleanUp()return 1
   end startLuaCoroutine(self, 'createPileCoroutine')end
 function NO()end
-function getVP(n)if Victory[n]then return Victory[n]end if MasterData[n]then return MasterData[n].VP end return 0 end
+function getVP(n)if Victory[n]then return Victory[n]end if MasterData[n] and MasterData[n].VP then return MasterData[n].VP end return 0 end
 function getCost(n)if MasterData[n]then return MasterData[n].c end return'M0D0P0'end
 function getType(n)if MasterData[n]then return MasterData[n].t end return'Event'end
+function getDepend(n)if MasterData[n] and MasterData[n].depend then return MasterData[n].depend end return' 'end
 --[[ Old Code
 function getVP(n)if Victory[n]then return Victory[n]end for _,v in pairs(MasterData)do if n==v.name then return v.VP or 0 end end end
 function getCost(n)for _,v in pairs(MasterData)do if n==v.name then return v.c end end return'M0D0P0'end
@@ -1139,12 +1198,12 @@ function copyStartingDecks()
   for p,v in pairs(ref.players)do if p~='White'then
     deck.clone({position=v.deck})end end
   
-  Timer.create({identifier='dSH',function_name='dealStartingHands',delay=2})
+  Timer.create({identifier='dSH',function_name='dealStartingHands',delay=1})
 end
 -- Function to deal starting hands
 function dealStartingHands()
   function dealStartingHandsCoroutine()
-    wait(2,'dshcShuffle')
+    wait(1,'dshcShuffle')
     for i, v in pairs(ref.players)do
       for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects())do
         if b.type=='Deck'then
@@ -1152,7 +1211,7 @@ function dealStartingHands()
         end
       end
     end
-    wait(0.5,'dshcDeal')
+    wait(1,'dshcDeal')
     for i, v in pairs(ref.players)do
       for j, b in pairs(getObjectFromGUID(v.deckZone).getObjects())do
         if b.type=='Deck'then
@@ -1186,6 +1245,20 @@ function playHand(player,alt)
     end
   else player.broadcast('Wait Your Turn.')
 end end
+
+function autoBandit(player)
+  --[[
+  if playarea contains 'Bandit' then
+    for each other player do
+      if playerhand not contain 'Reaction' then
+        revealTopCards( 2 )
+        discard('Treasure','reverse')
+      end
+    end
+  end
+  ]]
+end
+
 function drawCard(player)
   local t = ref.players[player.color]
   local deck = {zone = getObjectFromGUID(t.deckZone)}
@@ -1351,7 +1424,7 @@ Aqueduct=function(o)local n=o.getName()if n=='Golds'or n=='Silvers'then tokenMak
 Suppliment={
 --Tracker
 VP='Victory Points',
-Debt='Debt Tokens',
+Debt='Debt',
 Coffers='Coffers',
 Villager='Villagers',
 PirateShip='Pirate Ship Coins',
@@ -1378,7 +1451,7 @@ Trashing='Trashing Token',
 Estate='Estate Token',
 Journey='Journey Token',
 Project='Project Token',
-Spellcaster='Spell Tokens',
+Spellcaster='Spell Token',
 --VDFC
 VWayoftheBeast='V Beast pile',
 VGuildmaster='V Novice pile',
@@ -1476,7 +1549,9 @@ sidePiles={
 {name='Soldier pile'},
 {name='Fugitive pile'},
 {name='Disciple pile'},
-{name='Teacher pile'}},
+{name='Teacher pile'},
+{name='Ally pile'},
+{name='Loot pile'}},
 replacementPiles={
 {name='Knights pile'},
 {name='Sauna / Avanto pile'},
@@ -1486,6 +1561,12 @@ replacementPiles={
 {name='Gladiator / Fortune pile'},
 {name='Patrician / Emporium pile'},
 {name='Settlers / Bustling Village pile'},
+{name='Clashes pile'},
+{name='Forts pile'},
+{name='Augurs pile'},
+{name='Townsfolk pile'},
+{name='Odysseys pile'},
+{name='Wizards pile'},
 {name='X Stallions pile'},
 {name='C Panda / Gardener pile'},
 {name='V Fruits / Fruit Mix pile'},
@@ -1524,6 +1605,8 @@ cardSets={
 {name='Nocturne'},
 {name='Renaissance',events={4}},
 {name='Menagerie',events={5,6}},
+{name='Allies'},
+{name='Plunder'},
 {name='Antiquities'},
 {name='Venus',events={11,12}},
 --{name='Xtras'},
