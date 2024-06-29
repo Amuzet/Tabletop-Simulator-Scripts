@@ -60,68 +60,68 @@ end
 function createCopy(obj,r,a)
   local c=r or'White'
   if a then Player[c].print(obj.getName()..obj.getDescription())return end
-  local h=Player[c].getHandTransform()or{position={1.7,2,34}}
-  h.position[3]=h.position[3]/42.5
-  local dup=obj.clone({position=h.position})
+  local h=Player[c].getPointerPosition()or{1.7,2,34}
+  h[2]=h[2]+1
+  local dup=obj.clone({position=h})
   dup.setLock(false)
   dup.setColorTint(Color[c])
   setScript(dup,c)
 end
 
 replacement={
-  hipogonally='P',
-  hippogonally='P',
-  forwardP='*>',
-  backwardP='*<',
-  forwarddiagonally='X>',
-  backwarddiagonally='X<',
-  forwardorthogonally='>',
-  backwardorthogonally='<',
-  --MoveAttackforward='*>',
-  RepeatedLeapAttack='~∞',
-  RepeatedLeap='O~∞',
-  LeapAttack='~',
-  MoveAttack='',
-  MoveCapture='C',
-  Move='O',
-  Leap='O~',
-  Attack='C',
-  Hopoveraunit='O^',
-  anenemyunitbeyondit='+(1)',
-  Hop='^',
-  diagonally='X',
-  forward='*>',
-  backward='*<',
-  orthogonally='+',
-  horizontally='=',
-  sideways='=',
-  vertically='<>',
-  vertical='<>',
-  [';']='/',
-  [',']='/',
-  ['and']='.',
-  ['then']='.',
-  --NonStandardNotation
-  ['Coup.againstRoyalunit.:']='R',
-  wide='W',
-  narrow='N',
-  outward='',
-  repeatedly='',
-  inenemyterritory='E',
-  infriendlyterritory='F',
-  ['pastboard\'shalf']='H',
-  P='',
-  ['Xor%+']='*',
-  ['%+orX']='*',
-  ['<or>']='<>',
-  ['or']='',
-  ['%*>%*<']='*<>',
-  ['%*<%*>']='*<>',
-  ['W=']='W'}
+hipogonally='P',
+hippogonally='P',
+forwardP='*>',
+backwardP='*<',
+forwarddiagonally='X>',
+backwarddiagonally='X<',
+forwardorthogonally='>',
+backwardorthogonally='<',
+--MoveAttackforward='*>',
+repeatedleapattack='~∞',
+repeatedleap='O~∞',
+leapattack='~',
+moveattack='',
+movecapture='C',
+move='O',
+leap='O~',
+attack='C',
+hopoveraunit='O^',
+anenemyunitbeyondit='+(1)',
+hop='^',
+diagonally='X',
+forward='*>',
+backward='*<',
+orthogonally='+',
+horizontally='=',
+sideways='=',
+vertically='<>',
+vertical='<>',
+[';']='/',
+[',']='/',
+['and']='.',
+['then']='.',
+--NonStandardNotation
+['Coup.againstRoyalunit.:']='R',
+wide='W',
+narrow='N',
+outward='',
+repeatedly='',
+inenemyterritory='E',
+infriendlyterritory='F',
+['pastboard\'shalf']='H',
+P='',
+['Xor%+']='*',
+['%+orX']='*',
+['<or>']='<>',
+['or']='',
+['%*>%*<']='*<>',
+['%*<%*>']='*<>',
+['W=']='W'}
 
 function stringToMove(str,o)
   if str:find('Hop')then o.highlightOn(Color.Green)end
-  local s=str:gsub('[%s&]+','')
+  local s=str:lower():gsub('[%s&]+','')
   for k,v in pairs(replacement)do
     s=s:gsub(k,v)end
   if s:find('[aeiou]')then
@@ -229,7 +229,7 @@ knightParlett={--x,y,a,b
  function(t)local s=''for i=t.x,t.y do s=s..Z(i,t.a)end return s end},
 {'(%d)/(%d)%-(%d)',
  function(t)local s=''for i=t.y,t.a do s=s..Z(t.x,i)end return s end},
-{'[^<]+([<>])([WN])%((%d)/(%d)%)', --This is Either ><
+{'[^<]+([<>])([WN])%((%d)/(%d)%)', --t.x is Either '>' or '<'
  function(t)local n=1 if t.x=='<'then n=-1 end
   if t.y=='N'then
     return Q:format(t.a,n*t.b,-t.a,n*t.b)else
@@ -268,27 +268,35 @@ function parseMove(h,i)
 end
 
 
-function onChat(m)if m:lower():find('customchess:')then
+function onChat(m,p)if m:lower():find('customchess:')then
   local t,d={},''
-  --customchess:New Pawn:2:
+  --customchess:New Piece Name:move forward orthogonally 1:attack forward diagonally 1
   for s in m:gmatch(':([^:]+)')do
     table.insert(t,s)end
   
-  t[2]='CURV: '..t[2]
+  table.insert(t,2,'CURV: 2')
   
   for _,v in pairs(t)do
-    d=d..'- '..v..'\n'end
+    local capFirstLetter=v:sub(1,1):upper()..v:sub(2,-1)
+    d=d..'- '..capFirstLetter..'\n'end
   
   local obj=spawnObject({
-    type='Custom_Token',position={0,3,0},scale={0.36,1,0.36},
-    callback_function=function(o)o.setDescription(d)o.setName(t[1])parseValues(d,o)end})
+    type='Custom_Token',position=p.getPointerPosition(),scale={0.36,1,0.36},
+    callback_function=function(o)
+      o.setDescription(d)o.setName(t[1])
+      parseValues(d,o)
+      createCopy(o,p.color)
+      Wait.frames(function()o.destruct()end,3)
+      end})
   obj.setCustomObject({thickness=0.1,merge_distance=15,stackable=false,
 image='http://cloud-3.steamusercontent.com/ugc/1628571207900218122/74A391A0E2668A3DF598683ADEF674F953E4700C/'})
+
 end end
 
 function onLoad()
   if not self.getDescription():find('%WON%W')then
-    print('Chess parser is off, type :ON: into descrption then respawn it for it to do things onLoad.')return end
+    print('Chess parser is chat only, type _ON_ into descrption then respawn it for it to parse all locked Tiles.')
+    printToAll('Chess Parser makes new Pieces described in chat using `customchess:`\ncustomchess:New Piece Name:move forward orthogonally 1:attack forward diagonally 1')return end
   for _,o in pairs(getAllObjects())do
     if o.tag=='Tile'and o.getLock()then
       o.clearButtons()
@@ -311,4 +319,6 @@ function onLoad()
       end
     end
   end
+  
+  
 end

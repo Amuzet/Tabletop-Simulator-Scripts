@@ -33,8 +33,7 @@ end
 
 --[[function onObjectCollisionEnter(ro,ci)
   log(ci)
-  if ci.collision_object.getDescription()=='SECTOR'
-  and ro.getDescription()=='SECTOR'then
+  if ci.collision_object.getDescription()==ro.getDescription()then
     LockThis(nil,nil,ro)
     alignSector(ro,ci.collision_object.getPosition())
 end end

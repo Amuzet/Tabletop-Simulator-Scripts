@@ -707,7 +707,8 @@ local DeckSites = {
       return a, function(wr, qTbl) Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.') end
     end
   end,
-
+--[[
+--I don't know how to read api
   archidekt = function(a)
     return 'https://archidekt.com/api/decks/' .. a:match('/(%d+)') .. '/small/?format=json', function(wr, qTbl)
       qTbl.deck = 0
@@ -729,6 +730,7 @@ local DeckSites = {
       end
     end
   end,
+--Site Nolonger Hosted
   cubecobra = function(a)
     return a:gsub('list', 'download/csv') .. '?showother=false', function(wr, qTbl)
       local cube, list = {}, wr.text:gsub('[^\r\n]+', '', 1)
@@ -752,7 +754,7 @@ local DeckSites = {
       end
       qTbl.deck = c
     end
-  end
+  end]]
 }
 local apiRnd = 'http://api.scryfall.com/cards/random?q='
 local apiSet = apiRnd .. 'is:booster+s:'

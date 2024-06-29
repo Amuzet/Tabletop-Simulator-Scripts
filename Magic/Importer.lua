@@ -577,42 +577,7 @@ local DeckSites={
     elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
     else return a,function(wr,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
 
-	archidekt=function(a)return 'https://archidekt.com/api/decks/'..a:match('/(%d+)')..'/small/?format=json',function(wr,qTbl)
-    qTbl.deck=0
-    local json=wr.text
-    json=JSON.decode(json)
-    local board=''
-    for _,v in pairs(json.cards)do
-      for i=1,v.quantity do
-        qTbl.deck=qTbl.deck+1
-        Wait.time(function()
-          WebRequest.get('https://api.scryfall.com/cards/'..v.card.uid,
-            function(c)setCard(c,qTbl)end)end,qTbl.deck*Tick*2)end end
-    if board~=''then Player[qTbl.color].broadcast(json.name..' Sideboard and Maybeboard in notebook.\nType "Scryfall deck" to spawn it now.')
-    uNotebook(json.name,board)end end end,
-
-  cubecobra=function(a)return a:gsub('list','download/csv')..'?showother=false',function(wr,qTbl)
-    local cube,list={},wr.text:gsub('[^\r\n]+','',1)
-    if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
-    local c = 0
-    for line in list:gmatch('([^\r\n]+)')do
-      local tbl,n,l={},0,line:gsub('.-"','',2)
-      --Grab all non-empty strings surrounded by quotes, will include set and cn
-      for obj in line:gmatch('([^"]+)') do
-          table.insert(tbl,obj)
-      end
-      --Only include cards that aren't on the maybeboard
-      if line:match(',false,') then
-        local b='https://api.scryfall.com/cards/'..tbl[5]..'/'..tbl[7]
-        c=c+1
-        if tbl[9]:match('http') then
-            qTbl.image[c]=tbl[9]
-        end
-        Wait.time(function() WebRequest.get(b,function(c)setCard(c,qTbl)end) end,c*Tick)
-      end
-    end
-    qTbl.deck = c
-  end end}
+}
 local apiRnd='http://api.scryfall.com/cards/random?q='
 local apiSet=apiRnd..'is:booster+s:'
 function rarity(m,r,u)
@@ -1104,7 +1069,7 @@ local Usage=[[    [b]%s
 [-][-][0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
 [b][0077ff]Scryfall[/b] [i]URL cardname[/i]  [-][Spawns [i]cardname[/i] with [i]URL[/i] as it face]
 [b][0077ff]Scryfall[/b] [i]URL[/i]  [-][Spawn that deck list or Image]
-[b]Supported:[/b] [i]archidekt cubecobra deckstats deckbox moxfield mtggoldfish scryfall tappedout pastebin[/i]
+[b]Supported:[/b] [i]cubecobra deckstats deckbox moxfield mtggoldfish scryfall tappedout pastebin[/i]
 [b][0077ff]Scryfall help[/b] [-][Displays all possible commands]
 
 [b][ff7700]deck[/b] [-][Spawn deck from newest Notebook tab]
