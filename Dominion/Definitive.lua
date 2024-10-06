@@ -1,4 +1,4 @@
---DominionDefinitiveEditionModifiedByAmuzet2023_07_15
+--DominionDefinitiveEditionModifiedByAmuzet2024_05_15
 VERSION,GITURL=2.9,'https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Definitive.lua'
 --[[TODO:
 Program Rotate for Allies Split Piles
@@ -1945,6 +1945,7 @@ MasterData={
 ['City Quarter']={c='D8M0P0',t='Action'},
 ['Crown']={c='M5D0P0',t='Action - Treasure'},
 ['Encampment / Plunder']={c='M2D0P0',t='Action',depend='VP'},
+--TODO:XML to display warning for duration in effect
 ['Enchantress']={c='M3D0P0',t='Action - Attack - Duration'},
 ['Engineer']={c='D4M0P0',t='Action'},
 ['Farmers\' Market']={c='M3D0P0',t='Action - Gathering',depend='VP'},
@@ -2299,6 +2300,7 @@ MasterData={
 ['Figurine']={c='M5D0P0',t='Treasure'},
 ['First Mate']={c='M5D0P0',t='Action'},
 ['Frigate']={c='M5D0P0',t='Action - Duration - Attack'},
+['Hunter']={c='M5D0P0',t='Action'},
 ['Longship']={c='M5D0P0',t='Action - Duration'},
 ['Mining Road']={c='M5D0P0',t='Action'},
 ['Pendant']={c='M5D0P0',t='Treasure'},
@@ -2310,6 +2312,61 @@ MasterData={
 ['Wealthy Village']={c='M5D0P0',t='Action',depend='Loot'},
 ['Sack of Loot']={c='M6D0P0',t='Treasure',depend='Loot'},
 ['King\'s Cache']={c='M7D0P0',t='Treasure'},
+
+--RisingSun
+['Artist']={c='M0D8P0',t='Action'},
+['Daimyo']={c='M0D6P0',t='Action - Command'},
+['Mountain Shrine']={c='M0D5P0',t='Action - Omen'},
+['Fishmonger']={c='M2D0P0',t='Action - Shadow'},
+['Snake Witch']={c='M2D0P0',t='Action - Attack'},
+['Aristocrat']={c='M3D0P0',t='Action'},
+['Craftsman']={c='M3D0P0',t='Action',depend='Debt'},
+['Riverboat']={c='M3D0P0',t='Action - Duration'},
+['Root Cellar']={c='M3D0P0',t='Action',depend='Debt'},
+['Alley']={c='M4D0P0',t='Action - Shadow'},
+['Change']={c='M4D0P0',t='Action',depend='Debt'},
+['Ninja']={c='M4D0P0',t='Action - Attack - Shadow'},
+['Poet']={c='M4D0P0',t='Action - Omen'},
+['River Shrine']={c='M4D0P0',t='Action - Omen'},
+['Rustic Village']={c='M4D0P0',t='Action - Omen'},
+['Gold Mine']={c='M5D0P0',t='Action',depend='Debt'},
+['Imperial Envoy']={c='M5D0P0',t='Action',depend='Debt'},
+['Litter']={c='M5D0P0',t='Action',depend='Debt'},
+['Kitsune']={c='M5D0P0',t='Action - Attack - Omen'},
+['Rice Broker']={c='M5D0P0',t='Action'},
+['Ronin']={c='M5D0P0',t='Action - Shadow'},
+['Tanuki']={c='M5D0P0',t='Action - Shadow'},
+['Tea House']={c='M5D0P0',t='Action - Omen'},
+['Samurai']={c='M6D0P0',t='Action - Duration - Attack'},
+['Rice']={c='M7D0P0',t='Treasure'},
+
+['Amass']={c='M2D0P0',t='Event'},
+['Asceticism']={c='M2D0P0',t='Event'},
+['Continue']={c='M0D8P0',t='Event'},
+['Credit']={c='M2D0P0',t='Event',depend='Debt'},
+['Foresight']={c='M2D0P0',t='Event'},
+['Gather']={c='M7D0P0',t='Event'},
+['Kintsugi']={c='M3D0P0',t='Event'},
+['Practice']={c='M3D0P0',t='Event'},
+['Receive Tribute']={c='M5D0P0',t='Event'},
+['Sea Trade']={c='M5D0P0',t='Event'},
+
+['Approaching Army']={c='MXDXPX',t='Prophecies'},--Depend Attack
+['Biding Time']={c='MXDXPX',t='Prophecies'},--Set aside your hand before discard
+['Bureaucracy']={c='MXDXPX',t='Prophecies'},
+['Divine Wind']={c='MXDXPX',t='Prophecies'},
+['Enlightenment']={c='MXDXPX',t='Prophecies'},
+['Flourishing Trade']={c='MXDXPX',t='Prophecies'},
+['Good Harvest']={c='MXDXPX',t='Prophecies'},
+['Great Leader']={c='MXDXPX',t='Prophecies'},
+['Growth']={c='MXDXPX',t='Prophecies'},
+['Harsh Winter']={c='MXDXPX',t='Prophecies',depend='Debt'},
+['Kind Emperor']={c='MXDXPX',t='Prophecies'},
+['Panic']={c='MXDXPX',t='Prophecies'},
+['Progress']={c='MXDXPX',t='Prophecies'},
+['Rapid Expansion']={c='MXDXPX',t='Prophecies'},
+['Sickness']={c='MXDXPX',t='Prophecies'},
+
 --PromoSummonFirstPrintings
 ['Black Market']={c='M3D0P0',t='Action'},
 ['Church']={c='M3D0P0',t='Action - Duration'},

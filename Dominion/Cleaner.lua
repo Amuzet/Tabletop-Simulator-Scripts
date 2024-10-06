@@ -1,7 +1,7 @@
 --By Amuzet: make Turn Tracker display the amount of turns
 version,mod_name=2,'Dominion Play Area'
 GITURL='https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Dominion/Cleaner.lua'
-local Script,DISCONNECT,playArea,currDebt,option=false,false,false,false,{Flag=false,autoHorn=false}
+local Script,DISCONNECT,playArea,currDebt,option=false,false,false,false,{Flag=true,autoHorn=false}
 
 function toggleAutoHorn()
   option.autoHorn=not option.autoHorn;broadcastToAll('Auto Horn '..tostring(option.autoHorn))end
@@ -75,27 +75,21 @@ function onPlayerTurn(player)
                 --Both Deck and Discard were facedown or two decks are in your discard!
                 Player[Turns.getPreviousTurnColor()].broadcast('Fix your Deck/Discard area!',{1,0,1})
       end end end end end
-      --FlagHorn check
+      
       t.draw=5
       for _,v in pairs(t.zoneDeck.getObjects())do
         if v.getName()=='-1 Card Token'then t.draw=t.draw-1
           local p=v.getPosition()
           v.setPosition({p[1],p[2],p[3]+5})end end
+      --FlagHorn check
       for _,v in pairs(getObjectFromGUID(t.zone).getObjects())do
         if v.getName()=='Flag'then t.draw=t.draw+1
         elseif v.getName()=='Horn'then
+          v.clearContextMenu()
           v.addContextMenuItem('Toggle Auto Horn',toggleAutoHorn)
-          if option.autoHorn then
-            local tbl={position=t.deck,rotation={0,0,0},1}
-            for _,o in pairs(playArea.getObjects())do
-              if o.type=='Card'and o.getName()=='Border Guard'then
-                o.putObject(getDeck(t.zoneDeck.getObjects()))break
-              elseif o.type=='Deck'then
-                for d,c in pairs(o.getObjects())do
-                  if c.nickname=='Border Guard'then
-                    tbl.index,tbl.bool=d,true
-                    o.takeObject(tbl)break end end end
-              if tbl.bool then break end end end end end
+          if option.autoHorn then autoHorn(t)end
+        end
+      end
       --Put play area and hand in discard pile
       putDiscard(playArea.getObjects(),t.discard)
       putDiscard(Player[Turns.getPreviousTurnColor()].getHandObjects(),t.discard,true)
@@ -109,6 +103,23 @@ function onPlayerTurn(player)
     self.setColorTint(c)
   end
 end
+
+function autoHorn(t)
+  local tbl={position=t.deck,rotation={0,0,0},1}
+  for _,o in pairs(playArea.getObjects())do
+    if o.type=='Deck'then
+      for d,c in pairs(o.getObjects())do
+        if c.nickname=='Border Guard'then
+          tbl.index,tbl.bool=d,true
+          o.takeObject(tbl)break end end
+      if tbl.bool then break end end
+  wait(1)
+  for _,o in pairs(playArea.getObjects())do
+    if o.type=='Card'and o.getName()=='Border Guard'then
+      --Get the first border guard
+      o.putObject(getDeck(t.zoneDeck.getObjects()))
+      broadcastToAll('A Border Guard was autoHorned',Color[t.color])
+      break end end end
 
 function setPlayArea()
   self.interactable=false
