@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.970
+mod_name,version='Card Importer',1.971
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -60,7 +60,7 @@ local Card=setmetatable({n=1,image=false},
 
 			local orientation={false}--Tabletop Card Sideways
 			--Oracle text Handling for Split then DFC then Normal
-      if c.card_faces and c.image_uris then--Adventure/Split
+      if c.card_faces and c.image_uris then--Adventure/Split face.type_line:find('Room')
 				local instantSorcery=0
         for i,f in ipairs(c.card_faces)do
 					f.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..c.cmc..'CMC'
@@ -68,8 +68,7 @@ local Card=setmetatable({n=1,image=false},
           c.oracle=c.oracle..f.name..'\n'..setOracle(f)..(i==#c.card_faces and''or'\n')
 					
 					--Count nonPermanent text boxes, exclude Aftermath
-					if not c.oracle:find('Aftermath')and
-					('InstantSorcery'):find(f.type_line)then
+					if ('split'):find(c.layout)and not c.oracle:find('Aftermath')then
 						instantSorcery=1+instantSorcery end
 				end
 				if instantSorcery==2 then--Split/Fuse
@@ -81,7 +80,7 @@ local Card=setmetatable({n=1,image=false},
         c.name=f.name:gsub('"','')..'\n'..f.type_line..'\n'..cmc..'CMC DFC'
         c.oracle=setOracle(f)
 				for i,face in ipairs(c.card_faces)do
-					if face.type_line:find('Battle')then
+					if face.type_line:find('Battle')or face.type_line:find('Room')then
 						orientation[i]=true
 					else
 						orientation[i]=false
