@@ -575,7 +575,7 @@ local DeckSites={
     if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
     elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
     else return a,function(wr,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
-  cubecobra=function(a)return a:gsub('cube/deck','cube/deck/download/txt')end,function(r,qTbl)spawnDeck(r,qTbl)end
+  cubecobra=function(a)return a:gsub('cube/deck','cube/deck/download/mtgo'):gsub('?seat=', '/'),spawnDeck end
 }
 local apiRnd='http://api.scryfall.com/cards/random?q='
 local apiSet=apiRnd..'is:booster+s:'
