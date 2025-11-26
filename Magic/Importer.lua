@@ -575,7 +575,60 @@ local DeckSites={
     if a:find('/archetype/')then return a,function(wr,qTbl)Player[qTbl.color].broadcast('This is an Archtype!\nPlease spawn a User made Deck.',{0.9,0.1,0.1})endLoop()end
     elseif a:find('/deck/')then return a:gsub('/deck/','/deck/download/'):gsub('#.+',''),spawnDeck
     else return a,function(wr,qTbl)Player[qTbl.color].broadcast('This MTGgoldfish url is malformated.\nOr unsupported contact Amuzet.')end end end,
+  --Begin CubeCobra Support
+  cubecobra=function(a)return a:gsub('list','download/csv')..'?showother=false',function(wr,qTbl)
+    local cube,list={},wr.text:gsub('[^\r\n]+','',1)
+    if not qTbl.image or type(qTbl.image)~='table'then qTbl.image={}end
+    local c = 0
+    for line in list:gmatch('([^\r\n]+)')do
+      local tbl,n,l={},0,line:gsub('.-"','',2)
+      -- Sanitize empty quotes
+      if line:find('"""') then
+        lineclean=line:gsub('%"%\"%\"','"')
+        if lineclean:find('"" ') then
+          lineclean=lineclean:gsub('"" ',' ')
+        end
+      else
+        lineclean=line
+      end
+      --Grab all non-empty strings surrounded by quotes, will include set and cn
+      --"Lupine Prototype",2,"Artifact Creature - Wolf Construct",,"emn","197",rare,c,Owned,Non-foil,false,,,"","",61494
+      --"Lupine Prototype","Artifact Creature - Wolf Construct","emn","197"
+      for obj in lineclean:gmatch('"([^"]+)"') do
+        --log(obj)
+        table.insert(tbl,obj)
+      end
+      --for csv in l:gmatch('"([^,"]+)"')do log('csv:') log(csv)
+        --if csv:len()==1 then table.insert(tbl,false)
+        --else table.insert(tbl,csv:gsub('"',''))end end
 
+      --if tbl[12]:find('http')then qTbl.image[n]=tbl[12]:match('"([^"]+)')end
+      --Only include cards that aren't on the maybeboard
+      if line:match(',false,') then
+        local b='https://api.scryfall.com/cards/'..tbl[3]..'/'..tbl[4]
+        --Catch custom images
+        --This could break so fucking hard if someone uses http as a tag ffs
+        --Doesn't catch image backs, so if someone's making a DFC they can fuck themselves.
+        c=c+1
+        if tbl[5]:match('http') then --Use c to count which card should have its image replaced
+            log('c:')
+            log(c)
+            log(tbl[5])
+            qTbl.image[c]=tbl[5] --This might be messing it up, if qTbl is static across imports.
+            --If it cares about the nth card spawned, then c will always point to the nth card overall
+            --instead of from this import.
+            --b = tbl[5]
+        end
+        table.insert(cube,b)
+      end
+    end
+    qTbl.deck=#cube
+    for i,url in ipairs(cube)do
+      Wait.time(function()
+          WebRequest.get(url,function(c)
+              setCard(c,qTbl)end)end,i*Tick*2)end
+    end end
+    --End CubeCobra Support
 }
 local apiRnd='http://api.scryfall.com/cards/random?q='
 local apiSet=apiRnd..'is:booster+s:'
