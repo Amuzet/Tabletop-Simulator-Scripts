@@ -832,7 +832,7 @@ Importer=setmetatable({
         local json=JSON.decode(wr.text)
         if json.all_parts then
           qTbl.deck=#json.all_parts-1
-          for _,v in ipairs(json.all_parts)do if json.name~=v.name then
+          for _,v in ipairs(json.all_parts)do if json.d~=v.d then
               WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end end
         --What is this elseif json.oracle
         elseif json.object=='card'then
