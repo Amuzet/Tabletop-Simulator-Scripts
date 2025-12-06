@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.972
+mod_name,version='Card Importer',1.973
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -832,7 +832,7 @@ Importer=setmetatable({
         local json=JSON.decode(wr.text)
         if json.all_parts then
           qTbl.deck=#json.all_parts-1
-          for _,v in ipairs(json.all_parts)do if json.d~=v.d then
+          for _,v in ipairs(json.all_parts)do if json.id~=v.id then
               WebRequest.get(v.uri,function(wr)setCard(wr,qTbl)end)end end
         --What is this elseif json.oracle
         elseif json.object=='card'then
