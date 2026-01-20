@@ -1034,12 +1034,12 @@ Importer=setmetatable({
 
     },{
   __call=function(t,qTbl)
+    if true then
+        printToAll('SCRYFALL: As of Jan 19 2026 the Importer will be Automaticly off to be updated and cleaned up! Cards and Decks in your Saved Objects/Games should continue to work fine. The images they are using will be changing in the future. Until then I suggest using Frogtown.me',{1,0.5,0.5})
+        return
+    elseif qTbl then
       qTbl.text=newText(qTbl.position,Player[qTbl.color].steam_name..'\n'..qTbl.full)
       table.insert(t.request,qTbl)
-    if true then
-        AP('As of Jan 19 2026 the Importer will be Automaticly off to be updated and cleaned up! Cards and Decks in your Saved Objects/Games should continue to work fine. Until then I suggest using Frogtown.me')
-        return endLoop()
-    elseif qTbl then
       log(qTbl,'Importer Request '..qTbl.color)
     end
     --Main Logic
@@ -1068,24 +1068,8 @@ for k,v in pairs(Importer)do if not('request'):find(k)then
 MODES=MODES..' '..k end end
 --[[Functions used everywhere else]]
 local Usage=[[    [b]%s
-[-][-][0077ff]Scryfall[/b] [i]cardname[/i]  [-][Spawns that card]
-[b][0077ff]Scryfall[/b] [i]URL cardname[/i]  [-][Spawns [i]cardname[/i] with [i]URL[/i] as it face]
 [b][0077ff]Scryfall[/b] [i]URL[/i]  [-][Spawn that deck list or Image]
-[b]Supported:[/b] [i]cubecobra deckstats deckbox moxfield mtggoldfish scryfall tappedout pastebin[/i]
-[b][0077ff]Scryfall help[/b] [-][Displays all possible commands]
-
-[b][ff7700]deck[/b] [-][Spawn deck from newest Notebook tab]
-[b][ff7700]back[/b] [i]URL[/i] [-][Makes card back URL]
-[b][ff7700]text[/b] [i]name[/i] [-][Prints Oracle text of name]
-[b][ff7700]print[/b] [i]name[/i] [-][Spawns various printings of name]
-[b][ff7700]legal[/b] [i]name[/i] [-][Prints Legalities of name]
-[b][ff7700]rules[/b] [i]name[/i] [-][Prints Rulings of name ]
-[b][ff7700]random[/b] [i]isecalpwubrg<>=# quantity[/i] [-]['[i]ri=2[/i]' Spawns a Red Instant of CMC Two]
-[b][ff7700]search[/b] [i]syntax[/i] [-][Spawns all cards matching that search (be careful)]
-[b][ff7700]random[/b] ?q=[i]syntax quantity[/i] [-][Advanced Random using search syntax (go crazy!)]
-[b][ff7700]clear[/b] [i]back[/i]/[i]queue[/i] [-][Clears the latest request in the queue, Resets cardbacks to Default]
-[b][ff7700]quality[/b] [i]mode[/i] [-][Changes the quality of the image]
-[i]small,normal,large,art_crop,border_crop[/i] ]]
+As of Jan 19 2026 the Importer will be Automaticly off to be updated and cleaned up! Cards and Decks in your Saved Objects/Games should continue to work fine. Until then I suggest using Frogtown.me ]]
 function endLoop()if Importer.request[1]then Importer.request[1].text()table.remove(Importer.request,1)end Importer()end
 function delay(fN,tbl)local timerParams={function_name=fN,identifier=fN..'Timer'}
   if type(tbl)=='table'then timerParams.parameters=tbl end
@@ -1133,7 +1117,7 @@ function onLoad(data)
   uNotebook('SHelp',Usage)
   -- uNotebook('SData',self.script_state)   -- pieHere, remove the debug text popping into the notebook
   local u=Usage:gsub('\n\n.*','\nFull capabilities listed in Notebook: SHelp')
-  u=u..'\nWhats New: Now actually spawns Time Spiral Remastered Cards.'
+  u=u..'\nWhats New: [990000]Importer Disabled.'
   self.setDescription(u:gsub('[^\n]*\n','',1):gsub('%]  %[',']\n['))
   printToAll(u,{0.9,0.9,0.9})
   onChat('Scryfall clear back')end
@@ -1145,11 +1129,11 @@ end end
 local SMG,SMC='[b]Scryfall: [/b]',{0.5,1,0.8}
 function AP(p,s)printToAll(SMG..s:format(p.steam_name),SMC)end
 function onPlayerConnect(p)
-      if p.steam_id==author   then AP('Welcome %s, creator of me. The Card Importer!')
-  elseif p.steam_id==coauthor then AP('Praise be to %s!')end end
+      if p.steam_id==author   then AP(p,'Welcome %s, creator of me. The Card Importer!')
+  elseif p.steam_id==coauthor then AP(p,'Praise be to %s!')end end
 function onPlayerDisconnect(p)
-      if p.steam_id==author   then AP('Goodbye %s, take care of yur self buddy-o-pal!')
-  elseif p.steam_id==coauthor then AP('𝜋 doesn\'t terminate, but %s does.')end end
+      if p.steam_id==author   then AP(p,'Goodbye %s, take care of yur self buddy-o-pal!')
+  elseif p.steam_id==coauthor then AP(p,'𝜋 doesn\'t terminate, but %s does.')end end
 
 local chatToggle=false
 function onChat(msg,p)
