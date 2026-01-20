@@ -1,5 +1,5 @@
 --By Amuzet
-mod_name,version='Card Importer',1.973
+mod_name,version='Card Importer',3.2
 self.setName('[854FD9]'..mod_name..' [49D54F]'..version)
 author,WorkshopID,GITURL='76561198045776458','https://steamcommunity.com/sharedfiles/filedetails/?id=1838051922','https://raw.githubusercontent.com/Amuzet/Tabletop-Simulator-Scripts/master/Magic/Importer.lua'
 coauthor='76561197968157267'--PIE
@@ -1034,10 +1034,13 @@ Importer=setmetatable({
 
     },{
   __call=function(t,qTbl)
-    if qTbl then
-      log(qTbl,'Importer Request '..qTbl.color)
       qTbl.text=newText(qTbl.position,Player[qTbl.color].steam_name..'\n'..qTbl.full)
       table.insert(t.request,qTbl)
+    if true then
+        AP('As of Jan 19 2026 the Importer will be Automaticly off to be updated and cleaned up! Cards and Decks in your Saved Objects/Games should continue to work fine. Until then I suggest using Frogtown.me')
+        return endLoop()
+    elseif qTbl then
+      log(qTbl,'Importer Request '..qTbl.color)
     end
     --Main Logic
     if t.request[13] and qTbl then
